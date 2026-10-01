@@ -1,4 +1,4 @@
-// start-campaign — MERGED VERSION (self-contained: deploy via dashboard paste or CLI)
+// start-campaign — MERGED VERSION (CLI deploy required: imports _shared/channels.ts)
 //
 // Combines:
 //   • Status machine: only 'active' campaigns dial; auto-complete when queue empties (§2.5)
@@ -14,10 +14,24 @@
 //   Portal:  POST { campaign_id, batch_size? }   (user JWT)
 //   Cron:    POST { sweep: true, batch_size? }   (anon/service key, every minute)
 //
-// Pre-call SMS is skipped (dial immediately) when TELNYX_MESSAGING_PROFILE_ID is
-// unset or SMS_PRECALL_LEAD_SECONDS=0. SMS send failure falls back to dialing.
+// Pre-call notice is skipped (dial immediately) when SMS_PRECALL_LEAD_SECONDS=0
+// or the patient has no permitted channel. Send failure falls back to dialing.
+//
+// CareCall PH Phase 1: the pre-call notice now goes through the shared channel
+// layer (_shared/channels.ts) — Viber / Messenger / Telegram when the patient
+// has opted in there, otherwise SMS with consent. When a clinic has
+// chat_optin_enabled, SMS notices carry a /connect/<token> chat invite.
+// Because of the _shared import this function must be deployed with the CLI:
+//   supabase functions deploy start-campaign
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  type Channel,
+  canMessage,
+  createChannelInvite,
+  hasChatChannel,
+  sendToPatient,
+} from "../_shared/channels.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -27,7 +41,6 @@ const supabase = createClient(
 const TELNYX_API = "https://api.telnyx.com/v2";
 const CONNECTION_ID = Deno.env.get("TELNYX_CONNECTION_ID")!;
 const FROM_NUMBER = Deno.env.get("TELNYX_FROM_NUMBER")!;
-const MESSAGING_PROFILE_ID = Deno.env.get("TELNYX_MESSAGING_PROFILE_ID") ?? "";
 const CLINIC_NAME_FALLBACK = Deno.env.get("CLINIC_NAME") ?? "your clinic";
 // Env default lead time; per-clinic clinics.sms_precall_lead_seconds overrides it.
 const LEAD_SECONDS = Number(Deno.env.get("SMS_PRECALL_LEAD_SECONDS") ?? "120");
@@ -78,7 +91,13 @@ type QueueRow = {
   patient_id: string;
   attempts: number;
   dial_after?: string | null;
-  patients: { id: string; first_name: string; phone: string; sms_consent?: boolean } | null;
+  patients: {
+    id: string;
+    first_name: string;
+    phone: string;
+    sms_consent?: boolean;
+    preferred_channel?: Channel | null;
+  } | null;
 };
 
 // Stop retrying a stuck 'notified' row after this long (SMS sent but every dial
@@ -135,7 +154,9 @@ async function processCampaign(campaign: Campaign, batchSize: number) {
   // Per-clinic pre-call lead time (§3.2): null → env default; 0 → off for this
   // clinic (dial straight away, no text).
   const leadSeconds = await clinicLeadSeconds(campaign.clinic_id);
-  const precallSms = MESSAGING_PROFILE_ID !== "" && leadSeconds > 0;
+  // Whether to notify before dialing at all; per-patient channel permission is
+  // checked in the Phase A loop (chat opt-in or SMS consent).
+  const precallNotice = leadSeconds > 0;
 
   const now = Date.now();
   const staleCutoff = new Date(now - STALE_NOTIFIED_MS).toISOString();
@@ -191,10 +212,10 @@ async function processCampaign(campaign: Campaign, batchSize: number) {
     const patient = row.patients;
     if (!patient) continue;
 
-    // Pre-call SMS is skipped (dial directly) when the feature is off for this
-    // clinic OR the patient hasn't given SMS consent (§3.3). Absence of SMS
-    // consent must never block the call — it only skips the automated text.
-    if (!precallSms || patient.sms_consent !== true) {
+    // Pre-call notice is skipped (dial directly) when the feature is off for
+    // this clinic OR the patient has no permitted channel (no chat opt-in and
+    // no SMS consent, §3.3). Lack of consent never blocks the call itself.
+    if (!precallNotice || !(await canMessage(patient))) {
       if (await dialPatient(campaign, row)) started++;
       continue;
     }
@@ -208,28 +229,44 @@ async function processCampaign(campaign: Campaign, batchSize: number) {
     if (await clinicSelfBooking(campaign.clinic_id)) {
       bookingLink = await createBookingLink(campaign.id, patient.id, campaign.clinic_id);
     }
-    try {
-      const baseText =
+    // Chat invite (PH Phase 1): only for SMS notices, only when the patient has
+    // no chat channel yet, and only when there's no booking link already in the
+    // text (keeps the SMS to one link / short enough to read).
+    let inviteLink: string | null = null;
+    if (!bookingLink && await clinicChatOptin(campaign.clinic_id) && !(await hasChatChannel(patient.id))) {
+      inviteLink = await createChannelInvite(patient.id, campaign.clinic_id);
+    }
+
+    const text = (ch: Channel) => {
+      const where = ch === "sms" ? "from this number" : "on your registered mobile number";
+      const base =
         `Hi ${patient.first_name}, this is ${clinicName}. We'll call you ` +
-        `in about ${mins} minute${mins === 1 ? "" : "s"} from this number to help ` +
+        `in about ${mins} minute${mins === 1 ? "" : "s"} ${where} to help ` +
         `schedule an appointment`;
-      const text = bookingLink
-        ? `${baseText} — or book yourself now: ${bookingLink}. Reply STOP to opt out.`
-        : `${baseText}. Reply STOP to opt out.`;
-      await telnyx("/messages", {
-        from: FROM_NUMBER,
-        to: patient.phone,
-        messaging_profile_id: MESSAGING_PROFILE_ID,
-        text,
-      });
+      if (bookingLink) return `${base} — or book yourself now: ${bookingLink}. Reply STOP to opt out.`;
+      if (ch === "sms" && inviteLink) {
+        return `${base}. Get reminders on Viber, Messenger or Telegram: ${inviteLink}. Reply STOP to opt out.`;
+      }
+      return `${base}. Reply STOP to opt out.`;
+    };
+
+    const sent = await sendToPatient({
+      patient,
+      clinicId: campaign.clinic_id,
+      clinicName,
+      campaignId: campaign.id,
+      text,
+    });
+
+    if (sent.ok) {
       await supabase.from("campaign_patients").update({
         status: "notified",
         dial_after: new Date(Date.now() + leadSeconds * 1000).toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("campaign_id", campaign.id).eq("patient_id", patient.id);
       notified++;
-    } catch (e) {
-      console.error(`pre-call SMS failed for ${patient.id}; dialing directly`, e);
+    } else {
+      console.error(`pre-call notice failed for ${patient.id} (${sent.channel ?? "no channel"}); dialing directly`);
       if (await dialPatient(campaign, row)) started++;
     }
   }
@@ -331,6 +368,22 @@ async function createBookingLink(
     return null;
   }
   return `${PORTAL_URL}/book/${token}`;
+}
+
+// Per-clinic chat opt-in invites (PH Phase 1). Default false. Cached per invocation.
+const clinicChatOptinCache = new Map<string, boolean>();
+async function clinicChatOptin(clinicId: string | null): Promise<boolean> {
+  if (!clinicId) return false;
+  const cached = clinicChatOptinCache.get(clinicId);
+  if (cached !== undefined) return cached;
+  let enabled = false;
+  try {
+    const { data } = await supabase.from("clinics")
+      .select("chat_optin_enabled").eq("id", clinicId).single();
+    enabled = data?.chat_optin_enabled === true;
+  } catch { /* default off */ }
+  clinicChatOptinCache.set(clinicId, enabled);
+  return enabled;
 }
 
 // Per-clinic self-booking flag (§5). Default false (feature off). Cached per

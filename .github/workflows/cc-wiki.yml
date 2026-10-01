@@ -1,0 +1,17 @@
+name: CC wiki
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  wiki-in-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Validate CC wiki and check generated bundle is current
+        run: deno run -A scripts/build-cc-wiki.ts --check

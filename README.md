@@ -1,135 +1,161 @@
-# CareCall — AI Outbound Appointment Scheduling
+# CareCall PH
 
-Web platform that lets clinic staff run outbound scheduling campaigns. Telnyx AI Voice Assistants make the calls; Supabase is the single source of truth for patients, availability, appointments, and outcomes.
+AI appointment scheduling for small private clinics in the Philippines (Metro
+Manila and Cebu). Clinic staff run outreach campaigns; an AI voice assistant
+calls patients, verifies who they are, and books real slots in a clinician's
+calendar. Follow-ups go out on the patient's preferred chat app (Viber,
+Messenger, WhatsApp, Telegram) or SMS. **CC**, an assistant inside the portal,
+explains the app, guides setup, and reviews campaign results every night.
+
+Forked from CareCall (BAI-POP2, built for US clinics). **Where the project
+stands and what's next: [ROADMAP.md](ROADMAP.md).**
 
 ```
-Clinic staff → React portal → Supabase (DB + Edge Functions) ⇄ Telnyx AI Voice Assistant → Patient
+Clinic staff ─► React portal ─► Supabase (Postgres + Edge Functions) ⇄ Telnyx AI Voice Assistant ─► Patient (voice)
+                    │                     │
+                    │                     ├──► Viber · Messenger · WhatsApp · Telegram · SMS ─► Patient (chat)
+                    └── CC assistant ─────┴──► Claude (Anthropic API), CC wiki
 ```
 
-## Call flow (enforced by code, not just the prompt)
+Supabase is the single source of truth for patients, availability,
+appointments, campaign outcomes and messages.
 
-1. **AMD gate** — calls are dialed with premium answering-machine detection. The AI assistant is only started on the call after Telnyx classifies the answer as a live human. Voicemail gets a brief PHI-free callback message + SMS fallback, handled entirely by the `telnyx-call-events` function.
-2. **Identity verification** — the AI collects a stated date of birth and calls `verify_patient`; the comparison happens **server-side** and the AI only ever sees match / no-match. Two failures locks the call and flags the patient `verification_failed` for human follow-up. Scheduling tools return 403 until the call is verified.
-3. **Progressive slot disclosure** — `get_appointment_slots` returns at most 3 days, then at most 3 times for a chosen day, with speech-ready strings so the AI can't invent times.
-4. **Explicit confirmation** — `create_appointment` is idempotent (retries can't double-book) and a Postgres exclusion constraint makes provider double-booking impossible at the database level.
-5. **No forced bookings** — `mark_outcome` records declined / callback_requested / wrong_number / needs_human, and callbacks re-enter the dial queue after their `callback_after` time.
+---
+
+## What it does
+
+### Outbound scheduling campaigns
+
+A campaign is: who to contact, why, which clinician's calendar, and what slot
+length. Campaigns move through `draft → scheduled → active ⇄ paused → completed`
+and only dial inside the clinic's calling hours. A cron sweep advances every
+active campaign once a minute.
+
+### Call flow (enforced by code, not just the prompt)
+
+1. **AMD gate**: calls are dialed with premium answering-machine detection.
+   The AI starts only after Telnyx classifies the answer as a live human.
+   Voicemail gets a brief message with no health details, plus a follow-up
+   message on the patient's permitted channel.
+2. **Identity verification**: the AI collects a date of birth and calls
+   `verify_patient`; the comparison is **server-side** and the AI only sees
+   match / no match. Two failures lock the call and send the patient to the
+   Review queue. Scheduling tools return 403 until verified.
+3. **Progressive slot disclosure**: `get_appointment_slots` returns at most 3
+   days, then at most 3 times, as speech-ready strings, so the AI can't invent times.
+4. **Explicit confirmation**: `create_appointment` is idempotent, and a Postgres
+   exclusion constraint makes double-booking a clinician impossible.
+5. **No forced bookings**: `mark_outcome` records declined / callback_requested /
+   wrong_number / needs_human. Callbacks re-enter the queue after `callback_after`.
+
+Optional per clinic: a **pre-call message** a few minutes before the call, and
+**self-booking links** (`/book/<token>`) so patients can pick a slot themselves.
+
+### Chat channels: Viber, Messenger, WhatsApp, Telegram
+
+Chat apps are opt-in. An SMS or voicemail follow-up carries a `/connect/<token>`
+invite; the patient opens their app and replies **YES** (or OO / OPO / SIGE),
+which is recorded as consent. Messages then go to the patient's preferred app,
+falling back by Philippine reach (MEF): **Viber 71% → Messenger 60% → WhatsApp
+40% → Telegram 20% → SMS**. Patients can reply **BOOK** for a booking link or
+**STOP / TIGIL** to opt out, in English, Filipino or Cebuano. One chat account
+can manage several patients (a parent booking for their children).
+
+Details: [docs/messaging-channels.md](docs/messaging-channels.md).
+
+### CC, the portal assistant
+
+A chat drawer on every signed-in screen. CC:
+
+- answers how-to questions from the **CC wiki** (`docs/cc-wiki/`),
+- shows buttons to the right screen and runs guided setups step by step,
+- analyses campaigns using **aggregate data only** (no names, phones or birthdates reach the model),
+- files **action items** for clinic admins on the **CC action items** page,
+- runs a **nightly review** of every clinic at 02:00 Manila time and posts a summary.
+
+Clinic isolation is enforced by Postgres RLS (interactive CC runs as the
+signed-in user). CC can't change settings, start campaigns or contact patients.
+
+Details: [docs/cc-assistant.md](docs/cc-assistant.md).
+
+---
 
 ## Repository layout
 
 ```
-carecall/
+├── ROADMAP.md                       # phases, status, next steps
+├── docs/
+│   ├── cc-wiki/                     # CC's knowledge base (one .md per topic) ← update with every feature
+│   ├── cc-assistant.md              # CC architecture, setup, wiki workflow
+│   ├── messaging-channels.md        # chat channel design + per-platform setup
+│   ├── self-booking-link-spec.md, precall-sms-implementation-note.md, portal-ui-roles-spec_1.md
+│   └── CHANGES.md                   # historical change notes from the US build
+├── scripts/
+│   └── build-cc-wiki.ts             # docs/cc-wiki → supabase/functions/_shared/cc/wiki.generated.ts
 ├── supabase/
-│   ├── migrations/          # schema, slot-generation function, RLS, seed
+│   ├── migrations/                  # schema, RLS, slot generation, cron jobs, channels, CC
 │   └── functions/
-│       ├── _shared/         # supabase + telnyx clients, auth/audit helpers
-│       ├── start-campaign/  # dials pending patients (status/hours/DNC gated)
-│       ├── admin-manage/    # users & clinics: create/role/reset/(de)activate
-│       ├── telnyx-call-events/  # Call Control webhook: AMD, voicemail, hangup
-│       └── assistant-tools/ # verify_patient, get_appointment_slots, create_appointment, mark_outcome
+│       ├── _shared/
+│       │   ├── lib.ts               # supabase + telnyx clients, auth/audit, booking-link helpers
+│       │   ├── channels.ts          # channel resolution + senders (SMS/Viber/Messenger/WhatsApp/Telegram)
+│       │   └── cc/                  # CC tools, Claude tool loop, generated wiki bundle
+│       ├── start-campaign/          # cron sweep: pre-call notice, then dial (status/hours/DNC gated)
+│       ├── telnyx-call-events/      # Call Control webhook: AMD, voicemail follow-up, hangup, insights
+│       ├── assistant-tools/         # verify_patient, get_appointment_slots, create_appointment, mark_outcome
+│       ├── booking-api/             # public self-booking API behind /book/<token>
+│       ├── channel-webhook/         # inbound Viber / Messenger / WhatsApp / Telegram
+│       ├── admin-manage/            # portal users & clinics
+│       ├── cc-chat/                 # CC interactive
+│       └── cc-nightly/              # CC nightly review (one clinic per call)
 ├── telnyx/
-│   ├── assistant-instructions.md  # paste into the Telnyx AI Assistant
-│   └── tools.json                 # webhook tool definitions to register
-└── web/                     # React (Vite + TS) staff portal
+│   ├── assistant-instructions.md    # paste into the Telnyx AI Assistant
+│   └── tools.json                   # webhook tool definitions to register
+├── web/                             # React (Vite + TS) staff portal, /book and /connect public pages
+└── .github/workflows/cc-wiki.yml    # CI: wiki valid and generated bundle current
 ```
 
 ---
 
-## 0. Prerequisites
+## Setup
 
-- Node.js 20+ and Git
-- VS Code
-- A [Supabase](https://supabase.com) project
-- A [Telnyx](https://telnyx.com) account with: a purchased phone number, a **Call Control Application** (a.k.a. Voice API app), an **AI Assistant**, and optionally a Messaging Profile for the SMS fallback
-- Supabase CLI: `npm i -g supabase`
-- GitHub CLI (optional but easiest): `gh`
+### 0. Prerequisites
 
-## 1. Open the workspace in VS Code
+- Node.js 20+, Git, **Deno 2** (wiki build, type checks), Supabase CLI (`npm i -g supabase`)
+- A **Supabase** project. Use the **Singapore (ap-southeast-1)** region for latency to the Philippines.
+- A **Telnyx** account with: a phone number that can call Philippine mobiles,
+  a **Call Control Application**, an **AI Assistant**, and a **Messaging Profile** for SMS
+- An **Anthropic API key** for CC
+- Optional, per chat channel: a Viber bot, a Meta app (Messenger and/or
+  WhatsApp Cloud API), a Telegram bot
+
+### 1. Clone
 
 ```bash
-cd carecall
+git clone <this repo> carecall-ph && cd carecall-ph
+git remote add upstream https://github.com/mikeA911/BAI-POP2.git   # pull core fixes later
 code .
 ```
 
-Recommended extensions: **Deno** (for `supabase/functions` — enable it per-workspace only for that folder), **ESLint**, **Prettier**. A `.vscode/settings.json` is included that scopes Deno to the functions directory so it doesn't fight the React app's TypeScript.
+`.vscode/settings.json` scopes Deno to `supabase/functions` so it doesn't fight
+the React app's TypeScript.
 
-## 2. Create the GitHub repository
-
-With GitHub CLI:
-
-```bash
-git init
-git add .
-git commit -m "CareCall: initial scaffold — schema, edge functions, Telnyx assistant config, staff portal"
-gh repo create carecall --private --source=. --push
-```
-
-Without the CLI: create an empty private repo at github.com/new, then:
-
-```bash
-git init
-git add .
-git commit -m "CareCall: initial scaffold"
-git remote add origin git@github.com:<you>/carecall.git
-git branch -M main
-git push -u origin main
-```
-
-`.gitignore` already excludes `.env`, `node_modules`, and build output. **Never commit real patient data or API keys.**
-
-## 3. Set up Supabase
+### 2. Database
 
 ```bash
 supabase login
 supabase link --project-ref <PROJECT_REF>
-supabase db push                # applies migrations (schema + seed provider)
+supabase db push
 ```
 
-Set function secrets (server-side only — never exposed to the browser):
+The campaign sweep and CC nightly review run on `pg_cron` and read two Vault
+secrets. Create them once in the SQL editor:
 
-```bash
-supabase secrets set \
-  TELNYX_API_KEY=KEY_xxx \
-  TELNYX_CONNECTION_ID=<call control app id> \
-  TELNYX_ASSISTANT_ID=<assistant id> \
-  TELNYX_FROM_NUMBER=+1XXXXXXXXXX \
-  TELNYX_MESSAGING_PROFILE_ID=<optional, for SMS fallback> \
-  TOOL_WEBHOOK_SECRET=<generate: openssl rand -hex 32> \
-  CLINIC_NAME="River Valley Family Clinic" \
-  CLINIC_CALLBACK_NUMBER=+1XXXXXXXXXX \
-  CLINIC_TZ=America/Chicago \
-  PORTAL_URL=https://<portal-domain>       # base URL for self-booking links (/book/<token>)
+```sql
+select vault.create_secret('https://<PROJECT_REF>.supabase.co/functions/v1', 'functions_url');
+select vault.create_secret('<SERVICE_ROLE_KEY>', 'service_role_key');
 ```
 
-`PORTAL_URL` is used by the self-service booking link feature: `start-campaign`
-and `telnyx-call-events` mint a `/book/<token>` link and append it to outreach
-SMS (gated per-clinic by `clinics.self_booking_enabled`). If unset, SMS fall
-back to link-free copy and the feature stays dormant.
-
-Deploy the functions:
-
-```bash
-supabase functions deploy start-campaign
-supabase functions deploy admin-manage                    # portal user/clinic admin (JWT-verified)
-supabase functions deploy telnyx-call-events --no-verify-jwt
-supabase functions deploy assistant-tools --no-verify-jwt
-supabase functions deploy booking-api --no-verify-jwt      # public self-service booking API
-```
-
-(`--no-verify-jwt` because Telnyx calls those two directly; they're protected by the shared secret / always-200 webhook pattern instead. `telnyx-call-events` should additionally verify Telnyx webhook signatures before production — see Hardening below. `admin-manage` keeps JWT verification ON — it authorizes each action from the caller's role in `app_metadata`.)
-
-### 3a. Roles, RLS & scheduling (portal spec v1.1)
-
-Two additional migrations ship the role/permission model and campaign lifecycle:
-
-- `20260705000000_portal_roles.sql` — `clinics` table + `clinic_id` on all clinic-scoped tables, patient `do_not_call`/`active`, the campaign `status` machine, the review-queue `resolved` state, the `audit_log`, role helpers (`is_admin()`, `jwt_clinic_id()`, `is_clinic_admin()`), the clinic-scoped RLS rewrite, and the `avatars` storage bucket. Existing single-clinic data backfills to one seed clinic.
-- `20260705000100_cron_scheduling.sql` — a `pg_cron` job that pings `start-campaign` every 15 minutes for every `active` campaign inside its clinic's calling hours. Configure it once:
-
-  ```sql
-  alter database postgres set app.settings.functions_url = 'https://<PROJECT_REF>.supabase.co/functions/v1';
-  alter database postgres set app.settings.service_role_key = '<SERVICE_ROLE_KEY>';
-  ```
-
-**Roles** (`admin`, `clinic_admin`, `staff`) and `clinic_id` live in `auth.users.app_metadata` and are written **only** by `admin-manage`. Bootstrap the first Admin once via the Supabase dashboard or SQL:
+Bootstrap the first platform admin (after signing up that email in Supabase Auth):
 
 ```sql
 update auth.users
@@ -137,47 +163,164 @@ set raw_app_meta_data = raw_app_meta_data || '{"role":"admin","clinic_id":null}'
 where email = 'you@example.com';
 ```
 
-That user can then create clinics, Clinic Admins, and Staff from the portal. New users receive a temporary password (shown once in the UI) and are forced to change it on first login.
+That admin creates clinics, clinic admins and staff from the portal. For each
+Philippine clinic set **Timezone** to `Asia/Manila` (the schema default is still
+`America/Chicago`; see ROADMAP Phase 0).
 
-## 4. Set up Telnyx
+Per-clinic feature flags (no portal toggle yet):
 
-1. **Call Control Application** — set the webhook URL to
-   `https://<PROJECT_REF>.supabase.co/functions/v1/telnyx-call-events`
-   and enable **Answering Machine Detection: Premium**.
-2. **AI Assistant** — create one, paste `telnyx/assistant-instructions.md` into its instructions, pick a voice, and register the four tools from `telnyx/tools.json` (replace `<PROJECT_REF>` and `<TOOL_WEBHOOK_SECRET>`). Set the assistant's insights/transcript webhook to the same events URL if you want transcripts stored.
-3. Assign your outbound phone number to the Call Control Application.
+```sql
+update clinics set self_booking_enabled = true,   -- /book links in messages
+                   chat_optin_enabled   = true,   -- /connect chat invites
+                   cc_nightly_enabled   = true    -- default true
+where id = '<clinic id>';
+```
 
-## 5. Run the staff portal
+### 3. Secrets
+
+```bash
+supabase secrets set \
+  TELNYX_API_KEY=KEY_xxx \
+  TELNYX_CONNECTION_ID=<call control app id> \
+  TELNYX_ASSISTANT_ID=<assistant id> \
+  TELNYX_FROM_NUMBER=+<E.164> \
+  TELNYX_MESSAGING_PROFILE_ID=<messaging profile id> \
+  TOOL_WEBHOOK_SECRET=$(openssl rand -hex 32) \
+  CLINIC_NAME="Fallback Clinic Name" \
+  CLINIC_CALLBACK_NUMBER=+63XXXXXXXXXX \
+  CLINIC_TZ=Asia/Manila \
+  PORTAL_URL=https://<portal-domain> \
+  ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Optional: `CC_MODEL` (default `claude-sonnet-5-5`), `SMS_PRECALL_LEAD_SECONDS`
+(default 120), and the chat-channel secrets listed in
+[docs/messaging-channels.md](docs/messaging-channels.md). A channel without
+credentials is never used.
+
+`TOOL_WEBHOOK_SECRET` must match in Supabase **and** in all four Telnyx tool
+header definitions; change both together.
+
+### 4. Deploy functions
+
+Deploy with the **CLI**: several functions import `_shared/`, which pasting
+into the dashboard editor does not include.
+
+```bash
+deno run -A scripts/build-cc-wiki.ts             # refresh CC's wiki bundle first
+
+supabase functions deploy start-campaign
+supabase functions deploy admin-manage
+supabase functions deploy cc-chat
+supabase functions deploy telnyx-call-events --no-verify-jwt
+supabase functions deploy assistant-tools    --no-verify-jwt
+supabase functions deploy booking-api        --no-verify-jwt
+supabase functions deploy channel-webhook    --no-verify-jwt
+supabase functions deploy cc-nightly         --no-verify-jwt
+```
+
+`--no-verify-jwt` functions are called by Telnyx, chat platforms, patients'
+browsers or pg_cron; each authenticates requests itself (shared secret,
+platform signature, booking token, or service key). JWT-verified functions are
+called only by signed-in portal users or the cron sweep.
+
+### 5. Telnyx
+
+1. **Call Control Application**: webhook URL
+   `https://<PROJECT_REF>.supabase.co/functions/v1/telnyx-call-events`, and
+   **Answering Machine Detection: Premium**.
+2. **AI Assistant**: paste `telnyx/assistant-instructions.md` into its
+   instructions, choose a voice, and register the four tools from
+   `telnyx/tools.json` (replace `<PROJECT_REF>` and `<TOOL_WEBHOOK_SECRET>`).
+   Use the **Dynamic Variables Webhook URL** for per-call variables, and note
+   Telnyx sends tool calls to the base URL, not per-tool paths. Point the
+   insights/transcript webhook at the events URL to store transcripts.
+3. Assign the outbound number to the Call Control Application and the
+   Messaging Profile.
+
+### 6. Chat channels
+
+Follow [docs/messaging-channels.md](docs/messaging-channels.md). Start with
+Telegram (free, about 5 minutes), then Viber (commercial terms needed for
+bot-initiated messages), then Messenger and WhatsApp (Meta app review).
+
+### 7. Portal
 
 ```bash
 cd web
-cp .env.example .env        # fill in your Supabase URL + anon key
+cp .env.example .env        # Supabase URL + anon key, chat-app links for /connect
 npm install
 npm run dev
 ```
 
-Enable **Email auth** in Supabase. The portal now ships a real email/password login screen with a forced first-login password change. Sign in as the bootstrapped Admin (see §3a), then create clinics, Clinic Admins, and Staff from **Users** and **Clinics**. RLS scopes every table by clinic and role; the UI hides what a role cannot do and the database rejects it regardless.
+On Vercel, set the same `VITE_*` variables and redeploy (Vite inlines them at
+build time). `vercel.json` already rewrites `/book/*` and `/connect/*` to the SPA.
 
-Optional feature flag: set `VITE_MULTI_CLINIC=true` in `web/.env` once more than one clinic is seeded to enable the Admin clinic switcher (D2: stubbed to a single clinic by default).
+### 8. Smoke test
 
-## 6. Smoke test
+1. Clinic settings: `Asia/Manila`, calling hours covering now, pre-call message on.
+2. Clinicians: add one with availability today and tomorrow.
+3. Patients: add yourself with your PH mobile (`+639…`), real DOB, SMS consent.
+4. Campaign: create, assign yourself, **Start calling**.
+5. Expect the pre-call SMS (with a `/connect` link if chat invites are on), then the call.
+6. Answer, state your DOB, pick a slot, confirm. The dashboard shows **booked**.
+7. Re-run and let it go to voicemail: message left, follow-up message sent, no AI.
+8. Open the `/connect` link, connect Telegram, reply `OO`, re-run: the notice now arrives in Telegram.
+9. Ask CC "How did my campaign do?" and check **CC action items**.
 
-1. Portal → Campaigns → create "Annual Wellness Visits" with a greeting context.
-2. Portal → Patients → add yourself (your real mobile, your DOB).
-3. Assign yourself to the campaign, then Dashboard → **Start calling**.
-4. Answer the call: confirm your name, state your DOB, pick a slot, confirm.
-5. Watch the Live activity feed flip you to **booked**, and check Call history.
-6. Call again and let it hit voicemail to verify the AMD path (message + SMS, no AI).
+---
 
-## Hardening before production (important for healthcare)
+## Keeping CC's wiki current
 
-- **BAA / HIPAA**: patient names, phones, DOBs, and call recordings are PHI. Execute BAAs with both Supabase and Telnyx (both offer them on qualifying plans) before using real patient data.
-- **Webhook signature verification**: verify Telnyx's `telnyx-signature-ed25519` header in `telnyx-call-events` instead of trusting any POST.
-- **Calling hours & pacing**: gate `start-campaign` to local business hours and add per-minute pacing (TCPA and state robocall rules apply to healthcare reminder calls — confirm your consent basis for each patient list).
-- **Retry policy**: schedule `start-campaign` via Supabase cron to automatically retry `no_answer`/`voicemail` patients with attempt caps.
-- **Recordings**: if you enable call recording, store URLs in `call_logs.recording_url` and restrict access.
-- **Audit**: RLS is currently "any authenticated staff member"; tighten to roles if multiple clinics share an instance.
+**A feature isn't done until its CC wiki page is.** For every user-visible change:
 
-## The campaign-engine idea
+1. Edit or add `docs/cc-wiki/<id>.md` using exact on-screen labels and listing its routes.
+2. Add a line to `docs/cc-wiki/changelog.md`.
+3. Run `deno run -A scripts/build-cc-wiki.ts` and commit the generated file.
+4. Redeploy `cc-chat` and `cc-nightly`.
 
-The schema already treats scheduling as just the first campaign type: a campaign is (who to call, why, which provider calendars, which tools, what outcome). Medication adherence, care-gap outreach, intake, and surveys are new rows in `campaigns` plus new prompt/tool sets — no architectural change.
+CI fails the PR if the wiki is invalid or the bundle is stale. Format and
+writing rules: [docs/cc-wiki/README.md](docs/cc-wiki/README.md).
+
+---
+
+## Privacy and compliance (Philippines)
+
+Patient names, phone numbers, birthdates, call recordings and transcripts are
+**sensitive personal information** under the **Data Privacy Act of 2012 (RA
+10173)**. This is not legal advice; each clinic should confirm obligations with
+its Data Protection Officer or counsel. What the code does:
+
+- **Consent**: SMS requires `patients.sms_consent`; chat apps require an
+  explicit YES (timestamped in `patient_channels.opted_in_at`); STOP is
+  honoured immediately. Lack of messaging consent never blocks the call itself.
+- **Minimal content**: voicemails and messages carry no diagnoses, only the
+  clinic name, a callback number and optional booking link.
+- **Tokens**: booking and invite tokens are stored only as SHA-256 hashes.
+- **Isolation**: RLS scopes every table by clinic and role; CC's interactive
+  tools run as the user, and CC sees aggregates only.
+- **Vendors**: Supabase, Telnyx, Anthropic and Meta/Viber/Telegram process
+  personal data on the clinic's behalf; put processing agreements in place
+  before using real patient data.
+
+Hardening still open (tracked in [ROADMAP.md](ROADMAP.md)): Telnyx webhook
+signature verification (`telnyx-signature-ed25519`) in `telnyx-call-events`,
+recording access controls, data-retention jobs, NPC registration and
+breach-response procedure.
+
+---
+
+## Docs
+
+| Doc | What's in it |
+|---|---|
+| [ROADMAP.md](ROADMAP.md) | Phases, status, next steps |
+| [docs/messaging-channels.md](docs/messaging-channels.md) | Chat channel design and platform setup |
+| [docs/cc-assistant.md](docs/cc-assistant.md) | CC architecture, nightly review, wiki workflow |
+| [docs/cc-wiki/README.md](docs/cc-wiki/README.md) | How to write CC wiki pages |
+| [docs/self-booking-link-spec.md](docs/self-booking-link-spec.md) | Self-booking link spec |
+| [docs/precall-sms-implementation-note.md](docs/precall-sms-implementation-note.md) | Pre-call message design |
+| [docs/portal-ui-roles-spec_1.md](docs/portal-ui-roles-spec_1.md) | Portal roles and permissions |
+
+**Never commit real patient data or API keys.** `.gitignore` excludes `.env`,
+`node_modules` and build output.

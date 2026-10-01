@@ -20,12 +20,23 @@
 //                     callback message, send an SMS, hang up. Never start the AI.
 //   3. On call.hangup → finalize the call log and campaign_patient status.
 // Also receives the assistant's post-call Insights webhook on this same URL.
+//
+// CareCall PH Phase 1 (2026-10-01): the voicemail follow-up message now goes
+// through _shared/channels.ts — the patient's opted-in chat app (Viber /
+// Messenger / Telegram) first, SMS with consent otherwise. SMS follow-ups carry
+// a chat invite when the clinic has chat_optin_enabled and no booking link.
 
 import { supabase, telnyx, json, createBookingLink } from "../_shared/lib.ts";
+import {
+  type Channel,
+  type PatientLite,
+  createChannelInvite,
+  hasChatChannel,
+  sendToPatient,
+} from "../_shared/channels.ts";
 
 const ASSISTANT_ID = Deno.env.get("TELNYX_ASSISTANT_ID")!;
 const FROM_NUMBER = Deno.env.get("TELNYX_FROM_NUMBER")!;
-const MESSAGING_PROFILE_ID = Deno.env.get("TELNYX_MESSAGING_PROFILE_ID") ?? "";
 // Env values remain as fallback defaults (§5). Per-clinic values are read from
 // the clinics row via the call's campaign so one deployment serves many clinics.
 const DEFAULT_CLINIC_NAME = Deno.env.get("CLINIC_NAME") ?? "your clinic";
@@ -47,11 +58,19 @@ async function clinicForCall(ccid: string): Promise<{ id: string | null; name: s
   };
 }
 
-/** Whether a patient has given SMS consent (§3.3). Missing row → treated as no. */
-async function patientSmsConsent(patientId: string): Promise<boolean> {
+/** Minimal patient record for channel resolution (consent + preferred channel). */
+async function loadPatientLite(patientId: string): Promise<PatientLite | null> {
   const { data } = await supabase.from("patients")
-    .select("sms_consent").eq("id", patientId).maybeSingle();
-  return (data as { sms_consent?: boolean } | null)?.sms_consent === true;
+    .select("id, phone, sms_consent, preferred_channel").eq("id", patientId).maybeSingle();
+  return (data as PatientLite | null) ?? null;
+}
+
+/** Per-clinic chat opt-in invite flag (PH Phase 1). Default off. */
+async function clinicChatOptin(clinicId: string | null): Promise<boolean> {
+  if (!clinicId) return false;
+  const { data } = await supabase.from("clinics")
+    .select("chat_optin_enabled").eq("id", clinicId).maybeSingle();
+  return (data as { chat_optin_enabled?: boolean } | null)?.chat_optin_enabled === true;
 }
 
 Deno.serve(async (req) => {
@@ -151,27 +170,37 @@ Deno.serve(async (req) => {
         if (state?.patient_id && state?.campaign_id) {
           await markUnreached(state.campaign_id, state.patient_id, ccid, "voicemail");
           const clinic = await clinicForCall(ccid);
-          // Voicemail-fallback SMS requires SMS consent, same rule as the
-          // pre-call text (§3.3). No consent → skip the text (call already made).
-          const smsConsent = await patientSmsConsent(state.patient_id);
-          if (MESSAGING_PROFILE_ID && state.patient_phone && clinic.smsFallback && smsConsent) {
-            let text =
-              `Hi, this is ${clinic.name}. We called to help you schedule an appointment. ` +
-              `Please call us at ${clinic.callback} and we'll find a time that works. Reply STOP to opt out.`;
+          // Voicemail follow-up goes to the patient's opted-in chat channel, or
+          // SMS with consent (§3.3). No permitted channel → skip (call was made).
+          const patient = await loadPatientLite(state.patient_id);
+          if (patient && clinic.smsFallback) {
+            let bookingLink: string | null = null;
             if (clinic.selfBooking) {
-              const link = await createBookingLink(state.campaign_id, state.patient_id, clinic.id);
-              if (link) {
-                text =
-                  `Hi, this is ${clinic.name}. We tried to reach you about scheduling an ` +
-                  `appointment. Pick a time that works for you: ${link}. Reply STOP to opt out.`;
-              }
+              bookingLink = await createBookingLink(state.campaign_id, state.patient_id, clinic.id);
             }
-            await telnyx(`/messages`, {
-              from: FROM_NUMBER,
-              to: state.patient_phone,
-              messaging_profile_id: MESSAGING_PROFILE_ID,
+            let inviteLink: string | null = null;
+            if (!bookingLink && await clinicChatOptin(clinic.id) && !(await hasChatChannel(patient.id))) {
+              inviteLink = await createChannelInvite(patient.id, clinic.id);
+            }
+            const text = (ch: Channel) => {
+              if (bookingLink) {
+                return `Hi, this is ${clinic.name}. We tried to reach you about scheduling an ` +
+                  `appointment. Pick a time that works for you: ${bookingLink}. Reply STOP to opt out.`;
+              }
+              const base = `Hi, this is ${clinic.name}. We called to help you schedule an appointment. ` +
+                `Please call us at ${clinic.callback} and we'll find a time that works.`;
+              if (ch === "sms" && inviteLink) {
+                return `${base} Get reminders on Viber, Messenger or Telegram: ${inviteLink}. Reply STOP to opt out.`;
+              }
+              return `${base} Reply STOP to opt out.`;
+            };
+            await sendToPatient({
+              patient,
+              clinicId: clinic.id,
+              clinicName: clinic.name,
+              campaignId: state.campaign_id,
               text,
-            }).catch((e) => console.error("SMS failed", e));
+            }).catch((e) => console.error("voicemail follow-up failed", e));
           }
         }
         await telnyx(`/calls/${ccid}/actions/hangup`, {});

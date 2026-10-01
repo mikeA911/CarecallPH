@@ -9,6 +9,7 @@ import type { Role } from "./lib/types";
 import Login from "./pages/Login";
 import About from "./pages/About";
 import BookPage from "./pages/BookPage";
+import ConnectPage from "./pages/ConnectPage";
 import Dashboard from "./pages/Dashboard";
 import Review from "./pages/Review";
 import Campaigns from "./pages/Campaigns";
@@ -23,6 +24,8 @@ import Users from "./pages/settings/Users";
 import Profile from "./pages/settings/Profile";
 import AdminClinics from "./pages/admin/Clinics";
 import AdminSettings from "./pages/admin/Settings";
+import CCActions from "./pages/CCActions";
+import CCPanel from "./components/CCPanel";
 
 function Guard({ min, children }: { min: Role; children: ReactNode }) {
   const { role } = useSession();
@@ -50,6 +53,26 @@ function useReviewCount() {
     load();
     const ch = supabase.channel("review-badge")
       .on("postgres_changes", { event: "*", schema: "public", table: "campaign_patients" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeClinicId]);
+  return count;
+}
+
+function useOpenActionCount() {
+  const { activeClinicId } = useClinic();
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!activeClinicId) return;
+    async function load() {
+      const { count: n } = await supabase.from("cc_action_items")
+        .select("id", { count: "exact", head: true })
+        .eq("clinic_id", activeClinicId).eq("status", "open");
+      setCount(n ?? 0);
+    }
+    load();
+    const ch = supabase.channel("cc-actions-badge")
+      .on("postgres_changes", { event: "*", schema: "public", table: "cc_action_items" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [activeClinicId]);
@@ -86,6 +109,7 @@ function ClinicSwitcher() {
 function Sidebar() {
   const { role, signOut, session } = useSession();
   const reviewCount = useReviewCount();
+  const actionCount = useOpenActionCount();
   const isClinicAdmin = roleAtLeast(role, "clinic_admin");
   const isAdmin = role === "admin";
 
@@ -103,6 +127,10 @@ function Sidebar() {
       <NavLink to="/campaigns">Campaigns</NavLink>
       <NavLink to="/patients">Patients</NavLink>
       <NavLink to="/history">Call history</NavLink>
+      <NavLink to="/cc">
+        CC action items
+        {actionCount > 0 && <span className="nav-badge">{actionCount}</span>}
+      </NavLink>
 
       {isClinicAdmin && (
         <>
@@ -145,6 +173,15 @@ export default function App() {
     );
   }
 
+  // Public chat opt-in page (PH Phase 1) — also outside the auth guard.
+  if (location.pathname.startsWith("/connect/")) {
+    return (
+      <Routes>
+        <Route path="/connect/:token" element={<ConnectPage />} />
+      </Routes>
+    );
+  }
+
   if (loading) return <div className="auth-screen"><div className="auth-card">Loading…</div></div>;
   if (!session || forcePasswordChange) return <Login />;
 
@@ -162,6 +199,7 @@ export default function App() {
           <Route path="/patients" element={<Patients />} />
           <Route path="/patients/:id" element={<PatientDetail />} />
           <Route path="/history" element={<CallHistory />} />
+          <Route path="/cc" element={<CCActions />} />
           <Route path="/clinicians" element={<Guard min="clinic_admin"><Clinicians /></Guard>} />
           <Route path="/settings/clinic" element={<Guard min="clinic_admin"><ClinicSettings /></Guard>} />
           <Route path="/settings/users" element={<Guard min="clinic_admin"><Users /></Guard>} />
@@ -171,6 +209,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace state={{ from: location }} />} />
         </Routes>
       </main>
+      <CCPanel />
     </div>
   );
 }
