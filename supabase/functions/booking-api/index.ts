@@ -16,7 +16,7 @@
 
 import { supabase, json, speakable, hashBookingToken } from "../_shared/lib.ts";
 
-const DEFAULT_CLINIC_TZ = Deno.env.get("CLINIC_TZ") ?? "America/Chicago";
+const DEFAULT_CLINIC_TZ = Deno.env.get("CLINIC_TZ") ?? "Asia/Manila";
 const MAX_VERIFY_ATTEMPTS = 2; // initial attempt + one retry (mirrors verify_patient)
 const VERIFY_RATE_PER_MIN = 10; // per-IP verify attempts / minute
 

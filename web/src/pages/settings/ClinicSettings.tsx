@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useClinic } from "../../lib/clinic";
+import { normalizePhPhone } from "../../lib/phone";
 import { CAMPAIGN_TYPES, type Clinic, type AppointmentTypeAssistant } from "../../lib/types";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -60,18 +61,25 @@ export default function ClinicSettings() {
   }
 
   function setDay(weekday: number, open: boolean) {
-    setHours((h) => ({ ...h, [weekday]: open ? (h[weekday] ?? { start: "09:00", end: "19:00" }) : null }));
+    setHours((h) => ({ ...h, [weekday]: open ? (h[weekday] ?? { start: "08:00", end: "18:00" }) : null }));
   }
   function setTime(weekday: number, which: "start" | "end", value: string) {
-    setHours((h) => ({ ...h, [weekday]: { ...(h[weekday] ?? { start: "09:00", end: "19:00" }), [which]: value } }));
+    setHours((h) => ({ ...h, [weekday]: { ...(h[weekday] ?? { start: "08:00", end: "18:00" }), [which]: value } }));
   }
 
   async function save() {
     if (!clinic) return;
+    // Callback number is optional; when given it may be a mobile or a landline.
+    let phoneCallback: string | null = null;
+    if (clinic.phone_callback?.trim()) {
+      const parsed = normalizePhPhone(clinic.phone_callback, { allowLandline: true });
+      if (!parsed.ok) { setMsg(`Callback phone number: ${parsed.error}`); return; }
+      phoneCallback = parsed.e164;
+    }
     setSaving(true);
     const { error } = await supabase.from("clinics").update({
       name: clinic.name,
-      phone_callback: clinic.phone_callback,
+      phone_callback: phoneCallback,
       timezone: clinic.timezone,
       calling_hours: hours,
       sms_fallback: clinic.sms_fallback,
@@ -79,6 +87,7 @@ export default function ClinicSettings() {
       greeting_default: clinic.greeting_default,
     }).eq("id", clinic.id);
     setSaving(false);
+    if (!error) setClinic({ ...clinic, phone_callback: phoneCallback });
     setMsg(error ? `Failed: ${error.message}` : "Clinic settings saved.");
   }
 
@@ -94,11 +103,11 @@ export default function ClinicSettings() {
         <input value={clinic.name} onChange={(e) => setClinic({ ...clinic, name: e.target.value })} />
 
         <label>Callback phone number</label>
-        <input value={clinic.phone_callback ?? ""} placeholder="+1…"
+        <input value={clinic.phone_callback ?? ""} placeholder="0917 123 4567 or 02 8123 4567"
                onChange={(e) => setClinic({ ...clinic, phone_callback: e.target.value })} />
 
         <label>Timezone (IANA)</label>
-        <input value={clinic.timezone} placeholder="America/Chicago"
+        <input value={clinic.timezone} placeholder="Asia/Manila"
                onChange={(e) => setClinic({ ...clinic, timezone: e.target.value })} />
 
         <label>Default greeting context</label>

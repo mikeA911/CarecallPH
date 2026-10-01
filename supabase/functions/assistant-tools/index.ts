@@ -12,7 +12,7 @@
 
 import { supabase, json, checkToolSecret, speakable } from "../_shared/lib.ts";
 
-const DEFAULT_CLINIC_TZ = Deno.env.get("CLINIC_TZ") ?? "America/Chicago";
+const DEFAULT_CLINIC_TZ = Deno.env.get("CLINIC_TZ") ?? "Asia/Manila";
 const MAX_VERIFY_ATTEMPTS = 2; // initial attempt + one retry
 
 /** Resolve the clinic timezone for a call context, falling back to the env default (§5).

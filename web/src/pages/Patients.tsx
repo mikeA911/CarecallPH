@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useSession, roleAtLeast } from "../lib/session";
 import { useClinic } from "../lib/clinic";
+import { normalizePhPhone } from "../lib/phone";
 import type { Patient, Campaign } from "../lib/types";
 
 type ParsedRow = {
@@ -48,11 +49,12 @@ export default function Patients() {
       complete: (res) => {
         const rows: ParsedRow[] = (res.data as Record<string, string>[]).map((r) => {
           const first_name = (r.first_name ?? "").trim();
-          const phone = normalizePhone(r.phone ?? "");
+          const parsed = normalizePhPhone(r.phone ?? "");
+          const phone = parsed.ok ? parsed.e164 : (r.phone ?? "").trim();
           const dob = (r.date_of_birth ?? "").trim();
           let error: string | undefined;
           if (!first_name) error = "missing first_name";
-          else if (!/^\+\d{8,15}$/.test(phone)) error = "invalid phone";
+          else if (!parsed.ok) error = parsed.error;
           else if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) error = "DOB must be YYYY-MM-DD";
           return {
             first_name, last_name: (r.last_name ?? "").trim(), phone, date_of_birth: dob,
@@ -83,8 +85,10 @@ export default function Patients() {
   }
 
   async function addOne() {
+    const parsed = normalizePhPhone(form.phone);
+    if (!parsed.ok) { setMsg(parsed.error); return; }
     const { error } = await supabase.from("patients")
-      .insert({ ...form, clinic_id: activeClinicId, phone: normalizePhone(form.phone) });
+      .insert({ ...form, clinic_id: activeClinicId, phone: parsed.e164 });
     setMsg(error ? `Failed: ${error.message}` : "Patient added.");
     setForm({ first_name: "", last_name: "", phone: "", date_of_birth: "", sms_consent: false });
     load();
@@ -151,7 +155,7 @@ export default function Patients() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <input placeholder="First name" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
             <input placeholder="Last name" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
-            <input placeholder="Phone (+1…)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input placeholder="Mobile (09… or +63…)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             <input placeholder="DOB YYYY-MM-DD" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
           </div>
           <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
@@ -198,11 +202,4 @@ export default function Patients() {
       </table>
     </>
   );
-}
-
-function normalizePhone(raw: string): string {
-  const d = raw.replace(/\D/g, "");
-  if (d.length === 10) return `+1${d}`;
-  if (d.length === 11 && d.startsWith("1")) return `+${d}`;
-  return raw.startsWith("+") ? raw : `+${d}`;
 }

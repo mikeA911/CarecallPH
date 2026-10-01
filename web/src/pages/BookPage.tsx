@@ -20,9 +20,10 @@ import {
 
 type Step = "loading" | "verify" | "day" | "time" | "confirm" | "success";
 
-/** Explicit, human-readable timezone label, e.g. "all times US Central". */
+/** Explicit, human-readable timezone label, e.g. "all times Philippine Time (PHT)". */
 function tzLabel(tz: string): string {
   const map: Record<string, string> = {
+    "Asia/Manila": "Philippine Time (PHT)",
     "America/Chicago": "US Central",
     "America/New_York": "US Eastern",
     "America/Denver": "US Mountain",
@@ -56,7 +57,7 @@ export default function BookPage() {
   // Confirmation
   const [spoken, setSpoken] = useState<string | null>(null);
 
-  const tz = ctx?.timezone ?? "America/Chicago";
+  const tz = ctx?.timezone ?? "Asia/Manila";
 
   // Initial context load. Resolves the starting step from the link's state.
   useEffect(() => {

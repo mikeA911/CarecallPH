@@ -25,6 +25,7 @@
 // portal users. Authorization is enforced per-action below.
 
 import { supabase, json, getCaller, audit, corsHeaders } from "../_shared/lib.ts";
+import { normalizePhPhone } from "../_shared/phone.ts";
 
 const FORCE_CHANGE_KEY = "force_password_change";
 
@@ -274,10 +275,19 @@ async function createClinic(caller: Caller, body: Record<string, unknown>) {
   const name = String(body.name ?? "").trim();
   if (!name) return json({ error: "name required" }, 400, corsHeaders());
 
+  // Optional callback number: PH mobile or landline, stored as E.164.
+  let phoneCallback: string | null = null;
+  const rawCallback = String(body.phone_callback ?? "").trim();
+  if (rawCallback) {
+    const parsed = normalizePhPhone(rawCallback, { allowLandline: true });
+    if (!parsed.ok) return json({ error: `phone_callback: ${parsed.error}` }, 400, corsHeaders());
+    phoneCallback = parsed.e164;
+  }
+
   const { data, error } = await supabase.from("clinics").insert({
     name,
-    timezone: (body.timezone as string) ?? "America/Chicago",
-    phone_callback: (body.phone_callback as string) ?? null,
+    timezone: (body.timezone as string) ?? "Asia/Manila",
+    phone_callback: phoneCallback,
     greeting_default: (body.greeting_default as string) ?? null,
   }).select("id").single();
   if (error) return json({ error: error.message }, 400, corsHeaders());

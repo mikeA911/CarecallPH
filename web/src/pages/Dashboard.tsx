@@ -220,10 +220,6 @@ export default function Dashboard() {
         </div>
         <div className="sb-group">
           <span className="sb-date">{todayLabel}</span>
-          <span className="sb-sep" aria-hidden>·</span>
-          <span className="sb-support">
-            Support <a href="tel:+16154232722">+1 (615) 423-2722</a>
-          </span>
         </div>
       </div>
 
