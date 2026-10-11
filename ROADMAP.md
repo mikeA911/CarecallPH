@@ -18,7 +18,7 @@ healthcare access and continuity platform for Southeast Asia*, Oct 2026).
 |---|---|---|---|
 | **CareCall Recall** | Re-engage existing patients by chat; due follow-ups and missed visits become booked appointments | 1, 1T, 1C | **Built**; first commercial MVP |
 | **CareCall Discover** | Free-to-patient symptom-guided navigation and booking with participating clinics at CareCallPH.com | D | **Planned** (after Recall pilot) |
-| **CareCall Voice** | AI outbound calls for non-responders; later the inbound receptionist | Base, 0, 2 | Outbound **Done** in US build; PH carrier test pending |
+| **CareCall Voice** | AI outbound calls for non-responders; later the inbound receptionist | Base, 0b, 2 | Outbound **Done** in US build; PH carrier test pending |
 | **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **Planned** |
 | **CareLink RPM Intelligence** | Device readings, trends and a prioritized clinician review queue | R | **Idea** (later clinical pilot) |
 
@@ -40,7 +40,8 @@ by country before any Southeast Asian expansion.
 | Phase | Scope | Status |
 |---|---|---|
 | Base | Outbound AI scheduling (inherited from CareCall US) | **Done** in the US build; needs re-verifying on PH accounts |
-| 0 | Revive on new accounts, Philippine defaults | **In progress**: PH code defaults built; accounts waiting on Telnyx |
+| 0a | PH accounts for the Recall pilot: Supabase, Vercel, Telegram | **In progress**: code built; accounts being set up |
+| 0b | PH telephony for Voice: Telnyx, carrier test, call-detection tuning | **Planned**: needed for Voice (6–9 months) |
 | 1 | Chat channels: Viber, Messenger, WhatsApp, Telegram | **Built** |
 | 1T | Chat-first pilot: chat campaigns, staff invites, Telegram first | **Built** |
 | 1C | CC assistant, LLM wiki, nightly review | **Built** |
@@ -73,19 +74,33 @@ Done and verified end to end in the US build (August 2026):
 - Portal: roles (admin / clinic admin / staff), multi-clinic RLS, Review queue,
   call history with transcripts and summaries, clinicians and availability
 
-## Phase 0: Revive on PH accounts
+## Phase 0a: PH accounts for the Recall pilot
+
+Everything the chat-only Recall pilot needs. No phone account required.
 
 | Item | Status |
 |---|---|
-| New repo mirrored from BAI-POP2 with `upstream` remote | Planned |
-| Telnyx account: number, Call Control app, AI Assistant, Messaging Profile | Planned |
-| Supabase project in Singapore; migrations, Vault secrets, functions deployed | Planned |
+| New repo from BAI-POP2 (`upstream` remote is set per clone, see README §1) | **Done** |
 | Phone normalization: accept `09xx…` / `9xx…`, store `+639xx…` (import, add patient, clinic callback number; `/book` takes no phone) | **Built** |
 | Defaults: clinic timezone `Asia/Manila`, PH-friendly calling hours (Mon–Fri 08–18, Sat 08–12), `+63` placeholders in the portal | **Built** |
 | `BookPage` timezone label for `Asia/Manila` ("Philippine Time (PHT)") | **Built** |
+| Supabase project in Singapore; migrations, Vault secrets, functions deployed | Planned |
+| `supabase/config.toml` `project_id` set to the new project | Planned (after the project exists) |
+| Vercel portal with `VITE_*` variables | Planned |
+| Telegram bot and webhook (`docs/messaging-channels.md` §3) | Planned |
+| Chat-only pilot test (README §9) passes | Planned |
+
+## Phase 0b: PH telephony for Voice
+
+Needed before the Voice add-on (stage 6–9 months), not for the Recall pilot.
+
+| Item | Status |
+|---|---|
+| AI voice instructions for the Philippines: Filipino/Taglish, "po/opo", PH date and time phrasing, 911 for emergencies, no reminder promise | **Built** |
+| Telnyx account: number, Call Control app, AI Assistant, Messaging Profile | Planned |
 | Carrier test: call and SMS to Globe, Smart, DITO; check caller ID display | Planned |
-| AMD tuning: ringback tunes and "subscriber cannot be reached" announcements | Planned |
-| Smoke test (README §8) passes on PH accounts | Planned |
+| Call-detection tuning: ringback tunes and "subscriber cannot be reached" announcements (from real test-call recordings) | Planned |
+| Full smoke test (README §8) passes on PH accounts | Planned |
 
 ## Phase 1: Chat channels
 
@@ -307,6 +322,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-11 | Phase 0 split into 0a (Recall pilot accounts) and 0b (telephony for Voice); AI voice instructions adapted for the Philippines |
 | 2026-10-11 | Product progression CareCall → CareLink (Recall, Discover, Voice, CareLink Records, RPM), delivery stages and gates, phases D / L / R, pricing hypotheses |
 | 2026-10-11 | Chat birthday check, per-clinic patient uniqueness, lighter patient pages |
 | 2026-10-11 | Phase 1T chat-first pilot: chat campaigns, Invite to chat with QR codes, chat status and messages on the patient page, clinic settings switches, Telegram setup guide |
