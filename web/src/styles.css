@@ -116,6 +116,8 @@ tbody tr:hover td { background: rgba(26,86,219,0.03); }
 .badge.verification_failed, .badge.needs_human { background: #E9E7FB; color: var(--indigo); } /* Human Intervention — Indigo */
 .badge.callback_requested { background: #E4EDFC; color: var(--blue); }
 .badge.notified { background: #E4EDFC; color: var(--blue); }                  /* Pre-call text sent — Blue  */
+.badge.messaged { background: #E4EDFC; color: var(--blue); }                  /* Chat link sent — Blue      */
+.badge.needs_invite { background: #FCEFDD; color: #B45E05; }              /* Needs chat invite — Amber  */
 
 /* Primary action — Healthcare Blue solid (guideline §8) */
 button, .btn {
@@ -731,3 +733,11 @@ a.btn { display: inline-block; text-decoration: none; }
 .cc-review-head { display: flex; gap: 10px; align-items: center; }
 .cc-review-head div { display: flex; flex-direction: column; line-height: 1.3; }
 .cc-review p { margin: 10px 0 0; line-height: 1.55; }
+
+/* Patient detail — chat invite card (QR + messages) */
+.invite-card { max-width: 640px; }
+.invite-grid { display: grid; grid-template-columns: 180px 1fr; gap: var(--sp-3); align-items: start; }
+.invite-grid img { border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.invite-grid > div { min-width: 0; }
+.msg-body { white-space: pre-wrap; max-width: 420px; }
+@media (max-width: 560px) { .invite-grid { grid-template-columns: 1fr; } }

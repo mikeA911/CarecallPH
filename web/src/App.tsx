@@ -8,8 +8,6 @@ import type { Role } from "./lib/types";
 
 import Login from "./pages/Login";
 import About from "./pages/About";
-import BookPage from "./pages/BookPage";
-import ConnectPage from "./pages/ConnectPage";
 import Dashboard from "./pages/Dashboard";
 import Review from "./pages/Review";
 import Campaigns from "./pages/Campaigns";
@@ -162,26 +160,8 @@ export default function App() {
   const { session, loading, forcePasswordChange } = useSession();
   const location = useLocation();
 
-  // Public self-service booking page — outside the auth guard. The patient is
-  // not a portal user, so this must render before any session/loading gate
-  // (self-booking-link-spec §6).
-  if (location.pathname.startsWith("/book/")) {
-    return (
-      <Routes>
-        <Route path="/book/:token" element={<BookPage />} />
-      </Routes>
-    );
-  }
-
-  // Public chat opt-in page (PH Phase 1) — also outside the auth guard.
-  if (location.pathname.startsWith("/connect/")) {
-    return (
-      <Routes>
-        <Route path="/connect/:token" element={<ConnectPage />} />
-      </Routes>
-    );
-  }
-
+  // Public patient pages (/book, /connect) never reach this component: main.tsx
+  // routes them to PublicApp, outside the sign-in gate.
   if (loading) return <div className="auth-screen"><div className="auth-card">Loading…</div></div>;
   if (!session || forcePasswordChange) return <Login />;
 

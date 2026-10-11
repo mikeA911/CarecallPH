@@ -1,11 +1,11 @@
 ---
 id: clinic-settings
 title: Clinic settings
-summary: Display name, callback number, timezone, calling hours, greeting, pre-call message and lead time, campaign types.
+summary: Display name, callback number, timezone, calling hours, greeting, booking links and chat invites, pre-call message and lead time, campaign types.
 roles: clinic_admin
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-02
+updated: 2026-10-11
 ---
 
 - **Display name**: how the clinic is named in calls and messages.
@@ -19,15 +19,16 @@ updated: 2026-10-02
   new clinics). All calling hours and slot times use it, and booking links say
   "All times Philippine Time (PHT)".
 - **Calling hours (clinic-local)**: per weekday start and end. Outside these
-  hours no calls or pre-call messages go out. Closed days have no hours.
+  hours no calls or campaign messages go out. Closed days have no hours.
   New clinics start with Mon–Fri 08:00–18:00, Sat 08:00–12:00, Sunday closed.
   Opening a closed day fills in 08:00–18:00. One window per day (no lunch break).
 - **Default greeting context**: default "reason" for new campaigns.
+- **Self-booking links in call campaigns**: adds a booking link to pre-call texts
+  and lets patients reply BOOK in a chat app. Chat campaigns always send links.
+- **Chat app invites in text messages**: adds a link to connect a chat app to
+  texts CareCall sends. **Invite to chat** on a patient's page works either way.
 - **Pre-call text message**: on/off, and **Lead time before the call
   (seconds, 60–600)**. Patients get a heads-up message, then the call after the
   lead time. Longer leads (5–10 minutes) give patients time to use a booking link.
 - **Campaign types & Telnyx assistants**: maps each campaign type to the AI
   voice assistant that handles it.
-
-Self-booking and chat invites are not in this screen yet; a platform admin
-turns them on.

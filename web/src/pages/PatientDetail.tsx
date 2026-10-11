@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useSession, roleAtLeast } from "../lib/session";
+import { useClinic } from "../lib/clinic";
+import ChatSection from "../components/ChatSection";
 import type { Patient } from "../lib/types";
 
 type CallRow = {
@@ -14,6 +16,7 @@ export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const { role } = useSession();
   const canManage = roleAtLeast(role, "clinic_admin");
+  const { activeClinic } = useClinic();
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [calls, setCalls] = useState<CallRow[]>([]);
@@ -81,6 +84,10 @@ export default function PatientDetail() {
           </div>
         )}
       </div>
+
+      <ChatSection patientId={patient.id} firstName={patient.first_name}
+                   clinicName={activeClinic?.name ?? "your clinic"}
+                   canInvite={patient.active && !patient.do_not_call} />
 
       <h2>Call history</h2>
       <table>
