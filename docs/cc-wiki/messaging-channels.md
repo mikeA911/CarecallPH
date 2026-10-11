@@ -32,16 +32,24 @@ channel.
    - inside a text message from CareCall, when **Chat app invites in text
      messages** is on in Clinic settings.
 2. The link opens a page with a button for each app the clinic has set up.
-3. The app opens a chat with the clinic's assistant, which asks the patient to
-   reply **YES** (or OO / OPO / SIGE).
-4. Nothing is sent on that app until they reply YES. That reply is recorded as
-   their consent.
+3. The app opens a chat with the clinic's assistant, which first asks for the
+   patient's **date of birth**, to confirm the invite reached the right person.
+   Most formats work: March 14, 1985 · 14/03/1985 · 03/14/1985 · 1985-03-14,
+   and Filipino month names. Two wrong dates lock the invite; staff then create
+   a new one with **Invite to chat**. The birthday typed in the chat is not
+   stored.
+4. After the birthday matches, it asks the patient to reply **YES** (or OO /
+   OPO / SIGE). Nothing is sent on that app until they do. That reply is
+   recorded as their consent.
 
 One chat account can be linked to several patients, for example a parent who
-manages their children's appointments. Invite links work for 30 days.
+manages their children's appointments: they enter each child's date of birth
+when they open that child's invite. Invite links work for 30 days.
 
 The patient's page shows **Chat apps** (connected, said YES, status) and their
-recent **Messages**.
+recent **Messages**. Status is one of **Waiting for birthday**, **Birthday
+didn't match: create a new invite**, **Waiting for YES**, **Active** or
+**Stopped messages**.
 
 ## Which apps are available
 

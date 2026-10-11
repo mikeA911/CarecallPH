@@ -294,7 +294,9 @@ project, the portal on Vercel and a Telegram bot.
    1. Clinic settings: `Asia/Manila`, calling hours covering now.
    2. Clinicians: one clinician with availability in the next few days.
    3. Patients: add yourself. Open your page, click **Invite to chat**, scan the
-      QR code with your phone, choose Telegram, press **Start**, reply `OO`.
+      QR code with your phone, choose Telegram, press **Start**, reply with your
+      date of birth (e.g. `March 14, 1985`), then `OO`. Try a wrong date once to
+      see the retry message.
       **Chat apps** now shows Telegram as **Active**.
    4. New campaign: **Chat message with a booking link**, reminder after
       `1` hour, tick yourself, save, then **Start sending**.

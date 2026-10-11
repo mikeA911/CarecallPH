@@ -11,6 +11,7 @@ SMS / voicemail follow-up ─┐
 "Invite to chat" (portal) ─┴► /connect/<token> page ──► deep link opens bot
         ▲                                                     │
         │                                     channel-webhook links chat → patient
+        │                                     bot asks for the date of birth (2 tries)
         │                                     bot asks: "Reply YES (or OO)…"
         │                                                     │
 start-campaign / telnyx-call-events ◄── sendToPatient() ◄── YES = opted_in_at (DPA consent)
@@ -26,6 +27,12 @@ start-campaign / telnyx-call-events ◄── sendToPatient() ◄── YES = op
   replies YES, `channel-webhook` moves them back to `pending` in any active chat
   campaign. Messages only go out inside the clinic's calling hours.
 - **One shared bot per platform**, multi-clinic. The clinic travels in the invite token.
+- **Birthday check on link** (`patient_channels.verified_at`, `verify_attempts`): the invite proves
+  possession of a link, not identity, so the bot asks for the patient's date of birth before YES.
+  `_shared/dob.ts` parses common formats (ISO, DD/MM and MM/DD with both readings tried when
+  ambiguous, English and Filipino month names); a non-date reply doesn't use a try. The second wrong
+  date locks the link, expires the patient's open invites and writes `chat_birthday_check_locked` to
+  `audit_log`. Birthday replies are logged as `[date of birth reply]`, never as typed.
 - **Family accounts:** one chat account can be linked to several patients. `BOOK` returns one link per patient with an open campaign, labelled by first name.
 - **Channel choice** (`_shared/channels.ts → resolveChannel`): preferred opted-in chat → other opted-in chats in priority order → SMS with consent → nothing.
 - **Messenger and WhatsApp** are used only inside the 24h window after the patient's last message. Outside it, the patient falls back to their next channel. Utility/template messages for out-of-window reminders are Phase 1b.

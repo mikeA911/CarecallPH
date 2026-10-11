@@ -13,8 +13,8 @@ updated: 2026-10-11
 
 1. **Invite patients.** Open a patient on **Patients** and click **Invite to
    chat**. Send the English or Filipino message from the clinic's phone, or let
-   the patient scan the QR code at the front desk. The patient picks an app and
-   replies **YES** in the chat.
+   the patient scan the QR code at the front desk. The patient picks an app,
+   replies with their **date of birth**, then **YES**.
 2. **Check it worked.** The patient's **Chat apps** table shows **Active** once
    they've said YES.
 3. **Create a chat campaign.** On **New campaign**, choose **Chat message with a

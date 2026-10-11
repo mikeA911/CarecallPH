@@ -17,6 +17,10 @@ updated: 2026-10-11
 - **Clinic settings**: new switches for **Self-booking links in call campaigns**
   and **Chat app invites in text messages**.
 - **Mark completed** button on active and paused campaigns.
+- **Birthday check in chat apps**: after opening an invite, the patient confirms
+  their date of birth before saying YES. Two wrong dates lock the invite.
+- **Patients per clinic**: the same person can now be a patient at more than one
+  clinic. CSV import reports how many rows were already on file.
 
 ## 2026-10-02
 

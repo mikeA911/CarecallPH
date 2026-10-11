@@ -138,6 +138,8 @@ export type PatientChannel = {
   linked_at: string;
   opted_in_at: string | null;
   opted_out_at: string | null;
+  verified_at: string | null;
+  verify_attempts: number;
 };
 
 export type ChannelMessage = {

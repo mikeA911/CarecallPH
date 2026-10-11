@@ -11,7 +11,10 @@
 // platform's own signature / secret instead — see verify* below).
 //
 // Conversation model (keyword-driven, no LLM in Phase 1):
-//   start + invite token → link chat account to patient, ask for consent
+//   start + invite token → link chat account to patient, ask for the patient's
+//                          date of birth (the invite may have reached the wrong
+//                          person); 2 wrong dates lock it and expire the invites
+//   date of birth match   → ask for consent
 //   YES / OO / OPO / SIGE → opt in (DPA consent record), set preferred channel
 //   BOOK / ISKEDYUL       → send a self-booking link per open campaign
 //   STOP / TIGIL / HINTO  → opt out
@@ -24,7 +27,8 @@
 // WhatsApp opt-in: there is no deep-link payload, so the /connect page opens
 // wa.me/<number>?text=CONNECT%20<token> and we parse that first message.
 
-import { supabase, createBookingLink } from "../_shared/lib.ts";
+import { supabase, createBookingLink, audit } from "../_shared/lib.ts";
+import { dobCandidates } from "../_shared/dob.ts";
 import {
   type ChatChannel,
   ChannelError,
@@ -59,9 +63,15 @@ type LinkRow = {
   id: string;
   patient_id: string;
   clinic_id: string | null;
+  linked_at: string;
   opted_in_at: string | null;
   opted_out_at: string | null;
+  verified_at: string | null;
+  verify_attempts: number;
 };
+
+const MAX_DOB_ATTEMPTS = 2;
+const DOB_EXAMPLE = "for example March 14, 1985 or 14/03/1985";
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -333,21 +343,23 @@ async function onStart(
     linked_at: new Date().toISOString(),
     opted_in_at: null,
     opted_out_at: null,
+    verified_at: null,
+    verify_attempts: 0,
     last_inbound_at: new Date().toISOString(),
   }, { onConflict: "patient_id,channel" });
 
   return {
     sender: clinic.name, clinicId: clinic.id, patientId: invite.patient_id,
     text:
-      `Hi! This is ${clinic.name}. Reply YES (or OO) to receive appointment reminders ` +
-      `and booking links in this chat. Reply STOP anytime to stop.`,
+      `Hi! This is ${clinic.name}. To confirm this invite is for you, please reply with ` +
+      `the patient's date of birth, ${DOB_EXAMPLE}. Reply STOP anytime to stop.`,
   };
 }
 
 async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" }>) {
   const now = new Date().toISOString();
   const { data } = await supabase.from("patient_channels")
-    .select("id, patient_id, clinic_id, opted_in_at, opted_out_at")
+    .select("id, patient_id, clinic_id, linked_at, opted_in_at, opted_out_at, verified_at, verify_attempts")
     .eq("channel", channel).eq("external_id", ev.externalId);
   const rows = (data ?? []) as LinkRow[];
 
@@ -361,13 +373,26 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
 
   await supabase.from("patient_channels").update({ last_inbound_at: now })
     .eq("channel", channel).eq("external_id", ev.externalId);
+
+  const kw = ev.text.trim().toUpperCase().replace(/[^A-Z ]/g, "").replace(/\s+/g, " ");
+  // Links still waiting for a birthday, newest first (a parent may be
+  // connecting several family members one after another).
+  const checking = rows
+    .filter((r) => !r.verified_at && !r.opted_out_at && r.verify_attempts < MAX_DOB_ATTEMPTS)
+    .sort((x, y) => y.linked_at.localeCompare(x.linked_at));
+  const isDobReply = checking.length > 0 && !STOP.has(kw);
+
+  // Birthday replies are never stored as typed.
   for (const r of rows) {
-    await logMessage({ clinicId: r.clinic_id, patientId: r.patient_id, channel, direction: "inbound", externalId: ev.externalId, body: ev.text });
+    await logMessage({
+      clinicId: r.clinic_id, patientId: r.patient_id, channel, direction: "inbound",
+      externalId: ev.externalId, body: isDobReply ? "[date of birth reply]" : ev.text,
+    });
   }
 
-  const clinic = await clinicInfo(rows[0].clinic_id);
-  const say = (text: string) => reply_(channel, ev.externalId, text, clinic.name, clinic.id, rows[0].patient_id);
-  const kw = ev.text.trim().toUpperCase().replace(/[^A-Z ]/g, "").replace(/\s+/g, " ");
+  const target = isDobReply ? checking[0] : rows[0];
+  const clinic = await clinicInfo(target.clinic_id);
+  const say = (text: string) => reply_(channel, ev.externalId, text, clinic.name, clinic.id, target.patient_id);
 
   if (STOP.has(kw)) {
     await supabase.from("patient_channels").update({ opted_out_at: now })
@@ -376,16 +401,29 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
     return;
   }
 
+  if (isDobReply) {
+    await say(await checkBirthday(target, ev.text, clinic));
+    return;
+  }
+
+  const verified = rows.filter((r) => r.verified_at);
+  if (!verified.length) {
+    const callback = clinic.callback ? ` or call ${clinic.callback}` : "";
+    await say(`This chat isn't connected yet. Please ask ${clinic.name} for a new invite link${callback}.`);
+    return;
+  }
+
   if (YES.has(kw)) {
-    const ids = rows.map((r) => r.id);
+    const ids = verified.map((r) => r.id);
+    const patientIds = verified.map((r) => r.patient_id);
     await supabase.from("patient_channels").update({ opted_in_at: now, opted_out_at: null }).in("id", ids);
-    await supabase.from("patients").update({ preferred_channel: channel }).in("id", rows.map((r) => r.patient_id));
-    await requeueInvited(rows.map((r) => r.patient_id));
+    await supabase.from("patients").update({ preferred_channel: channel }).in("id", patientIds);
+    await requeueInvited(patientIds);
     await say(`Thanks! You'll get appointment messages from ${clinic.name} here. Reply BOOK to schedule, or STOP to stop.`);
     return;
   }
 
-  const active = rows.filter((r) => r.opted_in_at && !r.opted_out_at);
+  const active = verified.filter((r) => r.opted_in_at && !r.opted_out_at);
   if (!active.length) {
     await say(`To receive messages from ${clinic.name} here, please reply YES. Reply STOP to stop.`);
     return;
@@ -401,6 +439,45 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
     `Thanks for your message. This chat handles appointment reminders and booking. ` +
     `Reply BOOK to schedule${callback}. For emergencies, call 911.`,
   );
+}
+
+/**
+ * Compare a typed birthday with the patient's record (server-side only; the
+ * reply never reveals the stored date). A reply that isn't a date doesn't use
+ * up a try. The second wrong date locks the link and expires the patient's
+ * open invites, so staff must create a new one.
+ */
+async function checkBirthday(row: LinkRow, text: string, clinic: ClinicInfo): Promise<string> {
+  const candidates = dobCandidates(text);
+  if (!candidates.length) {
+    return `Please reply with the patient's date of birth, ${DOB_EXAMPLE}.`;
+  }
+
+  const { data } = await supabase.from("patients").select("date_of_birth").eq("id", row.patient_id).maybeSingle();
+  const dob = (data as { date_of_birth?: string } | null)?.date_of_birth ?? "";
+  const now = new Date().toISOString();
+
+  if (dob && candidates.includes(dob.slice(0, 10))) {
+    await supabase.from("patient_channels").update({ verified_at: now }).eq("id", row.id);
+    return `Thank you. Reply YES (or OO) to receive appointment reminders and booking links ` +
+      `from ${clinic.name} in this chat. Reply STOP anytime to stop.`;
+  }
+
+  const attempts = row.verify_attempts + 1;
+  await supabase.from("patient_channels").update({ verify_attempts: attempts }).eq("id", row.id);
+  if (attempts < MAX_DOB_ATTEMPTS) {
+    return `That doesn't match our records. Please check and try again (1 try left), ${DOB_EXAMPLE}.`;
+  }
+
+  await supabase.from("channel_invites").update({ expires_at: now })
+    .eq("patient_id", row.patient_id).gt("expires_at", now);
+  await audit({
+    clinicId: row.clinic_id, actorUserId: null, action: "chat_birthday_check_locked",
+    targetType: "patient", targetId: row.patient_id,
+  });
+  const callback = clinic.callback ? ` at ${clinic.callback}` : "";
+  return `That doesn't match our records, so this invite has been locked. ` +
+    `Please contact ${clinic.name}${callback} for a new invite.`;
 }
 
 /**

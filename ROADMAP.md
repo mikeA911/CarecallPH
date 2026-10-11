@@ -91,6 +91,9 @@ matches the chat plan in the concept paper (booking links by chat, no calls).
 | Patient page: Chat apps and Messages | Channel status, consent time, last 20 messages |
 | Clinic settings: self-booking and chat-invite switches | Were SQL-only |
 | Re-queue on YES | A `needs_invite` patient who connects is messaged automatically |
+| Birthday check when a chat is linked | Date of birth before YES; 2 wrong dates lock the invite; not stored as typed |
+| Patients unique per clinic | `(clinic_id, phone, date_of_birth)`; one app and one Supabase project serve every clinic; one person can be a patient at several clinics |
+| Patient pages load on their own | `/book` and `/connect` ~58 KB gzipped, no staff portal code |
 | Telegram setup guide and chat-only pilot runbook | `docs/messaging-channels.md` §3, README §9 |
 
 **Channel approvals**
@@ -215,6 +218,7 @@ ask questions. The same tools serve voice and chat.
 
 | Date | Change |
 |---|---|
+| 2026-10-11 | Chat birthday check, per-clinic patient uniqueness, lighter patient pages |
 | 2026-10-11 | Phase 1T chat-first pilot: chat campaigns, Invite to chat with QR codes, chat status and messages on the patient page, clinic settings switches, Telegram setup guide |
 | 2026-10-02 | Phase 0 PH defaults: phone normalization to `+639…`, `Asia/Manila` and PH calling hours, PHT label on booking links, voicemail reads PH callback numbers locally |
 | 2026-10-02 | CC nightly review; README rewritten for CareCall PH; this roadmap |

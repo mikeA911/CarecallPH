@@ -22,7 +22,7 @@ export default function ChatSection({ patientId, firstName, clinicName, canInvit
   const load = useCallback(async () => {
     const [{ data: ch }, { data: m }] = await Promise.all([
       supabase.from("patient_channels")
-        .select("id, channel, display_name, linked_at, opted_in_at, opted_out_at")
+        .select("id, channel, display_name, linked_at, opted_in_at, opted_out_at, verified_at, verify_attempts")
         .eq("patient_id", patientId).order("linked_at", { ascending: false }),
       supabase.from("channel_messages")
         .select("id, channel, direction, body, status, error, created_at")
@@ -98,7 +98,7 @@ export default function ChatSection({ patientId, firstName, clinicName, canInvit
             <div>
               <p className="small muted" style={{ marginTop: 0 }}>
                 Send one of these messages from the clinic's phone, or let the patient scan the
-                QR code. They pick an app, then reply YES in the chat. The link works for 30 days
+                QR code. They pick an app, reply with their date of birth, then YES. The link works for 30 days
                 (until {new Date(invite.expires_at).toLocaleDateString()}).
               </p>
               <label htmlFor="inv-link">Invite link</label>
@@ -144,5 +144,7 @@ export default function ChatSection({ patientId, firstName, clinicName, canInvit
 function channelStatus(c: PatientChannel): string {
   if (c.opted_out_at) return "Stopped messages";
   if (c.opted_in_at) return "Active";
-  return "Waiting for YES";
+  if (c.verified_at) return "Waiting for YES";
+  if (c.verify_attempts >= 2) return "Birthday didn't match: create a new invite";
+  return "Waiting for birthday";
 }
