@@ -1,10 +1,39 @@
-# CareCall PH roadmap
+# CareCall + CareLink roadmap
 
 **Last updated:** 11 October 2026
 
 **Status key:** **Done** = built and verified live. **Built** = code complete,
 type-checked and building, not yet run against live Supabase / Telnyx / chat
 platforms. **Planned** = designed, not started. **Idea** = worth doing, not yet designed.
+
+## Product progression
+
+CareCall starts as patient engagement for small Philippine clinics and grows
+into CareLink, a records and remote-monitoring layer. Five services on one
+platform, in this order. Business case, pricing hypotheses and indicative
+economics are in the concept paper (*CareCall + CareLink: a connected
+healthcare access and continuity platform for Southeast Asia*, Oct 2026).
+
+| Service | What it does | Engineering phases | Status |
+|---|---|---|---|
+| **CareCall Recall** | Re-engage existing patients by chat; due follow-ups and missed visits become booked appointments | 1, 1T, 1C | **Built**; first commercial MVP |
+| **CareCall Discover** | Free-to-patient symptom-guided navigation and booking with participating clinics at CareCallPH.com | D | **Planned** (after Recall pilot) |
+| **CareCall Voice** | AI outbound calls for non-responders; later the inbound receptionist | Base, 0, 2 | Outbound **Done** in US build; PH carrier test pending |
+| **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **Planned** |
+| **CareLink RPM Intelligence** | Device readings, trends and a prioritized clinician review queue | R | **Idea** (later clinical pilot) |
+
+**Delivery stages** (indicative, may overlap; each opens only when its gate is met)
+
+| Stage | Priority | Gate |
+|---|---|---|
+| 0–3 months | Recall clinic pilots and appointment outcome reporting | Validated messaging economics, consent and scheduling |
+| 3–6 months | Discover pilot with bounded free assessments | Infermedica contract, clinical governance and safe matching |
+| 6–9 months | Voice add-on and CareLink FHIR demonstrator | Carrier economics; secure records and authorized integration |
+| 9–18 months | Selected EHR/device integrations and RPM clinical pilot | Clinical validation, oversight and jurisdiction-specific compliance |
+
+The Philippines is the reference market; channel adoption, clinical
+regulation, privacy law, provider economics and EHR access are assessed country
+by country before any Southeast Asian expansion.
 
 ## Where we are
 
@@ -17,7 +46,10 @@ platforms. **Planned** = designed, not started. **Idea** = worth doing, not yet 
 | 1C | CC assistant, LLM wiki, nightly review | **Built** |
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
 | 3 | Localization and compliance hardening | **Planned** |
-| 4 | Pilot and commercial launch | **Idea** |
+| 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
+| D | CareCall Discover: symptom-guided booking at CareCallPH.com | **Planned** |
+| L | CareLink Records: FHIR timeline and authorized EHR access | **Planned** |
+| R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
 **Next three actions**
 
@@ -209,8 +241,65 @@ ask questions. The same tools serve voice and chat.
 | 1–3 pilot clinics (Manila and Cebu) | Measure bookings, no-shows, staff time saved |
 | Clinic self-onboarding | Sign-up, clinic profile, clinicians, first campaign via CC wizard |
 | Unit cost model | Telnyx minutes and SMS, Viber per-message and monthly fees, Meta conversations, Claude tokens |
-| Pricing and billing | Per-clinic subscription plus usage |
+| Pricing and billing | Per-clinic subscription plus add-ons (hypotheses below) |
+| Founding-clinic programme | Up to 12 months limited free service, transparent usage allowances, explicit paid conversion |
+| Outcome measurement | Recall: contacted → replied → booked → attended, with an estimate of incremental visits |
 | Support playbook | Using CC action items and the wiki |
+
+---
+
+**Pricing hypotheses** (unvalidated; from the concept paper)
+
+| Module | Hypothesis |
+|---|---|
+| Recall | ₱1,500 / clinic / month |
+| Discover | ₱2,500 / subscribing clinic / month, or a compliant acquisition-based fee |
+| Voice | ₱3,500 / clinic / month add-on, or ₱75 per AI-booked appointment |
+| CareLink records / workflows | ₱3,000–10,000 / clinic / month (model uses ₱5,000) |
+| RPM intelligence | ₱100 / monitored patient / month (enterprise) |
+
+---
+
+## Phase D: CareCall Discover
+
+Public patient entry point. A patient describes symptoms, gets medically
+governed care-navigation guidance, sees suitable participating clinics and books
+into real availability.
+
+| Item | Notes |
+|---|---|
+| CareCallPH.com public portal | Patient-facing; free symptom assessment within a defined budget |
+| Symptom assessment integration | Infermedica is the candidate partner; pricing, approved intended use, Filipino/Cebuano support unconfirmed |
+| Provider matching | Only participating clinics shown, with clear disclosure that listings aren't exhaustive |
+| Safety rules | Commercial listings never affect triage; emergencies never routed to paid listings; care-seeking guidance even with no match |
+| Booking | Reuses slot generation and self-booking links |
+
+**Gate:** Infermedica contract, clinical governance and safe matching; legal
+review of paid referral / fee-splitting restrictions.
+
+## Phase L: CareLink Records
+
+| Item | Notes |
+|---|---|
+| FHIR R4 store | Patient, Observation, Encounter, Appointment; aligned with the draft PH Core guide |
+| Patient timeline | For clinics without a suitable system, and for patient-held records |
+| Patient-directed import from US EHRs | US patient-access FHIR APIs; first users could be Filipinos retiring home |
+| Authorized EHR integration | University of the Philippines-associated EHR is a lead to identify and verify, not an established interface |
+| Consent and access | Purpose-limited, patient-controlled sharing under the Data Privacy Act |
+
+**Gate:** secure records and authorized integration.
+
+## Phase R: CareLink RPM Intelligence
+
+| Item | Notes |
+|---|---|
+| Device bridge | Cellular devices via vendor cloud; Bluetooth devices via a phone bridge app |
+| Normalization | Readings → FHIR Observation with LOINC codes |
+| Review queue | Clinician-approved thresholds first; AI prioritization only after feasibility and clinical validation |
+| Measures | Clinically important events detected, false negatives, unnecessary alerts, clinician workload, time to intervention |
+
+**Gate:** clinical validation, clinical oversight and jurisdiction-specific
+compliance. Pseudonymized RPM data is still sensitive health data.
 
 ---
 
@@ -218,6 +307,7 @@ ask questions. The same tools serve voice and chat.
 
 | Date | Change |
 |---|---|
+| 2026-10-11 | Product progression CareCall → CareLink (Recall, Discover, Voice, CareLink Records, RPM), delivery stages and gates, phases D / L / R, pricing hypotheses |
 | 2026-10-11 | Chat birthday check, per-clinic patient uniqueness, lighter patient pages |
 | 2026-10-11 | Phase 1T chat-first pilot: chat campaigns, Invite to chat with QR codes, chat status and messages on the patient page, clinic settings switches, Telegram setup guide |
 | 2026-10-02 | Phase 0 PH defaults: phone normalization to `+639…`, `Asia/Manila` and PH calling hours, PHT label on booking links, voicemail reads PH callback numbers locally |
