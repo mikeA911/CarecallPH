@@ -21,6 +21,11 @@
 // layer (_shared/channels.ts) — Viber / Messenger / Telegram when the patient
 // has opted in there, otherwise SMS with consent. When a clinic has
 // chat_optin_enabled, SMS notices carry a /connect/<token> chat invite.
+//
+// Chat-first campaigns (outreach_mode = 'chat'): no calls. Each patient gets a
+// self-booking link on their chat app (or SMS with consent), one reminder after
+// chat_reminder_hours, then no_answer. Patients with no permitted channel are
+// parked as needs_invite until they connect (see processChatCampaign).
 // Because of the _shared import this function must be deployed with the CLI:
 //   supabase functions deploy start-campaign
 
@@ -85,7 +90,11 @@ type Campaign = {
   clinic_id: string | null;
   greeting_context: string;
   telnyx_assistant_id?: string | null;
+  outreach_mode?: "call" | "chat";
+  chat_reminder_hours?: number;
 };
+
+const CAMPAIGN_COLUMNS = "id, status, clinic_id, greeting_context, telnyx_assistant_id, outreach_mode, chat_reminder_hours";
 
 type QueueRow = {
   patient_id: string;
@@ -116,12 +125,12 @@ Deno.serve(async (req) => {
   let campaigns: Campaign[] = [];
   if (body.sweep) {
     const { data } = await supabase.from("campaigns")
-      .select("id, status, clinic_id, greeting_context, telnyx_assistant_id")
+      .select(CAMPAIGN_COLUMNS)
       .eq("status", "active");
     campaigns = (data as Campaign[]) ?? [];
   } else if (body.campaign_id) {
     const { data } = await supabase.from("campaigns")
-      .select("id, status, clinic_id, greeting_context, telnyx_assistant_id")
+      .select(CAMPAIGN_COLUMNS)
       .eq("id", body.campaign_id).single();
     if (!data) return json({ error: "campaign not found" }, 404);
     if (data.status !== "active") {
@@ -140,7 +149,9 @@ Deno.serve(async (req) => {
     });
     if (withinHours === false) { skippedHours++; continue; }
 
-    const r = await processCampaign(c, batchSize);
+    const r = c.outreach_mode === "chat"
+      ? await processChatCampaign(c, batchSize)
+      : await processCampaign(c, batchSize);
     notified += r.notified;
     started += r.started;
   }
@@ -272,6 +283,134 @@ async function processCampaign(campaign: Campaign, batchSize: number) {
   }
 
   return { notified, started };
+}
+
+// ---------------------------------------------------------------------------
+// Chat-first campaigns. Runs inside the clinic's calling hours like calls do,
+// so nobody gets a message at night. `notified` in the result counts messages.
+// ---------------------------------------------------------------------------
+const CHAT_MAX_MESSAGES = 2; // first message + one reminder
+
+async function processChatCampaign(campaign: Campaign, batchSize: number) {
+  let notified = 0;
+  const waitMs = (campaign.chat_reminder_hours ?? 24) * 60 * 60 * 1000;
+  const dueBefore = new Date(Date.now() - waitMs).toISOString();
+  const clinicName = await clinicDisplayName(campaign.clinic_id);
+  const setStatus = (patientId: string, fields: Record<string, unknown>) =>
+    supabase.from("campaign_patients")
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq("campaign_id", campaign.id).eq("patient_id", patientId);
+
+  // ---- Reminders and give-ups for patients who were sent a link ----
+  const { data: waiting } = await supabase.from("campaign_patients")
+    .select("patient_id, attempts, patients!inner(*)")
+    .eq("campaign_id", campaign.id)
+    .eq("patients.do_not_call", false)
+    .eq("patients.active", true)
+    .eq("status", "messaged")
+    .lte("last_attempt_at", dueBefore)
+    .limit(batchSize);
+
+  for (const row of (waiting ?? []) as unknown as QueueRow[]) {
+    if (!row.patients) continue;
+    if ((row.attempts ?? 0) >= CHAT_MAX_MESSAGES) {
+      await setStatus(row.patient_id, { status: "no_answer", flag_reason: "no booking after chat reminder" });
+      continue;
+    }
+    if (!(await claimChatSend(campaign.id, row, "messaged"))) continue;
+    const outcome = await sendChatLink(campaign, row, clinicName, true);
+    if (outcome === "sent") notified++;
+    else await setStatus(row.patient_id, outcome === "no_channel"
+      ? { status: "needs_invite", flag_reason: "patient stopped messages or disconnected the chat app" }
+      : { status: "needs_human", flag_reason: outcome });
+  }
+
+  // ---- First message for patients still waiting in the queue ----
+  const { data: queue } = await supabase.from("campaign_patients")
+    .select("patient_id, attempts, patients!inner(*)")
+    .eq("campaign_id", campaign.id)
+    .eq("patients.do_not_call", false)
+    .eq("patients.active", true)
+    .eq("status", "pending")
+    .limit(batchSize);
+
+  for (const row of (queue ?? []) as unknown as QueueRow[]) {
+    if (!row.patients) continue;
+    if (!(await claimChatSend(campaign.id, row, "pending"))) continue;
+    const outcome = await sendChatLink(campaign, row, clinicName, false);
+    if (outcome === "sent") notified++;
+    else await setStatus(row.patient_id, outcome === "no_channel"
+      ? { status: "needs_invite", flag_reason: null }
+      : { status: "needs_human", flag_reason: outcome });
+  }
+
+  // Auto-complete only when nobody is waiting on a first message, a reply or
+  // a chat invite. needs_invite keeps the campaign open: patients connect over
+  // days, and staff can finish the campaign by hand.
+  if (!waiting?.length && !queue?.length) {
+    const { count } = await supabase.from("campaign_patients")
+      .select("patient_id", { count: "exact", head: true })
+      .eq("campaign_id", campaign.id)
+      .in("status", ["pending", "messaged", "needs_invite"]);
+    if (!count) {
+      await supabase.from("campaigns").update({ status: "completed" }).eq("id", campaign.id);
+    }
+  }
+
+  return { notified, started: 0 };
+}
+
+/**
+ * Claim a patient for one chat send: moves the row to messaged with the next
+ * attempt count, but only if it is still in the state we read. The portal's
+ * "Start sending" and the cron sweep can run at the same moment; whichever
+ * claims first sends, so nobody gets the same message twice. A failed send
+ * then overwrites the status (needs_invite / needs_human).
+ */
+async function claimChatSend(campaignId: string, row: QueueRow, from: "pending" | "messaged"): Promise<boolean> {
+  const { data } = await supabase.from("campaign_patients")
+    .update({
+      status: "messaged",
+      attempts: (row.attempts ?? 0) + 1,
+      last_attempt_at: new Date().toISOString(),
+      flag_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("campaign_id", campaignId).eq("patient_id", row.patient_id)
+    .eq("status", from).eq("attempts", row.attempts ?? 0)
+    .select("patient_id");
+  return (data ?? []).length > 0;
+}
+
+/**
+ * Send one booking-link message (the row is already claimed). Returns "sent",
+ * "no_channel" (nowhere we may message this patient), or a reason for the
+ * Review queue.
+ */
+async function sendChatLink(
+  campaign: Campaign, row: QueueRow, clinicName: string, reminder: boolean,
+): Promise<string> {
+  const patient = row.patients!;
+  if (!(await canMessage(patient))) return "no_channel";
+
+  const link = await createBookingLink(campaign.id, patient.id, campaign.clinic_id);
+  if (!link) return "booking link unavailable (PORTAL_URL not set)";
+
+  const reason = campaign.greeting_context.trim();
+  const text = (ch: Channel) => {
+    const stop = ch === "sms" ? "Reply STOP to opt out." : "Reply STOP to stop messages.";
+    return reminder
+      ? `Hi ${patient.first_name}, a reminder from ${clinicName}: you can still pick a time ` +
+        `for your appointment here: ${link} (valid for 7 days). ${stop}`
+      : `Hi ${patient.first_name}, this is ${clinicName}. ${reason ? `${reason} ` : ""}` +
+        `Pick a time that works for you: ${link} (valid for 7 days). ${stop}`;
+  };
+
+  const sent = await sendToPatient({
+    patient, clinicId: campaign.clinic_id, clinicName, campaignId: campaign.id, text,
+  });
+  if (!sent.ok) return sent.channel ? `chat message failed (${sent.channel})` : "no_channel";
+  return "sent";
 }
 
 // Per-clinic pre-call lead time. Reads clinics.sms_precall_lead_seconds:

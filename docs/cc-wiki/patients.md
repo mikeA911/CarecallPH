@@ -1,12 +1,12 @@
 ---
 id: patients
 title: Patients
-summary: Importing patients by CSV, required fields, phone format, consent flags, do-not-call.
+summary: Importing patients by CSV, required fields, phone format, consent flags, do-not-call, chat invites and message history.
 roles: staff
 routes:
   - /patients | staff | Patients
   - /patients/:id | staff | Patient detail
-updated: 2026-10-02
+updated: 2026-10-11
 ---
 
 ## Importing
@@ -32,6 +32,10 @@ You can also add one patient at a time with **Or add one patient**. The
 **Mobile (09… or +63…)** field accepts the same formats and shows the same
 message if the number is invalid.
 
+A patient is identified by mobile number plus date of birth **within your
+clinic**. Import skips rows already on file and says how many; the same person
+can also be a patient at another clinic.
+
 ## Assigning to a campaign
 
 Select patients and use **Assign to campaign**, or pick patients when creating
@@ -45,8 +49,15 @@ messaged again by any campaign.
 ## Chat apps
 
 Patients link Viber, Messenger, WhatsApp or Telegram themselves from an invite
-link. See the messaging-channels page.
+link. On the patient's page, **Invite to chat** creates one (valid 30 days) with
+a QR code and ready-made messages in English and Filipino to copy and send from
+the clinic's phone. It isn't available for inactive or do-not-call patients.
+See the messaging-channels page.
 
 ## Patient detail
 
-Shows the patient's **Call history** across campaigns.
+Shows the patient's details, **Chat apps** (each app, when they connected, when
+they said YES, and a status: Waiting for birthday, Birthday didn't match, Waiting
+for YES, Active or Stopped messages), the
+last 20 **Messages** sent and received, and their **Call history** across
+campaigns.

@@ -4,8 +4,23 @@ title: What's new
 summary: Dated list of user-visible changes; read when asked what's new or whether a feature exists.
 roles: staff
 routes: []
-updated: 2026-10-02
+updated: 2026-10-11
 ---
+
+## 2026-10-11
+
+- **Chat campaigns**: on New campaign, choose **Chat message with a booking
+  link**. Patients get a booking link on their chat app with one reminder, and
+  no calls. Patients without a chat app show as **needs chat invite**.
+- **Invite to chat** on a patient's page: a link, QR code and ready-made English
+  and Filipino messages. The page also shows **Chat apps** and **Messages**.
+- **Clinic settings**: new switches for **Self-booking links in call campaigns**
+  and **Chat app invites in text messages**.
+- **Mark completed** button on active and paused campaigns.
+- **Birthday check in chat apps**: after opening an invite, the patient confirms
+  their date of birth before saying YES. Two wrong dates lock the invite.
+- **Patients per clinic**: the same person can now be a patient at more than one
+  clinic. CSV import reports how many rows were already on file.
 
 ## 2026-10-02
 

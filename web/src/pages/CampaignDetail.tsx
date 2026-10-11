@@ -66,7 +66,10 @@ export default function CampaignDetail() {
     setBusy(true);
     if (campaign?.status !== "active") await supabase.from("campaigns").update({ status: "active" }).eq("id", id);
     const { error } = await callFunction("start-campaign", { campaign_id: id, batch_size: 3 });
-    setBusy(false); setMsg(error ? `Dialer: ${error}` : "Dialing started."); load();
+    const chatMode = campaign?.outreach_mode === "chat";
+    setBusy(false);
+    setMsg(error ? `${chatMode ? "Sending" : "Dialer"}: ${error}` : chatMode ? "Sending started." : "Dialing started.");
+    load();
   }
 
   async function saveEdit() {
@@ -83,6 +86,7 @@ export default function CampaignDetail() {
 
   if (!campaign) return <p className="empty">Loading…</p>;
 
+  const chat = campaign.outreach_mode === "chat";
   const editable = canManage && (campaign.status === "draft" || campaign.status === "scheduled" || campaign.status === "paused");
   const total = stat?.total_patients ?? 0;
   const seg = (n?: number) => (total ? `${Math.round(100 * (n ?? 0) / total)}%` : "0%");
@@ -94,14 +98,22 @@ export default function CampaignDetail() {
         <span className={`badge status-${campaign.status}`}>{campaign.status}</span>
       </div>
       <p className="muted"><Link to="/campaigns">← All campaigns</Link></p>
+      <p className="muted small">
+        {chat
+          ? `Chat message with a booking link · one reminder after ${campaign.chat_reminder_hours} hours · no calls`
+          : "AI phone calls"}
+      </p>
       {msg && <p role="status">{msg}</p>}
 
       <div className="row-actions">
         {(campaign.status === "draft" || campaign.status === "scheduled" || campaign.status === "paused") && (
-          <button disabled={busy} onClick={startCalling}>Start calling</button>
+          <button disabled={busy} onClick={startCalling}>{chat ? "Start sending" : "Start calling"}</button>
         )}
         {campaign.status === "active" && (
           <button className="secondary" disabled={busy} onClick={() => setStatus("paused")}>Pause</button>
+        )}
+        {canManage && (campaign.status === "active" || campaign.status === "paused") && (
+          <button className="secondary" disabled={busy} onClick={() => setStatus("completed")}>Mark completed</button>
         )}
         {editable && !edit && (
           <button className="secondary" onClick={() => setEdit({ name: campaign.name, greeting_context: campaign.greeting_context, scheduled_start: campaign.scheduled_start })}>Edit</button>
@@ -112,7 +124,7 @@ export default function CampaignDetail() {
         <div className="form-card" style={{ marginTop: 12 }}>
           <label>Name</label>
           <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
-          <label>Reason the AI gives</label>
+          <label>{chat ? "Reason in the message to the patient" : "Reason the AI gives"}</label>
           <textarea rows={3} value={edit.greeting_context} onChange={(e) => setEdit({ ...edit, greeting_context: e.target.value })} />
           <label>Schedule start</label>
           <input type="datetime-local" value={edit.scheduled_start ?? ""} onChange={(e) => setEdit({ ...edit, scheduled_start: e.target.value })} />
@@ -133,6 +145,8 @@ export default function CampaignDetail() {
       <div className="cards">
         <div className="card"><div className="num">{stat?.booked ?? 0}</div><div className="lbl">Booked</div></div>
         <div className="card"><div className="num">{stat?.pending ?? 0}</div><div className="lbl">Pending</div></div>
+        {chat && <div className="card"><div className="num">{stat?.messaged ?? 0}</div><div className="lbl">Link sent</div></div>}
+        {chat && <div className="card"><div className="num">{stat?.needs_invite ?? 0}</div><div className="lbl">Needs chat invite</div></div>}
         <div className="card"><div className="num">{stat?.unreached ?? 0}</div><div className="lbl">Unreached</div></div>
         <div className="card"><div className="num">{stat?.needs_human ?? 0}</div><div className="lbl">Needs review</div></div>
         <div className="card"><div className="num">{stat?.booking_rate_pct != null ? `${stat.booking_rate_pct}%` : "—"}</div><div className="lbl">Booking rate</div></div>
@@ -156,6 +170,9 @@ export default function CampaignDetail() {
                     <div className="muted small">{dialCountdown(r.dial_after)}</div>
                   )}
                   {r.flag_reason && <div className="muted small">{r.flag_reason}</div>}
+                  {r.status === "needs_invite" && (
+                    <div className="muted small">Open the patient to send a chat invite.</div>
+                  )}
                 </td>
                 <td>{r.attempts}</td>
                 <td>{r.last_attempt_at ? new Date(r.last_attempt_at).toLocaleString() : "—"}</td>

@@ -1,6 +1,6 @@
 # CareCall PH roadmap
 
-**Last updated:** 2 October 2026
+**Last updated:** 11 October 2026
 
 **Status key:** **Done** = built and verified live. **Built** = code complete,
 type-checked and building, not yet run against live Supabase / Telnyx / chat
@@ -13,6 +13,7 @@ platforms. **Planned** = designed, not started. **Idea** = worth doing, not yet 
 | Base | Outbound AI scheduling (inherited from CareCall US) | **Done** in the US build; needs re-verifying on PH accounts |
 | 0 | Revive on new accounts, Philippine defaults | **In progress**: PH code defaults built; accounts waiting on Telnyx |
 | 1 | Chat channels: Viber, Messenger, WhatsApp, Telegram | **Built** |
+| 1T | Chat-first pilot: chat campaigns, staff invites, Telegram first | **Built** |
 | 1C | CC assistant, LLM wiki, nightly review | **Built** |
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
 | 3 | Localization and compliance hardening | **Planned** |
@@ -20,12 +21,12 @@ platforms. **Planned** = designed, not started. **Idea** = worth doing, not yet 
 
 **Next three actions**
 
-1. Open the Telnyx account and confirm outbound voice and SMS to Globe, Smart
-   and DITO numbers, plus availability of Philippine inbound numbers (Phase 2 depends on it).
-2. Stand up the new Supabase project (Singapore), deploy everything, and run
-   the README smoke test end to end.
-3. Connect Telegram first (free) to verify the Phase 1 opt-in and fallback
-   flow live, then apply for Viber commercial terms.
+1. Stand up the new Supabase project (Singapore) and the Vercel portal, create
+   the Telegram bot, and run the README chat-only pilot (§9) end to end.
+2. Apply now for the slow approvals: Meta business verification and app review
+   (Messenger, WhatsApp) and a Viber commercial agreement (€100/month per bot).
+3. Open the Telnyx account and confirm outbound voice and SMS to Globe, Smart
+   and DITO numbers, plus Philippine inbound numbers (Phase 2 depends on it).
 
 ---
 
@@ -71,11 +72,41 @@ Done and verified end to end in the US build (August 2026):
 |---|---|
 | Messenger and WhatsApp utility templates | Reminders outside the 24-hour window |
 | Rich replies (buttons for YES / BOOK / STOP) | Fewer typos, higher opt-in |
-| Clinic settings toggles: self-booking, chat invites, nightly review | Today these are SQL-only |
-| Patient detail: channel status, consent timestamps, message history | Staff visibility |
+| Clinic settings toggle: nightly review | Self-booking and chat invites moved to Clinic settings in 1T |
 | Staff inbox over `channel_messages` with replies | Patients write back; today they get an auto-reply |
-| Front-desk QR code (clinic-level invite) | Opt-in at the counter, not only via SMS |
+| Clinic-wide front-desk QR code | Per-patient QR codes exist (1T); a clinic-wide one needs patient matching |
 | Delivery receipts (Viber `delivered/seen`, Meta statuses) into `channel_messages` | Accurate channel analytics |
+
+## Phase 1T: Chat-first pilot
+
+Lets a clinic pilot CareCall with chat apps alone, before Telnyx is live, and
+matches the chat plan in the concept paper (booking links by chat, no calls).
+
+**Built** (2026-10-11):
+
+| Item | Notes |
+|---|---|
+| Chat campaigns (`outreach_mode = 'chat'`) | Booking link by chat app (or SMS with consent), one reminder, no calls; `messaged` / `needs_invite` statuses |
+| Invite to chat (patient page, `channel-invite`) | Link, QR code, English and Filipino messages; no SMS needed |
+| Patient page: Chat apps and Messages | Channel status, consent time, last 20 messages |
+| Clinic settings: self-booking and chat-invite switches | Were SQL-only |
+| Re-queue on YES | A `needs_invite` patient who connects is messaged automatically |
+| Birthday check when a chat is linked | Date of birth before YES; 2 wrong dates lock the invite; not stored as typed |
+| Patients unique per clinic | `(clinic_id, phone, date_of_birth)`; one app and one Supabase project serve every clinic; one person can be a patient at several clinics |
+| Patient pages load on their own | `/book` and `/connect` ~58 KB gzipped, no staff portal code |
+| Telegram setup guide and chat-only pilot runbook | `docs/messaging-channels.md` §3, README §9 |
+
+**Channel approvals**
+
+| App | What it needs | Status |
+|---|---|---|
+| Telegram | BotFather bot, free | Ready to set up |
+| Messenger | Meta business verification + app review (`pages_messaging`) | Planned: apply now |
+| WhatsApp | Meta business verification + approved message templates | Planned |
+| Viber | Commercial agreement, €100/month per bot + per-message fees | Planned: apply now |
+
+**Next:** chat campaigns that fall back to an AI call when there's no reply
+(needs Telnyx); appointment reminders 24 and 2 hours before (Phase 2c).
 
 ## Phase 1C: CC assistant
 
@@ -187,6 +218,8 @@ ask questions. The same tools serve voice and chat.
 
 | Date | Change |
 |---|---|
+| 2026-10-11 | Chat birthday check, per-clinic patient uniqueness, lighter patient pages |
+| 2026-10-11 | Phase 1T chat-first pilot: chat campaigns, Invite to chat with QR codes, chat status and messages on the patient page, clinic settings switches, Telegram setup guide |
 | 2026-10-02 | Phase 0 PH defaults: phone normalization to `+639…`, `Asia/Manila` and PH calling hours, PHT label on booking links, voicemail reads PH callback numbers locally |
 | 2026-10-02 | CC nightly review; README rewritten for CareCall PH; this roadmap |
 | 2026-10-01 | CC assistant, CC wiki and action items; WhatsApp channel; channel priority by PH reach |

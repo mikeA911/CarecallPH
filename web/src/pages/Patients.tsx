@@ -77,9 +77,15 @@ export default function Patients() {
       sms_consent: r.sms_consent,
     }));
     if (!valid.length) { setMsg("No valid rows to import."); return; }
-    const { error } = await supabase.from("patients")
-      .upsert(valid, { onConflict: "phone,date_of_birth", ignoreDuplicates: true });
-    setMsg(error ? `Import failed: ${error.message}` : `Imported ${valid.length} patients.`);
+    // Unique per clinic: the same person may also be a patient at another clinic.
+    const { data: added, error } = await supabase.from("patients")
+      .upsert(valid, { onConflict: "clinic_id,phone,date_of_birth", ignoreDuplicates: true })
+      .select("id");
+    const n = added?.length ?? 0;
+    const skipped = valid.length - n;
+    setMsg(error
+      ? `Import failed: ${error.message}`
+      : `Imported ${n} patient${n === 1 ? "" : "s"}.${skipped ? ` ${skipped} already on file (same mobile and date of birth) were skipped.` : ""}`);
     setPreview(null);
     load();
   }

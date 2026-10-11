@@ -42,7 +42,8 @@ export default function Campaigns() {
     if (c.status !== "active") await supabase.from("campaigns").update({ status: "active" }).eq("id", c.id);
     const { error } = await callFunction("start-campaign", { campaign_id: c.id, batch_size: 3 });
     setBusy(null);
-    setMsg(error ? `Dialer: ${error}` : "Dialing started.");
+    const chat = c.outreach_mode === "chat";
+    setMsg(error ? `${chat ? "Sending" : "Dialer"}: ${error}` : chat ? "Sending started." : "Dialing started.");
     load();
   }
 
@@ -83,7 +84,7 @@ export default function Campaigns() {
                 <div className="row-actions">
                   {(c.status === "draft" || c.status === "scheduled" || c.status === "paused") && (
                     <button disabled={busy === c.id} onClick={() => startCalling(c)}>
-                      {busy === c.id ? "Starting…" : "Start calling"}
+                      {busy === c.id ? "Starting…" : c.outreach_mode === "chat" ? "Start sending" : "Start calling"}
                     </button>
                   )}
                   {c.status === "active" && (
