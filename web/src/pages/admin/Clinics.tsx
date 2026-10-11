@@ -6,7 +6,7 @@ import type { Clinic } from "../../lib/types";
 export default function AdminClinics() {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [name, setName] = useState("");
-  const [timezone, setTimezone] = useState("America/Chicago");
+  const [timezone, setTimezone] = useState("Asia/Manila");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 

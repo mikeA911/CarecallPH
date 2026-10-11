@@ -412,8 +412,6 @@ a.btn { display: inline-block; text-decoration: none; }
   animation: pulse 1.6s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) { .status-banner .sb-dot { animation: none; } }
-.status-banner .sb-support a { color: var(--blue); font-weight: 600; text-decoration: none; }
-.status-banner .sb-support a:hover { text-decoration: underline; }
 
 /* Page copyright footer */
 .copyright {

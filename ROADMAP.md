@@ -11,7 +11,7 @@ platforms. **Planned** = designed, not started. **Idea** = worth doing, not yet 
 | Phase | Scope | Status |
 |---|---|---|
 | Base | Outbound AI scheduling (inherited from CareCall US) | **Done** in the US build; needs re-verifying on PH accounts |
-| 0 | Revive on new accounts, Philippine defaults | **Planned**: waiting on Telnyx account |
+| 0 | Revive on new accounts, Philippine defaults | **In progress**: PH code defaults built; accounts waiting on Telnyx |
 | 1 | Chat channels: Viber, Messenger, WhatsApp, Telegram | **Built** |
 | 1C | CC assistant, LLM wiki, nightly review | **Built** |
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
@@ -47,9 +47,9 @@ Done and verified end to end in the US build (August 2026):
 | New repo mirrored from BAI-POP2 with `upstream` remote | Planned |
 | Telnyx account: number, Call Control app, AI Assistant, Messaging Profile | Planned |
 | Supabase project in Singapore; migrations, Vault secrets, functions deployed | Planned |
-| Phone normalization: accept `09xx…` / `9xx…`, store `+639xx…` (import, add patient, booking) | Planned |
-| Defaults: clinic timezone `Asia/Manila`, PH-friendly calling hours, `+63` placeholders in the portal | Planned |
-| `BookPage` timezone label for `Asia/Manila` | Planned |
+| Phone normalization: accept `09xx…` / `9xx…`, store `+639xx…` (import, add patient, clinic callback number; `/book` takes no phone) | **Built** |
+| Defaults: clinic timezone `Asia/Manila`, PH-friendly calling hours (Mon–Fri 08–18, Sat 08–12), `+63` placeholders in the portal | **Built** |
+| `BookPage` timezone label for `Asia/Manila` ("Philippine Time (PHT)") | **Built** |
 | Carrier test: call and SMS to Globe, Smart, DITO; check caller ID display | Planned |
 | AMD tuning: ringback tunes and "subscriber cannot be reached" announcements | Planned |
 | Smoke test (README §8) passes on PH accounts | Planned |
@@ -187,6 +187,7 @@ ask questions. The same tools serve voice and chat.
 
 | Date | Change |
 |---|---|
+| 2026-10-02 | Phase 0 PH defaults: phone normalization to `+639…`, `Asia/Manila` and PH calling hours, PHT label on booking links, voicemail reads PH callback numbers locally |
 | 2026-10-02 | CC nightly review; README rewritten for CareCall PH; this roadmap |
 | 2026-10-01 | CC assistant, CC wiki and action items; WhatsApp channel; channel priority by PH reach |
 | 2026-10-01 | Phase 1 chat channels: Viber, Messenger, Telegram, `/connect` opt-in |

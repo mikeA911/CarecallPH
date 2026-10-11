@@ -27,6 +27,7 @@
 // a chat invite when the clinic has chat_optin_enabled and no booking link.
 
 import { supabase, telnyx, json, createBookingLink } from "../_shared/lib.ts";
+import { phLocalGroups } from "../_shared/phone.ts";
 import {
   type Channel,
   type PatientLite,
@@ -277,10 +278,10 @@ async function markUnreached(campaignId: string, patientId: string, ccid: string
   ]);
 }
 
-/** "+15551234567" → "5 5 5, 1 2 3, 4 5 6 7" so TTS reads it clearly. */
+/** "+639171234567" → "0 9 1 7, 1 2 3, 4 5 6 7" (read the local way) so TTS reads it clearly. */
 function spellNumber(e164: string): string {
-  const d = e164.replace(/\D/g, "").replace(/^1/, "");
-  return `${d.slice(0, 3).split("").join(" ")}, ${d.slice(3, 6).split("").join(" ")}, ${d.slice(6).split("").join(" ")}`;
+  const groups = phLocalGroups(e164) ?? [e164.replace(/\D/g, "")];
+  return groups.map((g) => g.split("").join(" ")).join(", ");
 }
 
 // ------------------------------------------------------------------

@@ -9,6 +9,12 @@ updated: 2026-10-02
 
 ## 2026-10-02
 
+- **Philippine phone numbers**: patient mobiles can be entered as 09…, 9… or
+  +639… (CSV import and Add patient) and are saved as +639…; invalid numbers
+  are rejected with a message. The clinic callback number also accepts landlines.
+- **Philippine defaults**: new clinics start on `Asia/Manila` with calling
+  hours Mon–Fri 08:00–18:00 and Sat 08:00–12:00. Booking links show
+  "Philippine Time (PHT)". Voicemails read the callback number the local way.
 - **CC nightly review**: at 2:00 AM Manila time CC reviews running campaigns and
   the Review queue, files up to 5 action items, and posts a summary at the top
   of the CC action items page.

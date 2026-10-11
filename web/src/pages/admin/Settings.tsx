@@ -18,8 +18,8 @@ export default function AdminSettings() {
         </p>
 
         <h2>New-clinic defaults</h2>
-        <div className="kv"><span>Default timezone</span><strong>America/Chicago</strong></div>
-        <div className="kv"><span>Default calling hours</span><strong>09:00–19:00, Mon–Fri</strong></div>
+        <div className="kv"><span>Default timezone</span><strong>Asia/Manila</strong></div>
+        <div className="kv"><span>Default calling hours</span><strong>08:00–18:00 Mon–Fri, 08:00–12:00 Sat</strong></div>
         <div className="kv"><span>SMS fallback</span><strong>on</strong></div>
         <p className="muted small">
           Defaults are applied by the <code>create_clinic</code> action and can be adjusted per clinic

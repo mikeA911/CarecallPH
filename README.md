@@ -163,9 +163,9 @@ set raw_app_meta_data = raw_app_meta_data || '{"role":"admin","clinic_id":null}'
 where email = 'you@example.com';
 ```
 
-That admin creates clinics, clinic admins and staff from the portal. For each
-Philippine clinic set **Timezone** to `Asia/Manila` (the schema default is still
-`America/Chicago`; see ROADMAP Phase 0).
+That admin creates clinics, clinic admins and staff from the portal. New clinics
+default to **Timezone** `Asia/Manila` and calling hours Mon–Fri 08:00–18:00,
+Sat 08:00–12:00; adjust per clinic in Clinic settings.
 
 Per-clinic feature flags (no portal toggle yet):
 
