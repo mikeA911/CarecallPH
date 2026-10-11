@@ -37,3 +37,12 @@ verify_jwt = false
 # lockout, and a per-IP rate limit inside the function (self-booking-link-spec §4).
 [functions.booking-api]
 verify_jwt = false
+
+# Staff portal "Invite to chat" — signed-in user JWT required.
+[functions.channel-invite]
+verify_jwt = true
+
+# Viber / Messenger / WhatsApp / Telegram webhooks — authenticated by each
+# platform's signature or secret header inside the function.
+[functions.channel-webhook]
+verify_jwt = false

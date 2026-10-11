@@ -5,7 +5,9 @@ export type CampaignStatus = "draft" | "scheduled" | "active" | "paused" | "comp
 export type CampaignPatientStatus =
   | "pending" | "notified" | "calling" | "booked" | "declined" | "callback_requested"
   | "no_answer" | "voicemail" | "wrong_number" | "verification_failed"
-  | "needs_human" | "resolved";
+  | "needs_human" | "resolved" | "messaged" | "needs_invite";
+
+export type OutreachMode = "call" | "chat";
 
 // Human-friendly labels for campaign_patient statuses. Statuses not listed here
 // fall back to the raw value with underscores replaced by spaces.
@@ -16,6 +18,8 @@ const STATUS_LABELS: Record<string, string> = {
   no_answer: "no answer",
   wrong_number: "wrong number",
   needs_human: "needs review",
+  messaged: "link sent",
+  needs_invite: "needs chat invite",
 };
 
 export function statusLabel(status: string): string {
@@ -31,6 +35,8 @@ export type Clinic = {
   sms_fallback: boolean;
   sms_precall_lead_seconds: number | null;
   greeting_default: string | null;
+  self_booking_enabled: boolean;
+  chat_optin_enabled: boolean;
   active: boolean;
   created_at: string;
 };
@@ -80,6 +86,8 @@ export type Campaign = {
   status: CampaignStatus;
   scheduled_start: string | null;
   telnyx_assistant_id: string | null;
+  outreach_mode: OutreachMode;
+  chat_reminder_hours: number;
   created_by: string | null;
   created_at: string;
 };
@@ -113,6 +121,33 @@ export type CampaignStat = {
   unreached: number;
   needs_human: number;
   booking_rate_pct: number | null;
+  messaged: number;
+  needs_invite: number;
+};
+
+export type ChatChannel = "viber" | "messenger" | "whatsapp" | "telegram";
+
+export const CHANNEL_LABELS: Record<string, string> = {
+  sms: "SMS", viber: "Viber", messenger: "Messenger", whatsapp: "WhatsApp", telegram: "Telegram",
+};
+
+export type PatientChannel = {
+  id: string;
+  channel: ChatChannel;
+  display_name: string | null;
+  linked_at: string;
+  opted_in_at: string | null;
+  opted_out_at: string | null;
+};
+
+export type ChannelMessage = {
+  id: string;
+  channel: string;
+  direction: "outbound" | "inbound";
+  body: string | null;
+  status: string;
+  error: string | null;
+  created_at: string;
 };
 
 export type ReviewItem = {

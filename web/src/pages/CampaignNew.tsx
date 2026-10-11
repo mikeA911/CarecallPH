@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useSession } from "../lib/session";
 import { useClinic } from "../lib/clinic";
-import { CAMPAIGN_TYPES, type Provider, type Patient, type AppointmentTypeAssistant } from "../lib/types";
+import { CAMPAIGN_TYPES, type Provider, type Patient, type AppointmentTypeAssistant, type OutreachMode } from "../lib/types";
 
 export default function CampaignNew() {
   const { session } = useSession();
@@ -20,7 +20,9 @@ export default function CampaignNew() {
   const [form, setForm] = useState({
     name: "", appointment_type: CAMPAIGN_TYPES[0].value, greeting_context: "",
     provider_id: "", slot_length_minutes: 30, scheduled_start: "",
+    outreach_mode: "call" as OutreachMode, chat_reminder_hours: 24,
   });
+  const chat = form.outreach_mode === "chat";
 
   useEffect(() => {
     if (!activeClinicId) return;
@@ -56,6 +58,9 @@ export default function CampaignNew() {
 
   async function create(status: "draft" | "scheduled") {
     if (!form.name || !form.greeting_context) { setErr("Name and reason are required."); return; }
+    if (chat && !(form.chat_reminder_hours >= 1 && form.chat_reminder_hours <= 168)) {
+      setErr("Reminder time must be between 1 and 168 hours."); return;
+    }
     if (status === "scheduled" && !form.scheduled_start) { setErr("Pick a start time to schedule."); return; }
     setSaving(true); setErr("");
 
@@ -69,7 +74,9 @@ export default function CampaignNew() {
       greeting_context: form.greeting_context,
       provider_id: form.provider_id || null,
       slot_length_minutes: form.slot_length_minutes,
-      telnyx_assistant_id: assistantId,
+      telnyx_assistant_id: chat ? null : assistantId,
+      outreach_mode: form.outreach_mode,
+      chat_reminder_hours: form.chat_reminder_hours,
       status,
       scheduled_start: status === "scheduled" ? new Date(form.scheduled_start).toISOString() : null,
       created_by: session?.user?.id ?? null,
@@ -102,16 +109,40 @@ export default function CampaignNew() {
         <input id="c-name" value={form.name} placeholder="Annual Wellness Visits"
                onChange={(e) => setForm({ ...form, name: e.target.value })} />
 
+        <label htmlFor="c-mode">How to reach patients</label>
+        <select id="c-mode" value={form.outreach_mode}
+                onChange={(e) => setForm({ ...form, outreach_mode: e.target.value as OutreachMode })}>
+          <option value="call">AI phone calls</option>
+          <option value="chat">Chat message with a booking link</option>
+        </select>
+        <p className="muted small">
+          {chat
+            ? "Each patient gets a booking link on their chat app (or by SMS if they agreed to texts). No calls. Patients who haven't connected a chat app are listed as Needs chat invite."
+            : "The AI calls each patient within calling hours, after an optional heads-up text."}
+        </p>
+
+        {chat && (
+          <>
+            <label htmlFor="c-remind">Send one reminder after (hours)</label>
+            <input id="c-remind" type="number" min={1} max={168} value={form.chat_reminder_hours}
+                   onChange={(e) => setForm({ ...form, chat_reminder_hours: Number(e.target.value) })} />
+            <p className="muted small">
+              If the patient hasn't booked by then, they get one reminder. After the same time
+              again with no booking, they're marked as no answer.
+            </p>
+          </>
+        )}
+
         <label htmlFor="c-type">Campaign type</label>
         <select id="c-type" value={form.appointment_type}
                 onChange={(e) => setForm({ ...form, appointment_type: e.target.value })}>
           {CAMPAIGN_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
-        <p className="muted small">
+        {!chat && <p className="muted small">
           {resolveAssistantId(form.appointment_type)
             ? "Answered by this type's configured Telnyx AI assistant."
             : "No Telnyx assistant configured for this type in Clinic settings — uses the default assistant."}
-        </p>
+        </p>}
 
         <label htmlFor="c-provider">Clinician (blank = patient's own)</label>
         <select id="c-provider" value={form.provider_id}
@@ -124,7 +155,7 @@ export default function CampaignNew() {
         <input id="c-slot" type="number" min={10} step={5} value={form.slot_length_minutes}
                onChange={(e) => setForm({ ...form, slot_length_minutes: Number(e.target.value) })} />
 
-        <label htmlFor="c-context">Reason the AI gives the patient</label>
+        <label htmlFor="c-context">{chat ? "Reason in the message to the patient" : "Reason the AI gives the patient"}</label>
         <textarea id="c-context" rows={3} value={form.greeting_context}
                   placeholder="Dr. Jones would like to schedule your annual wellness visit."
                   onChange={(e) => setForm({ ...form, greeting_context: e.target.value })} />

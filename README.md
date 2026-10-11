@@ -53,13 +53,18 @@ Optional per clinic: a **pre-call message** a few minutes before the call, and
 
 ### Chat channels: Viber, Messenger, WhatsApp, Telegram
 
-Chat apps are opt-in. An SMS or voicemail follow-up carries a `/connect/<token>`
-invite; the patient opens their app and replies **YES** (or OO / OPO / SIGE),
+Chat apps are opt-in. Staff send a `/connect/<token>` invite from the patient's
+page (link, QR code or ready-made message), or an SMS or voicemail follow-up
+carries one; the patient opens their app and replies **YES** (or OO / OPO / SIGE),
 which is recorded as consent. Messages then go to the patient's preferred app,
 falling back by Philippine reach (MEF): **Viber 71% → Messenger 60% → WhatsApp
 40% → Telegram 20% → SMS**. Patients can reply **BOOK** for a booking link or
 **STOP / TIGIL** to opt out, in English, Filipino or Cebuano. One chat account
 can manage several patients (a parent booking for their children).
+
+**Chat campaigns** skip calls entirely: each patient gets a booking link on
+their chat app, with one reminder. This is how a clinic can pilot CareCall with
+only a Telegram bot, before a phone account is set up (Setup §9 below).
 
 Details: [docs/messaging-channels.md](docs/messaging-channels.md).
 
@@ -104,6 +109,7 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
 │       ├── assistant-tools/         # verify_patient, get_appointment_slots, create_appointment, mark_outcome
 │       ├── booking-api/             # public self-booking API behind /book/<token>
 │       ├── channel-webhook/         # inbound Viber / Messenger / WhatsApp / Telegram
+│       ├── channel-invite/          # staff "Invite to chat" links (portal)
 │       ├── admin-manage/            # portal users & clinics
 │       ├── cc-chat/                 # CC interactive
 │       └── cc-nightly/              # CC nightly review (one clinic per call)
@@ -211,6 +217,7 @@ deno run -A scripts/build-cc-wiki.ts             # refresh CC's wiki bundle firs
 
 supabase functions deploy start-campaign
 supabase functions deploy admin-manage
+supabase functions deploy channel-invite
 supabase functions deploy cc-chat
 supabase functions deploy telnyx-call-events --no-verify-jwt
 supabase functions deploy assistant-tools    --no-verify-jwt
@@ -241,8 +248,9 @@ called only by signed-in portal users or the cron sweep.
 ### 6. Chat channels
 
 Follow [docs/messaging-channels.md](docs/messaging-channels.md). Start with
-Telegram (free, about 5 minutes), then Viber (commercial terms needed for
-bot-initiated messages), then Messenger and WhatsApp (Meta app review).
+Telegram (free, about 10 minutes, no approval). Messenger and WhatsApp need Meta
+business verification and app review; Viber needs a commercial agreement
+(€100 a month per bot plus per-message fees). Apply for those early.
 
 ### 7. Portal
 
@@ -267,6 +275,35 @@ build time). `vercel.json` already rewrites `/book/*` and `/connect/*` to the SP
 7. Re-run and let it go to voicemail: message left, follow-up message sent, no AI.
 8. Open the `/connect` link, connect Telegram, reply `OO`, re-run: the notice now arrives in Telegram.
 9. Ask CC "How did my campaign do?" and check **CC action items**.
+
+### 9. Chat-only pilot (Telegram, no phone account)
+
+Everything except calls and SMS works without Telnyx. You need the Supabase
+project, the portal on Vercel and a Telegram bot.
+
+1. **Supabase:** §2 (database, Vault secrets, first admin), then secrets
+   `PORTAL_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` (and
+   `ANTHROPIC_API_KEY` for CC). Telnyx secrets can wait.
+2. **Functions:** deploy `start-campaign`, `admin-manage`, `channel-invite`,
+   `cc-chat`, and with `--no-verify-jwt`: `booking-api`, `channel-webhook`,
+   `cc-nightly`.
+3. **Telegram bot:** follow §3 of
+   [docs/messaging-channels.md](docs/messaging-channels.md).
+4. **Portal:** §7 with `VITE_TELEGRAM_BOT` set.
+5. **Test the loop:**
+   1. Clinic settings: `Asia/Manila`, calling hours covering now.
+   2. Clinicians: one clinician with availability in the next few days.
+   3. Patients: add yourself. Open your page, click **Invite to chat**, scan the
+      QR code with your phone, choose Telegram, press **Start**, reply `OO`.
+      **Chat apps** now shows Telegram as **Active**.
+   4. New campaign: **Chat message with a booking link**, reminder after
+      `1` hour, tick yourself, save, then **Start sending**.
+   5. The booking link arrives in Telegram. Open it, enter your date of birth,
+      pick a time. The campaign shows **booked**.
+   6. Add a second patient with no chat app to the campaign: they show as
+      **needs chat invite**. Invite and connect them, and their link arrives
+      within a minute.
+   7. Reply `BOOK` for a fresh link, then `TIGIL` to stop messages.
 
 ---
 

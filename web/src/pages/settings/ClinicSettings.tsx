@@ -85,6 +85,8 @@ export default function ClinicSettings() {
       sms_fallback: clinic.sms_fallback,
       sms_precall_lead_seconds: clinic.sms_precall_lead_seconds,
       greeting_default: clinic.greeting_default,
+      self_booking_enabled: clinic.self_booking_enabled,
+      chat_optin_enabled: clinic.chat_optin_enabled,
     }).eq("id", clinic.id);
     setSaving(false);
     if (!error) setClinic({ ...clinic, phone_callback: phoneCallback });
@@ -120,6 +122,26 @@ export default function ClinicSettings() {
           Send SMS fallback when a call reaches voicemail
         </label>
 
+        <h2>Booking links and chat apps</h2>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={!!clinic.self_booking_enabled}
+                 onChange={(e) => setClinic({ ...clinic, self_booking_enabled: e.target.checked })} />
+          Self-booking links in call campaigns
+        </label>
+        <p className="muted small">
+          Adds a link to pre-call texts and lets patients reply BOOK in a chat app, so they can pick
+          a time themselves. Chat campaigns always send booking links.
+        </p>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={!!clinic.chat_optin_enabled}
+                 onChange={(e) => setClinic({ ...clinic, chat_optin_enabled: e.target.checked })} />
+          Chat app invites in text messages
+        </label>
+        <p className="muted small">
+          Adds a link to connect Viber, Messenger, WhatsApp or Telegram to SMS sent by CareCall.
+          Staff can always invite a patient from their page with Invite to chat.
+        </p>
+
         <h2>Pre-call text message</h2>
         <p className="muted small">
           Text patients a heads-up a couple of minutes before the AI calls, so a
@@ -149,7 +171,7 @@ export default function ClinicSettings() {
         )}
 
         <h2>Calling hours (clinic-local)</h2>
-        <p className="muted small">Outbound calls only fire inside these windows. Days left closed are never dialed.</p>
+        <p className="muted small">Calls and campaign messages only go out inside these windows. Days left closed get no calls or messages.</p>
         {DAYS.map((label, weekday) => {
           const day = hours[weekday];
           return (

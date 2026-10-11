@@ -43,7 +43,7 @@ const YES = new Set(["YES", "Y", "OO", "OPO", "SIGE", "OK", "OKAY"]);
 const STOP = new Set(["STOP", "UNSUBSCRIBE", "TIGIL", "HINTO", "AYAW NA"]);
 const BOOK = new Set(["BOOK", "BOOKING", "SCHEDULE", "ISKEDYUL", "APPOINTMENT"]);
 
-const OPEN_STATUSES = ["pending", "notified", "callback_requested", "no_answer", "voicemail"];
+const OPEN_STATUSES = ["pending", "notified", "callback_requested", "no_answer", "voicemail", "messaged", "needs_invite"];
 
 // ---------------------------------------------------------------------------
 // Normalized inbound events
@@ -380,6 +380,7 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
     const ids = rows.map((r) => r.id);
     await supabase.from("patient_channels").update({ opted_in_at: now, opted_out_at: null }).in("id", ids);
     await supabase.from("patients").update({ preferred_channel: channel }).in("id", rows.map((r) => r.patient_id));
+    await requeueInvited(rows.map((r) => r.patient_id));
     await say(`Thanks! You'll get appointment messages from ${clinic.name} here. Reply BOOK to schedule, or STOP to stop.`);
     return;
   }
@@ -402,24 +403,51 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
   );
 }
 
-/** One self-booking link per patient with an open campaign. */
+/**
+ * A patient who connects a chat app while parked as needs_invite in an active
+ * chat campaign goes back to pending, so the next sweep sends their link.
+ */
+async function requeueInvited(patientIds: string[]) {
+  const { data } = await supabase.from("campaign_patients")
+    .select("campaign_id, patient_id, campaigns!inner(status)")
+    .in("patient_id", patientIds)
+    .eq("status", "needs_invite")
+    .eq("campaigns.status", "active");
+  for (const r of (data ?? []) as { campaign_id: string; patient_id: string }[]) {
+    await supabase.from("campaign_patients")
+      .update({ status: "pending", flag_reason: null, updated_at: new Date().toISOString() })
+      .eq("campaign_id", r.campaign_id).eq("patient_id", r.patient_id).eq("status", "needs_invite");
+  }
+}
+
+/**
+ * One self-booking link per patient with an open campaign. Chat campaigns
+ * always offer links; call campaigns only when the clinic has self-booking on.
+ */
 async function bookingReply(rows: LinkRow[], clinic: ClinicInfo): Promise<string> {
   const callback = clinic.callback ? ` Please call ${clinic.callback}.` : "";
-  if (!clinic.selfBooking) {
-    return `Online booking isn't available for ${clinic.name} yet.${callback}`;
-  }
 
   const patientIds = rows.map((r) => r.patient_id);
   const { data } = await supabase.from("campaign_patients")
-    .select("patient_id, campaign_id, campaigns!inner(status, clinic_id), patients!inner(first_name)")
+    .select("patient_id, campaign_id, campaigns!inner(status, clinic_id, outreach_mode), patients!inner(first_name)")
     .in("patient_id", patientIds)
     .in("status", OPEN_STATUSES)
     .eq("campaigns.status", "active");
 
-  type Row = { patient_id: string; campaign_id: string; campaigns: { clinic_id: string | null }; patients: { first_name: string } };
+  type Row = {
+    patient_id: string; campaign_id: string;
+    campaigns: { clinic_id: string | null; outreach_mode: string };
+    patients: { first_name: string };
+  };
+  const open = ((data ?? []) as unknown as Row[])
+    .filter((r) => clinic.selfBooking || r.campaigns.outreach_mode === "chat");
+  if (!open.length && !clinic.selfBooking) {
+    return `Online booking isn't available for ${clinic.name} yet.${callback}`;
+  }
+
   const seen = new Set<string>();
   const lines: string[] = [];
-  for (const r of (data ?? []) as unknown as Row[]) {
+  for (const r of open) {
     if (seen.has(r.patient_id)) continue; // one link per patient
     seen.add(r.patient_id);
     const link = await createBookingLink(r.campaign_id, r.patient_id, r.campaigns.clinic_id);

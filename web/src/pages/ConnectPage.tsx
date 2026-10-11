@@ -1,6 +1,7 @@
 // Public chat opt-in page — /connect/:token (CareCall PH Phase 1).
 //
-// Reached from the invite link in an SMS. Purely static: it renders deep links
+// Reached from an invite link: sent by staff from the patient's page ("Invite
+// to chat": link, QR code or message) or inside an SMS. Purely static: it renders deep links
 // that hand the token to our bot on each platform. No API call, no PHI — the
 // token is resolved server-side by channel-webhook when the patient opens the
 // chat, and nothing is sent there until they reply YES.
