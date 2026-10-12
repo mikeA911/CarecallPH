@@ -44,6 +44,11 @@ verify_jwt = false
 [functions.symptom-check]
 verify_jwt = false
 
+# Appointment reminders, called every 5 minutes by pg_cron (tick_reminders)
+# with the service-role bearer, checked inside the function.
+[functions.send-reminders]
+verify_jwt = false
+
 # Staff portal "Invite to chat" — signed-in user JWT required.
 [functions.channel-invite]
 verify_jwt = true

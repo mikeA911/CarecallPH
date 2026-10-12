@@ -4,8 +4,16 @@ title: What's new
 summary: Dated list of user-visible changes; read when asked what's new or whether a feature exists.
 roles: staff
 routes: []
-updated: 2026-10-12
+updated: 2026-10-14
 ---
+
+## 2026-10-14
+
+- **Appointment reminders**: chat reminders 24 hours and 2 hours before each
+  appointment (turn on in Clinic settings). Patients reply 1 to confirm, 2 to
+  change the time, 3 to cancel; requests appear in CC action items.
+- **Symptom check**: one switch in Clinic settings creates the clinic's link
+  and QR code; the CareCall page `/check` lets patients pick a clinic and book.
 
 ## 2026-10-12
 
