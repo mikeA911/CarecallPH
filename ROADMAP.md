@@ -85,7 +85,8 @@ Everything the chat-only Recall pilot needs. No phone account required.
 | Defaults: clinic timezone `Asia/Manila`, PH-friendly calling hours (Mon–Fri 08–18, Sat 08–12), `+63` placeholders in the portal | **Built** |
 | `BookPage` timezone label for `Asia/Manila` ("Philippine Time (PHT)") | **Built** |
 | Supabase project in Singapore; migrations, Vault secrets, functions deployed | Planned |
-| `supabase/config.toml` `project_id` set to the new project | Planned (after the project exists) |
+| `supabase/config.toml` `project_id` set to the new project | **Done** |
+| Migrations apply on a new Supabase project (`gen_random_uuid()`; enum values compared as text) | **Built**: full chain tested on a local Supabase stand-in |
 | Vercel portal with `VITE_*` variables | Planned |
 | Telegram bot and webhook (`docs/messaging-channels.md` §3) | Planned |
 | Chat-only pilot test (README §9) passes | Planned |

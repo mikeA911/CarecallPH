@@ -14,7 +14,7 @@
 -- MAPPING TABLE (clinic_id, appointment_type) -> assistant
 -- ============================================================
 create table if not exists appointment_type_assistants (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   clinic_id uuid not null references clinics(id) on delete cascade,
   appointment_type text not null,          -- matches campaigns.appointment_type
   label text,                              -- human-friendly name for the UI

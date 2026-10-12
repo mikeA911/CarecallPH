@@ -54,7 +54,9 @@ create unique index if not exists idx_providers_user_id
 -- campaign_stats view — count 'notified' as in-queue (part of pending).
 -- Recreate defensively so environments missing the shipped SMS migration
 -- still bucket the new status correctly. Column set/order is unchanged from
--- 20260705000000_portal_roles.sql so dependents keep working.
+-- 20260705000000_portal_roles.sql so dependents keep working. Statuses are
+-- compared as text: the new enum value can't be used as an enum literal in
+-- the same transaction that adds it (supabase db push runs one per file).
 -- ============================================================
 drop view if exists campaign_stats;
 create view campaign_stats as
@@ -65,14 +67,14 @@ select
   c.status,
   count(cp.patient_id) as total_patients,
   -- 'notified' patients are mid-countdown awaiting their call → still "in queue".
-  count(*) filter (where cp.status in ('pending', 'notified')) as pending,
-  count(*) filter (where cp.status = 'booked') as booked,
-  count(*) filter (where cp.status = 'declined') as declined,
-  count(*) filter (where cp.status in ('no_answer', 'voicemail')) as unreached,
-  count(*) filter (where cp.status in ('verification_failed', 'needs_human')) as needs_human,
+  count(*) filter (where cp.status::text in ('pending', 'notified')) as pending,
+  count(*) filter (where cp.status::text = 'booked') as booked,
+  count(*) filter (where cp.status::text = 'declined') as declined,
+  count(*) filter (where cp.status::text in ('no_answer', 'voicemail')) as unreached,
+  count(*) filter (where cp.status::text in ('verification_failed', 'needs_human')) as needs_human,
   round(
-    100.0 * count(*) filter (where cp.status = 'booked')
-    / nullif(count(*) filter (where cp.status not in ('pending', 'notified', 'calling')), 0), 1
+    100.0 * count(*) filter (where cp.status::text = 'booked')
+    / nullif(count(*) filter (where cp.status::text not in ('pending', 'notified', 'calling')), 0), 1
   ) as booking_rate_pct
 from campaigns c
 left join campaign_patients cp on cp.campaign_id = c.id

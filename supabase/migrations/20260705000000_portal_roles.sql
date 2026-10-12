@@ -9,7 +9,7 @@
 -- SEED CLINIC (D2: MVP seeds exactly one clinic; schema is multi-clinic)
 -- ============================================================
 create table if not exists clinics (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   phone_callback text,
   timezone text not null default 'America/Chicago',   -- IANA
@@ -107,7 +107,7 @@ alter table campaign_patients add column if not exists resolved_at  timestamptz;
 -- AUDIT LOG (§4.5)
 -- ============================================================
 create table if not exists audit_log (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   clinic_id uuid references clinics(id),
   actor_user_id uuid,
   action text not null,

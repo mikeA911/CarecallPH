@@ -18,7 +18,7 @@ alter table clinics
   add column if not exists cc_nightly_enabled boolean not null default true;
 
 create table if not exists cc_reviews (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   clinic_id uuid not null references clinics(id) on delete cascade,
   run_at timestamptz not null default now(),
   status text not null check (status in ('ok', 'skipped', 'error')),

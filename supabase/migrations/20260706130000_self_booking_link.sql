@@ -14,7 +14,7 @@
 -- the SMS/URL, so a leaked database never leaks usable links.
 -- ============================================================
 create table if not exists booking_links (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   token_hash text not null unique,          -- sha256 hex of the URL token
   campaign_id uuid not null references campaigns(id) on delete cascade,
   patient_id uuid not null references patients(id) on delete cascade,

@@ -24,7 +24,7 @@ create type call_result as enum (
 -- CORE TABLES
 -- ============================================================
 create table providers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   specialty text,
   active boolean not null default true,
@@ -32,7 +32,7 @@ create table providers (
 );
 
 create table patients (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   first_name text not null,
   last_name text not null,
   phone text not null,                -- E.164, e.g. +15551234567
@@ -45,7 +45,7 @@ create table patients (
 );
 
 create table campaigns (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,                 -- e.g. "Annual Wellness Visits"
   appointment_type text not null,     -- e.g. "wellness", "flu_shot"
   greeting_context text not null,     -- injected into AI prompt: why we're calling
@@ -68,7 +68,7 @@ create table campaign_patients (
 );
 
 create table provider_availability (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   provider_id uuid not null references providers(id) on delete cascade,
   weekday int not null check (weekday between 0 and 6),  -- 0 = Sunday
   start_time time not null,
@@ -77,7 +77,7 @@ create table provider_availability (
 );
 
 create table appointments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   patient_id uuid not null references patients(id),
   provider_id uuid not null references providers(id),
   campaign_id uuid references campaigns(id),
@@ -94,7 +94,7 @@ create table appointments (
 );
 
 create table call_logs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   call_control_id text unique,        -- Telnyx call control ID
   patient_id uuid references patients(id),
   campaign_id uuid references campaigns(id),
