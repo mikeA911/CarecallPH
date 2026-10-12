@@ -7,12 +7,28 @@ import { CAMPAIGN_TYPES, type Clinic, type AppointmentTypeAssistant } from "../.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type Hours = Record<string, { start: string; end: string } | null>;
 
+/** Link name as typed → web-safe: "CareCall Test Site" → "carecall-test-site". */
+function toSlug(typed: string, finished = false): string {
+  const s = typed.normalize("NFD").replace(/[\u0300-\u036f]/g, "") // drop accents: "Ñiño" → "Nino"
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 41);
+  return finished ? s.replace(/-+$/, "") : s; // keep a trailing dash while typing
+}
+
+/** A new public link name: clinic name + 4 random digits, e.g. "carecall-test-site-4821". */
+function newSlug(clinicName: string): string {
+  const base = toSlug(clinicName, true).slice(0, 35).replace(/-+$/, "") || "clinic";
+  return `${base}-${1000 + Math.floor(Math.random() * 9000)}`;
+}
+
+const SLUG_OK = /^[a-z0-9][a-z0-9-]{1,40}$/;
+
 export default function ClinicSettings() {
   const { activeClinicId } = useClinic();
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [hours, setHours] = useState<Hours>({});
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [editLink, setEditLink] = useState(false);
 
   // Campaign type -> Telnyx assistant ID (keyed by appointment_type).
   const [assistantIds, setAssistantIds] = useState<Record<string, string>>({});
@@ -76,34 +92,45 @@ export default function ClinicSettings() {
       if (!parsed.ok) { setMsg(`Callback phone number: ${parsed.error}`); return; }
       phoneCallback = parsed.e164;
     }
-    const slug = (clinic.public_slug ?? "").trim().toLowerCase();
-    if (slug && !/^[a-z0-9][a-z0-9-]{1,40}$/.test(slug)) {
-      setMsg("Page address: use 2–41 lowercase letters, numbers or dashes, e.g. santos-family-clinic.");
+    let slug = toSlug(clinic.public_slug ?? "", true);
+    if (slug && !SLUG_OK.test(slug)) {
+      setMsg("Link name: use at least 2 letters or numbers, e.g. santos-family-clinic.");
       return;
     }
-    if (clinic.symptom_check_enabled && !slug) {
-      setMsg("Symptom check: choose a page address first.");
-      return;
-    }
+    // Turning the symptom check on for the first time creates the link.
+    const autoSlug = !!clinic.symptom_check_enabled && !slug;
     setSaving(true);
-    const { error } = await supabase.from("clinics").update({
-      name: clinic.name,
-      phone_callback: phoneCallback,
-      timezone: clinic.timezone,
-      calling_hours: hours,
-      sms_fallback: clinic.sms_fallback,
-      sms_precall_lead_seconds: clinic.sms_precall_lead_seconds,
-      greeting_default: clinic.greeting_default,
-      self_booking_enabled: clinic.self_booking_enabled,
-      chat_optin_enabled: clinic.chat_optin_enabled,
-      symptom_check_enabled: clinic.symptom_check_enabled,
-      public_slug: slug || null,
-      local_emergency_numbers: clinic.local_emergency_numbers?.trim() || null,
-    }).eq("id", clinic.id);
+    let error: { code?: string; message: string } | null = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (autoSlug) slug = newSlug(clinic.name);
+      ({ error } = await saveClinic(slug, phoneCallback));
+      if (!(autoSlug && error?.code === "23505")) break; // random number taken: try another
+    }
     setSaving(false);
-    if (!error) setClinic({ ...clinic, phone_callback: phoneCallback, public_slug: slug || null });
-    const taken = error?.code === "23505" ? "That page address is taken. Try another." : null;
+    if (!error) {
+      setClinic({ ...clinic, phone_callback: phoneCallback, public_slug: slug || null });
+      setEditLink(false);
+    }
+    const taken = error?.code === "23505" ? "That link name is already used by another clinic. Try another." : null;
     setMsg(error ? taken ?? `Failed: ${error.message}` : "Clinic settings saved.");
+  }
+
+  async function saveClinic(slug: string, phoneCallback: string | null) {
+    const c = clinic!;
+    return await supabase.from("clinics").update({
+      name: c.name,
+      phone_callback: phoneCallback,
+      timezone: c.timezone,
+      calling_hours: hours,
+      sms_fallback: c.sms_fallback,
+      sms_precall_lead_seconds: c.sms_precall_lead_seconds,
+      greeting_default: c.greeting_default,
+      self_booking_enabled: c.self_booking_enabled,
+      chat_optin_enabled: c.chat_optin_enabled,
+      symptom_check_enabled: c.symptom_check_enabled,
+      public_slug: slug || null,
+      local_emergency_numbers: c.local_emergency_numbers?.trim() || null,
+    }).eq("id", c.id);
   }
 
   if (!clinic) return <p className="empty">Loading…</p>;
@@ -155,23 +182,36 @@ export default function ClinicSettings() {
           Staff can always invite a patient from their page with Invite to chat.
         </p>
 
-        <h2>Symptom check</h2>
+        <h2>Symptom check and online booking</h2>
         <p className="muted small">
-          A public page where patients answer a few questions and learn how soon to see a doctor and
-          what kind. Emergencies are sent to 911. It's not a diagnosis. Patients who message the
-          clinic's Telegram bot can also send /check.
+          Patients open one link for your clinic, answer a few questions, learn how soon to see a doctor
+          and what kind, and can book a visit with your clinicians. Emergencies are sent to 911. It's not
+          a diagnosis. Share the link on a QR poster, Facebook or Google Maps; Telegram users can send /check.
         </p>
-        <label htmlFor="slug">Page address</label>
-        <input id="slug" value={clinic.public_slug ?? ""} placeholder="santos-family-clinic"
-               onChange={(e) => setClinic({ ...clinic, public_slug: e.target.value })} />
-        {clinic.public_slug && (
-          <p className="muted small">{window.location.origin}/check/{clinic.public_slug.trim().toLowerCase()}</p>
-        )}
-        <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input type="checkbox" style={{ width: "auto" }} checked={!!clinic.symptom_check_enabled}
                  onChange={(e) => setClinic({ ...clinic, symptom_check_enabled: e.target.checked })} />
-          Show the symptom check on the clinic's page
+          Let patients check symptoms and book online
         </label>
+        {clinic.symptom_check_enabled && !clinic.public_slug && (
+          <p className="muted small">Save to create your clinic's link.</p>
+        )}
+        {clinic.public_slug && !editLink && (
+          <PublicLink slug={toSlug(clinic.public_slug, true)} enabled={!!clinic.symptom_check_enabled}
+                      onChange={() => setEditLink(true)} />
+        )}
+        {editLink && (
+          <>
+            <label htmlFor="slug">Link name</label>
+            <input id="slug" value={clinic.public_slug ?? ""} placeholder="santos-family-clinic"
+                   onChange={(e) => setClinic({ ...clinic, public_slug: toSlug(e.target.value) })}
+                   onBlur={() => setClinic({ ...clinic, public_slug: toSlug(clinic.public_slug ?? "", true) })} />
+            <p className="muted small">
+              {window.location.origin}/check/{toSlug(clinic.public_slug ?? "", true)}<br />
+              Spaces become dashes as you type. Save to apply. The old link and QR code stop working.
+            </p>
+          </>
+        )}
         <label htmlFor="local-em">Local emergency numbers (one per line)</label>
         <textarea id="local-em" rows={3} value={clinic.local_emergency_numbers ?? ""}
                   placeholder={"City rescue: 0917 123 4567\nNearest ER (Provincial Hospital): 032 123 4567"}
@@ -258,5 +298,42 @@ export default function ClinicSettings() {
         </div>
       </div>
     </>
+  );
+}
+
+/** The clinic's public symptom check link, with copy and a printable QR code. */
+function PublicLink({ slug, enabled, onChange }: { slug: string; enabled: boolean; onChange: () => void }) {
+  const url = `${window.location.origin}/check/${slug}`;
+  const [qr, setQr] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  async function copy() {
+    try { await navigator.clipboard.writeText(url); setNote("Link copied."); }
+    catch { setNote("Copy didn't work in this browser. Select the link and copy it by hand."); }
+  }
+  async function showQr() {
+    if (qr) { setQr(null); return; }
+    // Loaded on demand so the QR library isn't in every page load.
+    const { default: QRCode } = await import("qrcode");
+    setQr(await QRCode.toDataURL(url, { margin: 2, width: 600 }));
+  }
+
+  return (
+    <div className="public-link">
+      <div className="muted small">Your clinic's link{enabled ? "" : " (turned off: patients see \"not available\")"}</div>
+      <a href={url} target="_blank" rel="noreferrer" className="public-link-url">{url}</a>
+      <div className="row-actions" style={{ marginTop: 8 }}>
+        <button type="button" className="secondary" onClick={copy}>Copy link</button>
+        <button type="button" className="secondary" onClick={showQr}>{qr ? "Hide QR code" : "Show QR code"}</button>
+        <button type="button" className="link" onClick={onChange}>Change link</button>
+      </div>
+      {note && <p className="small" role="status">{note}</p>}
+      {qr && (
+        <div style={{ marginTop: 10 }}>
+          <img src={qr} alt={`QR code for ${url}`} width={200} height={200} className="public-link-qr" />
+          <div><a href={qr} download={`${slug}-qr.png`}>Download QR code (PNG) to print</a></div>
+        </div>
+      )}
+    </div>
   );
 }

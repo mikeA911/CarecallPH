@@ -297,6 +297,7 @@ into real availability. Design: `docs/symptom-check-design.md`.
 | D1b | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen; CareCall clinics first, other facilities by distance only, no booking | **Designed**: needs a Places API key |
 | D1c | Book from the result as a new patient (clinic page, non-emergency; urgent = today only); staff see the shared summary under Appointments on the patient page | **Built** |
 | D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Built**, tested against a fake API: needs the Infermedica trial (organization + business email) |
+| D1f | One public page (`/check`) with a clinic picker: participating clinics ordered by matching doctor, then soonest open time; clinic links skip it. Clinic link made automatically (name + random number) with copy and QR code | **Built** (early D2) |
 | D1e | Philippine layer: PH questions (fever days, flood water, long cough), 8 draft PH rules (animal bite, dengue, leptospirosis, child dehydration, long fever, jaundice, TB) that only raise urgency, fired rules saved per check, Infermedica region evidence, PH test cases (design §8a) | **Built** (draft rules): needs doctor sign-off; outcome comparison after D1c |
 
 CareCall never calls 911 for the patient: dispatchers need the person, and
@@ -359,6 +360,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Clinic settings: one switch for the symptom check, link made automatically with copy and QR; one public page `/check` with a clinic picker |
 | 2026-10-13 | Book from the symptom check (D1c), Appointments on the patient page; restored `get_available_slots(p_tz)` (booking links failed without it) |
 | 2026-10-13 | Philippine layer (D1e): PH questions and draft rules around every symptom engine, rules recorded per check, PH test cases |
 | 2026-10-12 | Demo symptom engine and Infermedica adapter; ApiMedic appeared offline; Philippine layer planned (D1e) |

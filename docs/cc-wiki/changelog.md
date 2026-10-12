@@ -12,7 +12,7 @@ updated: 2026-10-12
 - **CC** now opens from the CareCall logo at the top of the sidebar; the
   CareCall name next to it opens About. **History** in the CC panel keeps your
   last 20 chats in this browser.
-- **Symptom check** (testing only): a public page at `/check/<page address>`
+- **Symptom check** (testing only): a public page at the clinic's link (`/check/...`)
   and `/check` in Telegram. Emergency questions first, with a Call 911 screen;
   then how soon to see a doctor and what kind. Turn it on in Clinic settings.
 

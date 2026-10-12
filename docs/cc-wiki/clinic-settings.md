@@ -5,7 +5,7 @@ summary: Display name, callback number, timezone, calling hours, greeting, booki
 roles: clinic_admin
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 - **Display name**: how the clinic is named in calls and messages.
@@ -27,11 +27,13 @@ updated: 2026-10-12
   and lets patients reply BOOK in a chat app. Chat campaigns always send links.
 - **Chat app invites in text messages**: adds a link to connect a chat app to
   texts CareCall sends. **Invite to chat** on a patient's page works either way.
-- **Symptom check**: **Page address** (e.g. `santos-family-clinic` →
-  `/check/santos-family-clinic`), **Show the symptom check** on/off, and **Local
-  emergency numbers** (one per line) shown next to 911 on the emergency screen.
-  Page addresses use lowercase letters, numbers and dashes and must be unique.
-  See the symptom check page for what patients see.
+- **Symptom check and online booking**: tick **Let patients check symptoms and
+  book online** and save. CareCall creates the clinic's link from its name plus
+  a random number (e.g. `/check/carecall-test-site-4821`) and shows it with
+  **Copy link** and **Show QR code** (download the PNG to print a poster).
+  **Change link** sets a different name; the old link and QR code stop working.
+  **Local emergency numbers** (one per line) are shown next to 911 on the
+  emergency screen. See the symptom check page for what patients see.
 - **Pre-call text message**: on/off, and **Lead time before the call
   (seconds, 60–600)**. Patients get a heads-up message, then the call after the
   lead time. Longer leads (5–10 minutes) give patients time to use a booking link.

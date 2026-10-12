@@ -272,6 +272,16 @@ on a clinic's page, after a non-emergency result.
 6. `symptom_checks.outcome = 'booked'` and `appointment_id` link the check to
    the visit, which is what the outcome comparison in §8a needs.
 
+## 7a. One public page with a clinic picker (built, early D2)
+
+`/check` without a clinic now ends in **Find a clinic and book**: actions
+`clinics` (participating clinics: symptom check on, active, with a link) and
+`choose_clinic` (attaches the clinic to the check; then §7 applies). Order: a
+provider whose specialty matches the result, then the soonest open slot (today
+only for urgent results), then name; at most 20 clinics. No paid placement. The
+clinic's own link (`/check/<slug>`) skips the picker, so a clinic's poster
+never lists other clinics. Distance ordering arrives with nearby care (D1b).
+
 ## 8. Regulation and privacy (to confirm before going live)
 
 - **PH FDA, Center for Device Regulation:** check whether symptom-assessment
