@@ -1,4 +1,4 @@
-# CareCall PH
+# CareCallPH
 
 AI appointment scheduling for small private clinics in the Philippines (Metro
 Manila and Cebu). Clinic staff run outreach campaigns; an AI voice assistant
@@ -7,7 +7,7 @@ calendar. Follow-ups go out on the patient's preferred chat app (Viber,
 Messenger, WhatsApp, Telegram) or SMS. **CC**, an assistant inside the portal,
 explains the app, guides setup, and reviews campaign results every night.
 
-Forked from CareCall (BAI-POP2, built for US clinics). **Where the project
+Forked from CareCall, the earlier build for US clinics. **Where the project
 stands and what's next: [ROADMAP.md](ROADMAP.md).**
 
 ```
@@ -137,8 +137,8 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
 ### 1. Clone
 
 ```bash
-git clone <this repo> carecall-ph && cd carecall-ph
-git remote add upstream https://github.com/mikeA911/BAI-POP2.git   # pull core fixes later
+git clone https://github.com/mikeA911/CarecallPH.git && cd CarecallPH
+git remote add upstream https://github.com/mikeA911/CareCall.git   # the US CareCall build, to pull core fixes later
 code .
 ```
 
