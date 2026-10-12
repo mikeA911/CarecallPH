@@ -1,6 +1,6 @@
 # Symptom check: design sketch (Phase D1)
 
-**Status:** D1a built (demo engine; ApiMedic appeared offline); Infermedica adapter built, awaiting a trial; D1b–D1c designed. **Roadmap:** Phase D (CareCall Discover), first slice D1.
+**Status:** D1a, D1c and D1e built (demo engine; ApiMedic appeared offline); Infermedica adapter built, awaiting a trial; D1b designed. **Roadmap:** Phase D (CareCall Discover), first slice D1.
 **Last updated:** 12 October 2026
 
 A patient answers a few questions about their symptoms, gets care-navigation
@@ -247,21 +247,30 @@ create table symptom_checks (
 
 Not stored: names typed during the check, free text, the condition list, location, IP addresses.
 
-## 7. Booking (D1b)
+## 7. Booking from the result (D1c, built)
 
-Today's `/book` links belong to a campaign and an existing patient. A symptom
-check patient is usually new, so `booking-api` gets a new action:
+`symptom-check/booking.ts`, actions `slots` and `book`. Only for checks started
+on a clinic's page, after a non-emergency result.
 
-1. Patient enters first and last name, mobile (`normalizePhPhone`) and date of birth.
-2. Find or create the patient on `(clinic_id, phone, date_of_birth)`.
-3. Slots from the existing `get_available_slots`, filtered to providers whose
-   `specialty` matches the result (falls back to all providers if none match).
-4. Insert the appointment with `source = 'symptom_check'`; link it on `symptom_checks`.
-5. Staff see "From symptom check: urgency, symptoms" on the appointment, so the
-   doctor can prepare.
-
-Specialty names from the engine map to `providers.specialty` through a small
-table (e.g. "General practice" → GP / Family medicine).
+1. **Times:** `get_available_slots` (clinic timezone) for the clinic's active
+   providers whose `specialty` shares a word stem with the result's first kind
+   of doctor ("Pediatrics" ~ "Pediatrician"); all active providers if none
+   match. `urgent` results only offer times **today**; others up to 10 days.
+2. **Details:** first and last name, mobile (`normalizePhPhone`; international
+   numbers allowed while testers are abroad, `ALLOW_INTERNATIONAL_PHONES`), date
+   of birth. The page says the answers will be shared with the clinic.
+3. **Patient:** found on `(clinic_id, phone, date_of_birth)` or created. An
+   existing patient's record is never edited from this public page, and the
+   response doesn't say whether the patient existed.
+4. **Book:** the slot is re-checked against `get_available_slots`, then inserted
+   with `source = 'symptom_check'` and idempotency key `check:<id>` (one booking
+   per check). The `no_double_booking` constraint catches races (`slot_taken`).
+5. **Intake:** the appointment stores `intake` (urgency, kind of doctor, age
+   band, sex, symptom names, PH warnings). Staff see it under **Appointments** on
+   the patient's page. It is the clinic's record of the visit, so it stays with
+   the appointment; `symptom_checks` keeps its 90-day deletion.
+6. `symptom_checks.outcome = 'booked'` and `appointment_id` link the check to
+   the visit, which is what the outcome comparison in §8a needs.
 
 ## 8. Regulation and privacy (to confirm before going live)
 
@@ -320,7 +329,7 @@ The outcome data from step 3 is what would make our own engine possible later.
 |---|---|---|
 | **D1a** | Engine interface, demo engine + ApiMedic adapter, `symptom-check` function, emergency screen with 911 and local numbers, `/check` page up to the result, Telegram `/check` entry, `symptom_checks`, clinic switch, CC wiki page | ApiMedic sandbox account |
 | **D1b** | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen, CareCall clinics first (clinic `lat`/`lng`) | Google Cloud project + Places API key |
-| **D1c** | Booking for new patients from the result, staff view of the check | D1a |
+| **D1c** | Booking for new patients from the result, staff view of the check. **Built** | D1a |
 | **D1d** | Infermedica adapter (interview, triage, specialist); switch `SYMPTOM_ENGINE`. Adapter **built** and tested against a fake API; live test needs the trial. Then the Philippine layer (§8a) | Infermedica trial (organization + business email) |
 | D2 | CareCallPH.com: the same check as the public front door, many CareCall clinics | Gates in ROADMAP Phase D |
 | D3 | Filipino / Cebuano free-text intake (Claude maps words to engine symptom IDs only); start a check from a chat app | D1c |

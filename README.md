@@ -344,6 +344,11 @@ Pick the engine with the `SYMPTOM_ENGINE` secret (empty = feature off):
    leptospirosis note), Cough → "2 weeks or more" Yes (TB note), and "dog"
    (animal bite: urgent, rabies shots). In Telegram,
    send `/check` to the bot.
+5. Booking from the result (clinic page only): add a clinician with
+   availability (Clinicians), then on a result click **Book a visit**, pick a
+   time, enter name, mobile and date of birth. The patient and appointment
+   appear in the portal; the patient's page shows the shared summary under
+   **Appointments**. Urgent results only offer times today.
 
 Engine, PH layer and PH case tests: `deno test supabase/functions/_shared/symptom/`.
 The PH cases live in `ph_layer_test.ts` for a doctor to review and extend.

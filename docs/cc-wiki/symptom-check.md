@@ -35,7 +35,12 @@ real engine (Infermedica) comes once the clinic platform's trial is approved.
    flood water in the last 2 weeks (leptospirosis), a cough of 2 weeks or more
    (TB). Patients can also pick "Animal bite or scratch (dog, cat)" (rabies).
 6. The result: **See a doctor today** or **See a doctor in the next few days**,
-   which kind of doctor, any warning signs, and the clinic's number to book.
+   which kind of doctor, any warning signs, and the clinic's number.
+7. **Book a visit** (on a clinic's page): pick a day and time (results marked
+   "See a doctor today" only show today's times), then the patient's name,
+   mobile and date of birth. The patient agrees to share their answers with the
+   clinic. A new patient is added to **Patients** automatically; an existing
+   patient (same mobile and birthday) is matched, never changed.
 
 CareCall never calls 911 for the patient. The patient calls.
 
@@ -67,8 +72,11 @@ location or IP address. Checks are deleted after 90 days.
 
 ## Answers to common questions
 
-- "Can the patient book from the result?" Not yet: they call the clinic. Booking
-  from the result is the next slice.
+- "Where do I see what the patient reported?" Open the patient, then
+  **Appointments**: the booking shows "Symptom check" with the urgency, kind of
+  doctor, symptoms and any Philippine warnings to watch for.
+- "Why no times?" The clinic needs clinicians with availability (Clinicians).
+  Urgent results only show today's open times; otherwise up to 10 days ahead.
 - "Does it show nearby clinics?" Not yet: nearby care by location comes next.
 - "Is it in Filipino?" The emergency questions and key lines are in English and
   Filipino; symptom names are English for now.

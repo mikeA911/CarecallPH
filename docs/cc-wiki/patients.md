@@ -6,7 +6,7 @@ roles: staff
 routes:
   - /patients | staff | Patients
   - /patients/:id | staff | Patient detail
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 ## Importing
@@ -61,5 +61,8 @@ See the messaging-channels page.
 Shows the patient's details, **Chat apps** (each app, when they connected, when
 they said YES, and a status: Waiting for birthday, Birthday didn't match, Waiting
 for YES, Active or Stopped messages), the
-last 20 **Messages** sent and received, and their **Call history** across
-campaigns.
+last 20 **Messages** sent and received, their **Appointments** (when, clinician,
+how it was booked: AI call, booking link or symptom check, and status), and
+their **Call history** across campaigns. A booking from the symptom check also
+shows what the patient shared: urgency, kind of doctor, symptoms and any
+Philippine warnings to watch for.

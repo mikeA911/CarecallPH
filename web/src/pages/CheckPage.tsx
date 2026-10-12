@@ -267,7 +267,7 @@ export default function CheckPage() {
             </>
           )}
 
-          {step === "result" && result && <Result result={result} clinic={clinic} onRestart={restart} />}
+          {step === "result" && result && <Result result={result} clinic={clinic} checkId={checkId} onRestart={restart} />}
 
           {step === "unavailable" && (
             <>
@@ -346,9 +346,10 @@ function SymptomPicker({ checkId, chosen, setChosen, busy, onNext, onUnavailable
   );
 }
 
-function Result({ result, clinic, onRestart }: {
-  result: NonNullable<NextResp["result"]>; clinic: CheckClinic | null; onRestart: () => void;
+function Result({ result, clinic, checkId, onRestart }: {
+  result: NonNullable<NextResp["result"]>; clinic: CheckClinic | null; checkId: string | null; onRestart: () => void;
 }) {
+  const [booking, setBooking] = useState(false);
   const head = {
     urgent: { en: "See a doctor today", fil: "Magpatingin sa doktor ngayong araw." },
     routine: { en: "See a doctor in the next few days", fil: "Magpatingin sa doktor sa susunod na mga araw." },
@@ -378,9 +379,20 @@ function Result({ result, clinic, onRestart }: {
       {clinic && (
         <div className="check-clinic">
           <strong>{clinic.name}</strong>
-          {clinic.phone
-            ? <p>Call to book: <a href={`tel:${clinic.phone}`}>{showPhone(clinic.phone)}</a></p>
-            : <p>Contact the clinic to book a visit.</p>}
+          {booking && checkId ? (
+            <BookVisit checkId={checkId} clinic={clinic} urgent={result.urgency === "urgent"} />
+          ) : (
+            <>
+              {checkId && (
+                <button className="book-btn" style={{ marginTop: 10 }} onClick={() => setBooking(true)}>
+                  {result.urgency === "urgent" ? "Book a visit today" : "Book a visit"}
+                </button>
+              )}
+              {clinic.phone
+                ? <p>Or call: <a href={`tel:${clinic.phone}`}>{showPhone(clinic.phone)}</a></p>
+                : <p>Or contact the clinic to book a visit.</p>}
+            </>
+          )}
         </div>
       )}
 
@@ -390,6 +402,132 @@ function Result({ result, clinic, onRestart }: {
       </div>
       <button className="book-link" onClick={onRestart}>Start a new check</button>
     </>
+  );
+}
+
+type Day = { date: string; label: string; count: number };
+type Time = { slot_start: string; provider_id: string; provider_name: string; label: string };
+
+/** Book from the result (D1c): day → time → details → confirmed. */
+function BookVisit({ checkId, clinic, urgent }: { checkId: string; clinic: CheckClinic; urgent: boolean }) {
+  const [stage, setStage] = useState<"loading" | "days" | "times" | "details" | "done" | "none">("loading");
+  const [days, setDays] = useState<Day[]>([]);
+  const [times, setTimes] = useState<Time[]>([]);
+  const [day, setDay] = useState<Day | null>(null);
+  const [time, setTime] = useState<Time | null>(null);
+  const [form, setForm] = useState({ first: "", last: "", phone: "", dob: "" });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [when, setWhen] = useState("");
+
+  const loadDays = useCallback(async () => {
+    setStage("loading"); setErr("");
+    const { data } = await symptomApi.slots(checkId);
+    if (data?.times) { setTimes(data.times); setStage(data.times.length ? "times" : "none"); return; }
+    setDays(data?.days ?? []);
+    setStage(data?.days?.length ? "days" : "none");
+  }, [checkId]);
+  useEffect(() => { loadDays(); }, [loadDays]);
+
+  async function pickDay(d: Day) {
+    setDay(d); setStage("loading");
+    const { data } = await symptomApi.slots(checkId, d.date);
+    setTimes(data?.times ?? []);
+    setStage(data?.times?.length ? "times" : "none");
+  }
+
+  async function confirm() {
+    if (!time) return;
+    if (!form.first.trim() || !form.last.trim()) { setErr("Please enter the patient's first and last name."); return; }
+    if (!form.phone.trim()) { setErr("Please enter a mobile number."); return; }
+    if (!form.dob) { setErr("Please enter the date of birth."); return; }
+    setBusy(true); setErr("");
+    const { data, error } = await symptomApi.book(checkId, {
+      provider_id: time.provider_id, slot_start: time.slot_start,
+      first_name: form.first, last_name: form.last, phone: form.phone, date_of_birth: form.dob,
+    });
+    setBusy(false);
+    if (data?.booked) { setWhen(data.when ?? ""); setStage("done"); return; }
+    const reason = data?.reason ?? error;
+    if (reason === "slot_taken") {
+      setErr("Sorry, that time was just taken. Please pick another."); setTime(null);
+      if (urgent || !day) loadDays(); else pickDay(day);
+      return;
+    }
+    if (reason === "bad_phone") { setErr(data?.message ?? "Please check the mobile number."); return; }
+    if (reason === "bad_dob") { setErr("Please check the date of birth."); return; }
+    setErr("Booking didn't work. Please call the clinic.");
+  }
+
+  if (stage === "loading") return <p className="book-muted">Finding open times…</p>;
+  if (stage === "none") {
+    return (
+      <p>{urgent ? "No times left today online." : "No open times online right now."}{" "}
+        {clinic.phone ? <>Please call <a href={`tel:${clinic.phone}`}>{showPhone(clinic.phone)}</a>.</> : "Please contact the clinic."}
+      </p>
+    );
+  }
+  if (stage === "done") {
+    return (
+      <div role="status">
+        <p className="book-confirm-when" style={{ marginTop: 10 }}>{when}</p>
+        <p>You're booked at {clinic.name}. Please arrive 10 minutes early. If you can't come, call the clinic.</p>
+        <p className="small muted">If you get worse before then, don't wait: see a doctor or call 911.</p>
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 10 }}>
+      {err && <p className="book-err">{err}</p>}
+      {stage === "days" && (
+        <>
+          <p className="book-muted">Pick a day</p>
+          <div className="book-list">
+            {days.map((d) => (
+              <button key={d.date} className="book-option" onClick={() => pickDay(d)}>
+                <span className="book-option-main">{d.label}</span>
+                <span className="book-option-sub">{d.count} {d.count === 1 ? "time" : "times"} open</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {stage === "times" && (
+        <>
+          <p className="book-muted">{urgent ? "Times open today" : `Times on ${day?.label ?? ""}`}</p>
+          <div className="book-times">
+            {times.map((t) => (
+              <button key={t.slot_start} className="book-time" onClick={() => { setTime(t); setStage("details"); setErr(""); }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {!urgent && <button className="book-link" onClick={() => setStage("days")}>Pick another day</button>}
+        </>
+      )}
+      {stage === "details" && time && (
+        <>
+          <p><strong>{day ? `${day.label}, ` : "Today, "}{time.label}</strong> with {time.provider_name}</p>
+          <label htmlFor="bk-first">Patient's first name</label>
+          <input id="bk-first" className="book-input" autoComplete="given-name" value={form.first}
+            onChange={(e) => setForm({ ...form, first: e.target.value })} />
+          <label htmlFor="bk-last">Last name</label>
+          <input id="bk-last" className="book-input" autoComplete="family-name" value={form.last}
+            onChange={(e) => setForm({ ...form, last: e.target.value })} />
+          <label htmlFor="bk-phone">Mobile number</label>
+          <input id="bk-phone" className="book-input" inputMode="tel" autoComplete="tel" placeholder="0917 123 4567"
+            value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <label htmlFor="bk-dob">Date of birth</label>
+          <input id="bk-dob" className="book-input" type="date" value={form.dob}
+            onChange={(e) => setForm({ ...form, dob: e.target.value })} />
+          <p className="small muted">
+            By booking, you agree to share your answers (symptoms and how soon to be seen) with {clinic.name}.
+          </p>
+          <button className="book-btn" disabled={busy} onClick={confirm}>{busy ? "Booking…" : "Confirm booking"}</button>
+          <button className="book-link" disabled={busy} onClick={() => setStage("times")}>Change time</button>
+        </>
+      )}
+    </div>
   );
 }
 
