@@ -829,3 +829,6 @@ a.btn { display: inline-block; text-decoration: none; }
 .check-demo strong { letter-spacing: 0.06em; margin-right: 6px; }
 .intake { margin-top: 6px; padding: 6px 8px; border-left: 3px solid var(--amber); background: #FFF8EC; border-radius: 4px; color: var(--ink); }
 .intake div + div { margin-top: 2px; }
+.public-link { margin-top: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
+.public-link-url { display: block; margin-top: 2px; font-weight: 600; overflow-wrap: anywhere; }
+.public-link-qr { border: 1px solid var(--line); border-radius: 8px; background: #fff; }

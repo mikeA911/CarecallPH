@@ -336,9 +336,10 @@ Pick the engine with the `SYMPTOM_ENGINE` secret (empty = feature off):
    engine makes no calls and ignores it.
 2. `supabase db push` (adds `symptom_checks` and the clinic fields), then deploy
    `symptom-check` with `--no-verify-jwt` and redeploy `channel-webhook` and `cc-chat`.
-3. Portal: **Clinic settings → Symptom check**: set a page address, tick
-   **Show the symptom check**, add local emergency numbers.
-4. Test: open `/check/<page address>` on your phone, tick an emergency question
+3. Portal: **Clinic settings → Symptom check and online booking**: tick **Let
+   patients check symptoms and book online**, add local emergency numbers, save.
+   The clinic's link (name + random number) appears with Copy link and QR code.
+4. Test: open the clinic's link on your phone, tick an emergency question
    once (Call 911 screen), then do a normal check through to the result. With
    the demo engine, try Fever → "Less than 2 days" → flood water Yes (urgent,
    leptospirosis note), Cough → "2 weeks or more" Yes (TB note), and "dog"

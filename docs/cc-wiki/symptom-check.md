@@ -12,7 +12,7 @@ updated: 2026-10-13
 
 A public page where a patient answers a few questions and learns **how soon to
 see a doctor** and **what kind of doctor**. It is **not a diagnosis**, and it
-never shows disease names. Patients open it at `/check/<page address>`, or by
+never shows disease names. Patients open the clinic's link (`/check/<clinic link name>`), or by
 sending `/check` (or `CHECK`) to the clinic's Telegram bot.
 
 Status: test version. It runs on a built-in **demo** engine with made-up
@@ -46,10 +46,14 @@ CareCall never calls 911 for the patient. The patient calls.
 
 ## Turning it on (clinic admin)
 
-**Clinic settings → Symptom check**:
+**Clinic settings → Symptom check and online booking**:
 
-- **Page address**: e.g. `santos-family-clinic` gives `/check/santos-family-clinic`.
-- **Show the symptom check on the clinic's page**: on or off.
+- Tick **Let patients check symptoms and book online** and save. The clinic's
+  link is created automatically (clinic name + a random number) and shown with
+  **Copy link** and **Show QR code**. It is one link for the whole clinic, the
+  same for every patient: put the QR code on a poster, the link on Facebook or
+  Google Maps.
+- **Change link** (rarely needed) picks a different name; the old link stops working.
 - **Local emergency numbers**: one per line, e.g. city rescue and the nearest
   hospital ER. Shown next to 911.
 
