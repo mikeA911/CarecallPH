@@ -49,6 +49,10 @@ verify_jwt = false
 [functions.send-reminders]
 verify_jwt = false
 
+# Care plans (consent requests, stop reminders): signed-in portal users only.
+[functions.care-plan]
+verify_jwt = true
+
 # Staff portal "Invite to chat" — signed-in user JWT required.
 [functions.channel-invite]
 verify_jwt = true

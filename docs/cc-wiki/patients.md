@@ -58,7 +58,8 @@ See the messaging-channels page.
 
 ## Patient detail
 
-Shows the patient's details, **Chat apps** (each app, when they connected, when
+Shows the patient's details, **Medicines** (medicine reminders by chat, with
+consent and adherence; see the medicine reminders page), **Chat apps** (each app, when they connected, when
 they said YES, and a status: Waiting for birthday, Birthday didn't match, Waiting
 for YES, Active or Stopped messages), the
 last 20 **Messages** sent and received, their **Appointments** (when, clinician,

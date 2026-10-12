@@ -50,7 +50,7 @@ by country before any Southeast Asian expansion.
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
 | D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a built |
 | L | CareLink Records: FHIR timeline and authorized EHR access | **Planned** |
-| M | Care plans: prescriptions written in CareCall, medicine reminders and vital signs by chat, with consent | **Designed** (`docs/care-plan-design.md`) |
+| M | Care plans: prescriptions written in CareCall, medicine reminders and vital signs by chat, with consent | **In progress**: M1 medicine reminders built (`docs/care-plan-design.md`) |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
 **Next three actions**
@@ -359,10 +359,11 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 
 | Slice | Scope | Status |
 |---|---|---|
-| M1 | Consent in chat; medicines added by staff; reminders with 1 taken / 2 skipped, missed doses, adherence; STOP REMINDERS | **Designed** |
+| M1 | Consent in chat; medicines added by staff; reminders with 1 taken / 2 skipped, missed doses, adherence; STOP REMINDERS | **Built** |
 | M2 | Prescriptions: draft (assistant/doctor), sign (doctor), PDF and print, send by Telegram, verify page; feeds M1 | **Designed**: confirm e-prescription rules first |
 | M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
 | M4 | Adherence and readings reports in CC; missed-dose and no-reading alerts; FHIR groundwork for Phase R | **Designed** |
+| M5 | **Dictate to CC** (doctors): a microphone button in CC; the doctor says the medicines or the monitoring plan, CC fills in a **draft** prescription or plan for the doctor to check, edit and sign. Never signs or sends by itself | **Idea**: after M2 and M3 |
 
 **Gate:** doctor sign-off on default limits, wording and escalation; agreed
 review times at the pilot clinic; e-prescription rules confirmed. Dangerous
@@ -386,6 +387,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-15 | Care plans M1: medicine reminders by chat with recorded consent, 1 taken / 2 skipped, missed doses, adherence on the patient page |
 | 2026-10-14 | Phase M designed: prescriptions in CareCall feeding medicine reminders, vital signs by chat with doctor's limits, chat consent |
 | 2026-10-14 | Appointment reminders (2c): 24h and 2h chat reminders, replies 1 confirm / 2 new time / 3 cancel, action items, patient page status |
 | 2026-10-13 | Clinic settings: one switch for the symptom check, link made automatically with copy and QR; one public page `/check` with a clinic picker |

@@ -7,6 +7,12 @@ routes: []
 updated: 2026-10-14
 ---
 
+## 2026-10-15
+
+- **Medicine reminders**: on the patient page, add the patient's medicines and
+  ask them to agree in the chat; they get reminders at the doctor's times and
+  reply 1 taken / 2 skipped. Adherence shows the last 30 days.
+
 ## 2026-10-14
 
 - **Appointment reminders**: chat reminders 24 hours and 2 hours before each
