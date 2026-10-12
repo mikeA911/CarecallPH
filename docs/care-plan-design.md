@@ -34,7 +34,9 @@ Patient page → Care plan
   │                                  → "Send to patient" (Telegram, as a file)
   │                                  → [x] remind the patient for each medicine
   ├─ Medicines          list with reminder times, adherence ("taken 26 of 30")
-  ├─ Vital signs        [Track blood pressure] how often, times, limits
+  ├─ Vital signs        [New monitoring plan]  what, when, how, why, targets,
+  │                     what to do if high or low  [Save draft] [Sign] (doctor)
+  │                     → printable plan / PDF → "Send to patient" (Telegram)
   │                     chart and list of readings
   └─ Consent            status, date, wording version, withdraw
 Readings to review  (new list for the clinic, with a badge)
@@ -91,7 +93,38 @@ for your 8 AM medicine" without the medicine's name (for shared phones).
 | Dangerous (doctor's critical limit, defaults below) | "Saved: 185/122. This is very high. If you have chest pain, trouble breathing, weakness on one side, confusion or a severe headache, call 911 now. Otherwise contact Santos Clinic today: 0917…" + **urgent** item for the clinic |
 | Not understood / implausible (e.g. 12/8) | "Sorry, I didn't get that. Please send your blood pressure like 120/80." |
 
-## 4. Vital signs and limits
+## 4. Vital signs: the monitoring plan
+
+Like the prescription, the doctor (or assistant, as a draft) writes a
+**monitoring plan** and the doctor signs it. It is the patient's instruction
+sheet, sent on Telegram as a document and printable for the clinic visit, so
+the patient knows exactly what to do and why. It is also what drives the chat
+requests and the limits.
+
+**What the plan says** (one section per measure):
+
+| Part | Example (blood pressure) | Who writes it |
+|---|---|---|
+| **What and why** | "Check your blood pressure because we started a new medicine (Amlodipine) and want to see if the dose is right." | Doctor, in plain words |
+| **When** | "Every morning before breakfast and before your medicine, for 2 weeks." | Doctor; becomes the chat schedule |
+| **How** | "Sit quietly for 5 minutes. Feet flat, back supported, arm resting at heart level. No coffee, cigarettes or exercise 30 minutes before. Take 2 readings 1 minute apart and send both." | Ready-made instructions per measure (draft for doctor review); the doctor can edit |
+| **Your target** | "Below 140/90." | Doctor; becomes the out-of-range limit |
+| **If it's high or low** | "Above 160/100 twice in a row: message the clinic. Below 90/60 with dizziness: sit or lie down and message the clinic." | Doctor's action plan; shown back in the chat reply |
+| **When to call 911** | "Above 180/120 with chest pain, trouble breathing, weakness on one side, confusion or a severe headache." | Standard text plus the doctor's critical limit |
+| **Who reviews** | "Santos Clinic reviews your readings Monday to Saturday, 8 AM to 5 PM." | From clinic settings |
+
+The plan has English and Filipino versions (templates for the "how" and the
+standard texts; the doctor's own sentences are shown as written). The chat
+request links back to it: "🩺 Time for your blood pressure check (see your
+plan from Dr. Reyes). Reply like 120/80." Out-of-range replies quote the
+doctor's own action plan: "That's above your target. Dr. Reyes's plan says:
+if it's above 160/100 twice in a row, message the clinic."
+
+The plan carries the same signature, date, PRC number and verify QR as the
+prescription, and a new version is created when the doctor changes it (the old
+one stays in the record).
+
+## 4a. Measures and limits
 
 | Measure | Reply format | Plausible | Default limits (doctor confirms per patient) |
 |---|---|---|---|
@@ -119,8 +152,11 @@ prescription_items    prescription, generic_name, brand, strength, form, dose,
 medications           patient, clinic, from prescription item or added by staff,
                       times_of_day[], start_date, end_date, active, discreet
 medication_doses      medication, due_at, status (sent | taken | skipped | missed), answered_at
-vital_plans           patient, clinic, measure, times_of_day[], days_of_week[],
-                      target_low/high, critical_low/high, set_by (doctor)
+monitoring_plans      clinic, patient, provider, version, status (draft | signed | replaced),
+                      drafted_by, signed_by, signed_at, review_hours_text
+vital_plans           monitoring plan, measure, reason, how_to (en/fil), times_of_day[],
+                      days_of_week[], until_date, target_low/high, critical_low/high,
+                      if_high / if_low (doctor's action plan text)
 vital_readings        patient, clinic, measure, values (e.g. {sys, dia, pulse}), unit,
                       taken_at, source (chat | staff), flag (ok | out_of_range | critical),
                       reviewed_by, reviewed_at, review_note
@@ -167,7 +203,7 @@ vital_readings        patient, clinic, measure, values (e.g. {sys, dia, pulse}),
 |---|---|
 | **M1** | Consent in chat; medicines added by staff (no prescription yet); reminders, 1/2 replies, missed doses, adherence on the patient page; STOP REMINDERS |
 | **M2** | Prescriptions: draft by assistant or doctor, sign by the doctor, printable/PDF with PRC and PTR numbers, send to the patient on Telegram, verify page; signed items feed M1 reminders |
-| **M3** | Vital signs: plans and limits set by the doctor, chat requests, reading parser, Readings to review, critical-reading message, chart on the patient page |
+| **M3** | Vital signs: monitoring plan (what, when, how, why, targets, what to do if high or low) drafted and signed like a prescription, sent as a document; chat requests from the plan, reading parser, Readings to review, critical-reading message, chart on the patient page |
 | **M4** | Reports: adherence and readings in CC (aggregate), missed-dose and no-reading alerts; FHIR mapping groundwork for Phase R |
 
 **Before building:** confirm the e-prescription rules (§2) and who reviews

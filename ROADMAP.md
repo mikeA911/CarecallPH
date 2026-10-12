@@ -358,7 +358,7 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 |---|---|---|
 | M1 | Consent in chat; medicines added by staff; reminders with 1 taken / 2 skipped, missed doses, adherence; STOP REMINDERS | **Designed** |
 | M2 | Prescriptions: draft (assistant/doctor), sign (doctor), PDF and print, send by Telegram, verify page; feeds M1 | **Designed**: confirm e-prescription rules first |
-| M3 | Vital signs: doctor's plans and limits, chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
+| M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
 | M4 | Adherence and readings reports in CC; missed-dose and no-reading alerts; FHIR groundwork for Phase R | **Designed** |
 
 **Gate:** doctor sign-off on default limits, wording and escalation; agreed
