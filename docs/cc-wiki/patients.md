@@ -6,7 +6,7 @@ roles: staff
 routes:
   - /patients | staff | Patients
   - /patients/:id | staff | Patient detail
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 ## Importing
@@ -18,8 +18,10 @@ On **Patients**, use **Import CSV** with the columns
 - **phone** is the patient's Philippine mobile number. Any of these work:
   `09171234567`, `9171234567`, `+639171234567`; spaces, dashes and brackets
   are ignored (`0917-123-4567`, `+63 (917) 123 4567`). It is saved as
-  `+639171234567`. Landlines and non-Philippine numbers are rejected, because
-  text messages need a mobile. Rejected rows show the reason in the preview's
+  `+639171234567`. Landlines are rejected, because text messages need a mobile.
+  For testing, numbers from other countries are currently accepted too when
+  written with + and the country code (e.g. `+855 12 345 678`); Philippine
+  numbers are still required for the pilot. Rejected rows show the reason in the preview's
   **Issue** column, for example "Invalid phone number "0917123456". Use a PH
   mobile number like 0917 123 4567, 917 123 4567 or +63 917 123 4567." or
   "Only Philippine (+63) numbers are supported."; fix them in the file and import again.
@@ -29,7 +31,7 @@ On **Patients**, use **Import CSV** with the columns
   still call, but won't text.
 
 You can also add one patient at a time with **Or add one patient**. The
-**Mobile (09… or +63…)** field accepts the same formats and shows the same
+**Mobile** field (09…, +63… or +country code…) accepts the same formats and shows the same
 message if the number is invalid.
 
 A patient is identified by mobile number plus date of birth **within your
