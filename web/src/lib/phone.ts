@@ -6,18 +6,26 @@
 // Mobile:   09XX XXX XXXX · 9XX XXX XXXX · +63 9XX XXX XXXX  → +639XXXXXXXXX
 // Landline: 02 8XXX XXXX (Metro Manila) · 0AA XXX XXXX (e.g. 032 Cebu)
 //           → +632XXXXXXXX / +63AAXXXXXXX   (only with allowLandline)
+// Other countries: +<country code><number>, 8–15 digits (only with
+//           allowInternational; e.g. testers outside the Philippines)
 
 export type PhoneResult = { ok: true; e164: string } | { ok: false; error: string };
 
 const MOBILE_HINT = "Use a PH mobile number like 0917 123 4567, 917 123 4567 or +63 917 123 4567.";
 const ANY_HINT = "Use a PH mobile (0917 123 4567) or a landline with area code (02 8123 4567, 032 123 4567).";
 
-export function normalizePhPhone(raw: string, opts: { allowLandline?: boolean } = {}): PhoneResult {
-  const hint = opts.allowLandline ? ANY_HINT : MOBILE_HINT;
+const INTL_HINT = " Numbers from other countries need + and the country code, e.g. +1 415 555 0100 or +65 9123 4567.";
+
+export function normalizePhPhone(
+  raw: string,
+  opts: { allowLandline?: boolean; allowInternational?: boolean } = {},
+): PhoneResult {
+  const hint = (opts.allowLandline ? ANY_HINT : MOBILE_HINT) + (opts.allowInternational ? INTL_HINT : "");
   const s = (raw ?? "").trim().replace(/[\s\-().]/g, "");
   if (!s) return { ok: false, error: "Phone number is required." };
   if (!/^\+?\d+$/.test(s)) return { ok: false, error: `Invalid phone number "${raw.trim()}". ${hint}` };
   if (s.startsWith("+") && !s.startsWith("+63")) {
+    if (opts.allowInternational && /^\+[1-9]\d{7,14}$/.test(s)) return { ok: true, e164: s };
     return { ok: false, error: `Only Philippine (+63) numbers are supported. ${hint}` };
   }
 

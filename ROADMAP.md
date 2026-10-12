@@ -90,6 +90,7 @@ Everything the chat-only Recall pilot needs. No phone account required.
 | Vercel portal with `VITE_*` variables | Planned |
 | Telegram bot and webhook (`docs/messaging-channels.md` §3) | Planned |
 | Chat-only pilot test (README §9) passes | Planned |
+| Turn international patient numbers back off (`ALLOW_INTERNATIONAL_PATIENT_PHONES` in `web/src/pages/Patients.tsx`, temporarily `true` for testing outside the Philippines) | Before the PH pilot |
 
 ## Phase 0b: PH telephony for Voice
 

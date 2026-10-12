@@ -5,6 +5,11 @@ import { supabase } from "../lib/supabase";
 import { useSession, roleAtLeast } from "../lib/session";
 import { useClinic } from "../lib/clinic";
 import { normalizePhPhone } from "../lib/phone";
+
+// TEMPORARY for testing from outside the Philippines: patient numbers may be
+// international (+855…, +1…). Philippine numbers are still normalized to
+// +639…. Set to false before the Philippine pilot to accept PH mobiles only.
+const ALLOW_INTERNATIONAL_PATIENT_PHONES = true;
 import type { Patient, Campaign } from "../lib/types";
 
 type ParsedRow = {
@@ -49,7 +54,7 @@ export default function Patients() {
       complete: (res) => {
         const rows: ParsedRow[] = (res.data as Record<string, string>[]).map((r) => {
           const first_name = (r.first_name ?? "").trim();
-          const parsed = normalizePhPhone(r.phone ?? "");
+          const parsed = normalizePhPhone(r.phone ?? "", { allowInternational: ALLOW_INTERNATIONAL_PATIENT_PHONES });
           const phone = parsed.ok ? parsed.e164 : (r.phone ?? "").trim();
           const dob = (r.date_of_birth ?? "").trim();
           let error: string | undefined;
@@ -91,7 +96,7 @@ export default function Patients() {
   }
 
   async function addOne() {
-    const parsed = normalizePhPhone(form.phone);
+    const parsed = normalizePhPhone(form.phone, { allowInternational: ALLOW_INTERNATIONAL_PATIENT_PHONES });
     if (!parsed.ok) { setMsg(parsed.error); return; }
     const { error } = await supabase.from("patients")
       .insert({ ...form, clinic_id: activeClinicId, phone: parsed.e164 });
@@ -161,7 +166,7 @@ export default function Patients() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <input placeholder="First name" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
             <input placeholder="Last name" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
-            <input placeholder="Mobile (09… or +63…)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input placeholder={ALLOW_INTERNATIONAL_PATIENT_PHONES ? "Mobile (09…, +63… or +country code…)" : "Mobile (09… or +63…)"} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             <input placeholder="DOB YYYY-MM-DD" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
           </div>
           <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
