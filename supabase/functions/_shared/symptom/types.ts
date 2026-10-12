@@ -39,6 +39,8 @@ export interface SymptomEngine {
   /** Upstream calls made by this instance (for the monthly budget). */
   readonly calls: number;
   searchSymptoms(text: string, person: Person | null): Promise<Symptom[]>;
+  /** Display name of a symptom ID, or null if unknown (used by the PH layer). */
+  nameOf(id: string): Promise<string | null>;
   /** Next question, or the assessment when the engine has enough. */
   next(person: Person, answers: Answer[]): Promise<{ question: Question } | { assessment: Assessment }>;
 }

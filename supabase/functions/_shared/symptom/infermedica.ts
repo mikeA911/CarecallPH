@@ -18,7 +18,12 @@
 // The symptom list is fetched once a day per warm instance and searched here,
 // so typing in the search box doesn't use API calls (the trial has 2,000).
 //
-// Secrets: INFERMEDICA_APP_ID, INFERMEDICA_APP_KEY, optional INFERMEDICA_MODEL
+// Region (PH layer, design §8a): INFERMEDICA_EXTRA_EVIDENCE is a comma list of
+// risk-factor IDs sent as present on every check, e.g. the "lives in Southeast
+// Asia" factor once its ID is confirmed on the trial account. Empty = none.
+//
+// Secrets: INFERMEDICA_APP_ID, INFERMEDICA_APP_KEY, optional INFERMEDICA_MODEL,
+//          optional INFERMEDICA_EXTRA_EVIDENCE
 import {
   type Answer, type Assessment, EngineError, type Person, type Question,
   type Symptom, type SymptomEngine, type Urgency,
@@ -56,13 +61,16 @@ export class InfermedicaEngine implements SymptomEngine {
     private interviewId: string | undefined,
     private model: string | undefined,
     private fetchFn: Fetch = fetch,
+    private extraEvidence: string[] = [],
   ) {}
 
   static fromEnv(interviewId?: string): InfermedicaEngine | null {
     const id = Deno.env.get("INFERMEDICA_APP_ID") ?? "";
     const key = Deno.env.get("INFERMEDICA_APP_KEY") ?? "";
     if (!id || !key) return null;
-    return new InfermedicaEngine(id, key, interviewId, Deno.env.get("INFERMEDICA_MODEL") || undefined);
+    const extra = (Deno.env.get("INFERMEDICA_EXTRA_EVIDENCE") ?? "")
+      .split(",").map((x) => x.trim()).filter((x) => /^[a-z]_\w+$/.test(x));
+    return new InfermedicaEngine(id, key, interviewId, Deno.env.get("INFERMEDICA_MODEL") || undefined, fetch, extra);
   }
 
   private headers(): Record<string, string> {
@@ -99,6 +107,10 @@ export class InfermedicaEngine implements SymptomEngine {
     return list;
   }
 
+  async nameOf(id: string): Promise<string | null> {
+    return (await this.allSymptoms()).find((s) => s.id === id)?.name ?? null;
+  }
+
   async searchSymptoms(text: string): Promise<Symptom[]> {
     const q = text.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -110,7 +122,7 @@ export class InfermedicaEngine implements SymptomEngine {
 
   async next(person: Person, answers: Answer[]): Promise<{ question: Question } | { assessment: Assessment }> {
     if (!answers.some((a) => a.present === true)) throw new EngineError("no symptoms chosen");
-    const body = diagnosticBody(person, answers);
+    const body = diagnosticBody(person, answers, this.extraEvidence);
     const asked = new Set(answers.filter((a) => a.source === "question").map((a) => a.symptomId)).size;
 
     const d = await this.call<DiagnosisResp>("POST", "/diagnosis", body);
@@ -137,7 +149,7 @@ export class InfermedicaEngine implements SymptomEngine {
 }
 
 /** Our answers → Infermedica's request body. Exported for tests. */
-export function diagnosticBody(person: Person, answers: Answer[]) {
+export function diagnosticBody(person: Person, answers: Answer[], extraEvidence: string[] = []) {
   const age = Math.max(0, new Date().getUTCFullYear() - person.birthYear);
   const seen = new Set<string>();
   const evidence = [];
@@ -146,6 +158,9 @@ export function diagnosticBody(person: Person, answers: Answer[]) {
     seen.add(a.symptomId);
     const choice_id = a.present === "unknown" ? "unknown" : a.present ? "present" : "absent";
     evidence.push(a.source === "search" ? { id: a.symptomId, choice_id, source: "initial" } : { id: a.symptomId, choice_id });
+  }
+  for (const id of extraEvidence) {
+    if (!seen.has(id)) evidence.push({ id, choice_id: "present", source: "predefined" });
   }
   return { sex: person.sex, age: { value: age }, evidence };
 }

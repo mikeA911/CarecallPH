@@ -17,6 +17,13 @@ export type NextResp = {
   result?: { urgency: Urgency; specialties: string[]; red_flags: string[] };
 };
 
+export type SlotsResp = {
+  days?: { date: string; label: string; count: number }[];
+  times?: { slot_start: string; provider_id: string; provider_name: string; label: string }[];
+  today_only?: boolean;
+};
+export type BookResp = { booked: boolean; when?: string | null; already?: boolean; reason?: string; message?: string };
+
 async function post<T>(body: Record<string, unknown>): Promise<{ data: T | null; error: string | null }> {
   try {
     const res = await fetch(`${FUNCTIONS_URL}/symptom-check`, {
@@ -25,7 +32,11 @@ async function post<T>(body: Record<string, unknown>): Promise<{ data: T | null;
       body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) return { data: null, error: (json as { error?: string }).error ?? `http_${res.status}` };
+    if (!res.ok) {
+      const j = json as { error?: string; reason?: string };
+      // Booking errors carry a reason (slot_taken, bad_phone…) the page shows.
+      return { data: j.reason ? json as T : null, error: j.error ?? j.reason ?? `http_${res.status}` };
+    }
     return { data: json as T, error: null };
   } catch (e) {
     return { data: null, error: (e as Error).message || "network" };
@@ -39,6 +50,11 @@ export const symptomApi = {
   search: (checkId: string, q: string) => post<{ symptoms: Symptom[] }>({ action: "search", check_id: checkId, q }),
   next: (checkId: string, person: { birthYear: number; sex: Sex }, answers: Answer[]) =>
     post<NextResp>({ action: "next", check_id: checkId, person, answers }),
+  slots: (checkId: string, onDate?: string) =>
+    post<SlotsResp>({ action: "slots", check_id: checkId, on_date: onDate }),
+  book: (checkId: string, details: {
+    provider_id: string; slot_start: string; first_name: string; last_name: string; phone: string; date_of_birth: string;
+  }) => post<BookResp>({ action: "book", check_id: checkId, ...details }),
 };
 
 // ---------------------------------------------------------------------------
@@ -85,6 +101,7 @@ export function specialtyLabel(name: string): string {
     "Urology": "a urinary tract doctor (urologist)",
     "Psychiatry": "a mental health doctor (psychiatrist)",
     "Pulmonology": "a lung doctor (pulmonologist)",
+    "Animal Bite Treatment Center": "an Animal Bite Treatment Center (or your health center) for rabies shots",
     // Infermedica's names
     "General practitioner": "a general doctor (GP or family medicine)",
     "Family doctor": "a general doctor (GP or family medicine)",

@@ -92,7 +92,8 @@ Everything the chat-only Recall pilot needs. No phone account required.
 | CC turned on: `ANTHROPIC_API_KEY` function secret, `cc-chat` and `cc-nightly` deployed | **Done** |
 | Telegram bot and webhook (`docs/messaging-channels.md` §3) | **Done** |
 | Chat-only pilot test (README §9) passes | In progress (testers in the US and Singapore) |
-| Turn international patient numbers back off (`ALLOW_INTERNATIONAL_PATIENT_PHONES` in `web/src/pages/Patients.tsx`, temporarily `true` for testing outside the Philippines) | Before the PH pilot |
+| Turn international patient numbers back off (`ALLOW_INTERNATIONAL_PATIENT_PHONES` in `web/src/pages/Patients.tsx` and `ALLOW_INTERNATIONAL_PHONES` in `supabase/functions/symptom-check/booking.ts`, temporarily `true` for testing outside the Philippines) | Before the PH pilot |
+| Restore timezone-correct slot generation (`get_available_slots` with `p_tz`), lost when the repo was flattened; booking links and voice slot tools need it | **Built**: migration `20261013010000` |
 
 ## Phase 0b: PH telephony for Voice
 
@@ -294,9 +295,9 @@ into real availability. Design: `docs/symptom-check-design.md`.
 |---|---|---|
 | D1a | `SymptomEngine` interface, built-in **demo engine** (made-up rules, DEMO banner), public `symptom-check` function, our own emergency screen (tap-to-call 911, local rescue numbers, no booking), `/check` page up to the result, Telegram `/check` entry, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Built**: runs with `SYMPTOM_ENGINE=demo` (README §10) |
 | D1b | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen; CareCall clinics first, other facilities by distance only, no booking | **Designed**: needs a Places API key |
-| D1c | Book from the result as a new patient; staff see urgency and symptoms on the appointment | **Designed** |
+| D1c | Book from the result as a new patient (clinic page, non-emergency; urgent = today only); staff see the shared summary under Appointments on the patient page | **Built** |
 | D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Built**, tested against a fake API: needs the Infermedica trial (organization + business email) |
-| D1e | Philippine layer: region risk factors, doctor-owned PH rules (dengue, leptospirosis, TB) that only raise urgency, PH test cases, outcome comparison (design §8a) | **Planned** |
+| D1e | Philippine layer: PH questions (fever days, flood water, long cough), 8 draft PH rules (animal bite, dengue, leptospirosis, child dehydration, long fever, jaundice, TB) that only raise urgency, fired rules saved per check, Infermedica region evidence, PH test cases (design §8a) | **Built** (draft rules): needs doctor sign-off; outcome comparison after D1c |
 
 CareCall never calls 911 for the patient: dispatchers need the person, and
 Telnyx doesn't list PH emergency calling. In Voice, the AI tells the caller to
@@ -358,6 +359,8 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Book from the symptom check (D1c), Appointments on the patient page; restored `get_available_slots(p_tz)` (booking links failed without it) |
+| 2026-10-13 | Philippine layer (D1e): PH questions and draft rules around every symptom engine, rules recorded per check, PH test cases |
 | 2026-10-12 | Demo symptom engine and Infermedica adapter; ApiMedic appeared offline; Philippine layer planned (D1e) |
 | 2026-10-12 | Symptom check D1a built: `/check` page and Telegram `/check`, emergency screen with 911 and local numbers, ApiMedic adapter, `symptom_checks` with 90-day retention, Clinic settings section |
 | 2026-10-12 | Discover D1 symptom check designed (ApiMedic to build, Infermedica to go live; Telegram entry, nearby care by location, 911 emergency screen); Voice and Phase 0b deferred until after Discover |

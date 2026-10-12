@@ -326,6 +326,11 @@ Pick the engine with the `SYMPTOM_ENGINE` secret (empty = feature off):
    supabase secrets set "INFERMEDICA_APP_ID=<app id>" "INFERMEDICA_APP_KEY=<app key>" --project-ref <ref>
    supabase secrets set SYMPTOM_ENGINE=infermedica SYMPTOM_MONTHLY_BUDGET=600 --project-ref <ref>
    ```
+   Every engine runs inside the **Philippine layer** (PH questions and rules
+   that only raise urgency; design §8a). `SYMPTOM_PH_LAYER=off` turns it off.
+   For Infermedica, `INFERMEDICA_EXTRA_EVIDENCE` (comma list of risk-factor
+   IDs, e.g. living in Southeast Asia) is sent as present on every check;
+   confirm the IDs on the trial account.
    `SYMPTOM_MONTHLY_BUDGET` caps engine API calls per month (the Infermedica
    trial has 2,000 calls in 60 days; one check uses roughly 5–12). The demo
    engine makes no calls and ignores it.
@@ -335,11 +340,18 @@ Pick the engine with the `SYMPTOM_ENGINE` secret (empty = feature off):
    **Show the symptom check**, add local emergency numbers.
 4. Test: open `/check/<page address>` on your phone, tick an emergency question
    once (Call 911 screen), then do a normal check through to the result. With
-   the demo engine, try Fever → Muscle or body pain → flood water Yes (urgent,
-   leptospirosis note) and Cough → Less than a week (self care). In Telegram,
+   the demo engine, try Fever → "Less than 2 days" → flood water Yes (urgent,
+   leptospirosis note), Cough → "2 weeks or more" Yes (TB note), and "dog"
+   (animal bite: urgent, rabies shots). In Telegram,
    send `/check` to the bot.
+5. Booking from the result (clinic page only): add a clinician with
+   availability (Clinicians), then on a result click **Book a visit**, pick a
+   time, enter name, mobile and date of birth. The patient and appointment
+   appear in the portal; the patient's page shows the shared summary under
+   **Appointments**. Urgent results only offer times today.
 
-Engine tests: `deno test supabase/functions/_shared/symptom/`
+Engine, PH layer and PH case tests: `deno test supabase/functions/_shared/symptom/`.
+The PH cases live in `ph_layer_test.ts` for a doctor to review and extend.
 
 ---
 
