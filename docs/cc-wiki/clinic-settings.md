@@ -1,11 +1,11 @@
 ---
 id: clinic-settings
 title: Clinic settings
-summary: Display name, callback number, timezone, calling hours, greeting, booking links and chat invites, pre-call message and lead time, campaign types.
+summary: Display name, callback number, timezone, calling hours, greeting, booking links and chat invites, symptom check page, pre-call message and lead time, campaign types.
 roles: clinic_admin
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 - **Display name**: how the clinic is named in calls and messages.
@@ -27,6 +27,11 @@ updated: 2026-10-11
   and lets patients reply BOOK in a chat app. Chat campaigns always send links.
 - **Chat app invites in text messages**: adds a link to connect a chat app to
   texts CareCall sends. **Invite to chat** on a patient's page works either way.
+- **Symptom check**: **Page address** (e.g. `santos-family-clinic` →
+  `/check/santos-family-clinic`), **Show the symptom check** on/off, and **Local
+  emergency numbers** (one per line) shown next to 911 on the emergency screen.
+  Page addresses use lowercase letters, numbers and dashes and must be unique.
+  See the symptom check page for what patients see.
 - **Pre-call text message**: on/off, and **Lead time before the call
   (seconds, 60–600)**. Patients get a heads-up message, then the call after the
   lead time. Longer leads (5–10 minutes) give patients time to use a booking link.

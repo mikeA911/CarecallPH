@@ -18,6 +18,8 @@
 //   YES / OO / OPO / SIGE → opt in (DPA consent record), set preferred channel
 //   BOOK / ISKEDYUL       → send a self-booking link per open campaign
 //   STOP / TIGIL / HINTO  → opt out
+//   CHECK / SINTOMAS      → symptom check link (anyone, connected or not; only
+//                           when SYMPTOM_ENGINE is set)
 //   anything else         → logged for staff; short auto-reply
 //
 // Env: VIBER_AUTH_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET,
@@ -46,6 +48,8 @@ const META_VERIFY_TOKEN = Deno.env.get("META_VERIFY_TOKEN") ?? "";
 const YES = new Set(["YES", "Y", "OO", "OPO", "SIGE", "OK", "OKAY"]);
 const STOP = new Set(["STOP", "UNSUBSCRIBE", "TIGIL", "HINTO", "AYAW NA"]);
 const BOOK = new Set(["BOOK", "BOOKING", "SCHEDULE", "ISKEDYUL", "APPOINTMENT"]);
+const CHECK = new Set(["CHECK", "SYMPTOM CHECK", "SYMPTOMS", "SINTOMAS"]);
+const SYMPTOM_CHECK_ON = Boolean((Deno.env.get("SYMPTOM_ENGINE") ?? "").trim());
 
 const OPEN_STATUSES = ["pending", "notified", "callback_requested", "no_answer", "voicemail", "messaged", "needs_invite"];
 
@@ -208,6 +212,7 @@ function parseTelegram(u: any): Inbound[] {
   const start = m.text.match(/^\/start(?:\s+(\S+))?/);
   if (start) return [{ kind: "start", externalId, token: start[1] ?? null, name }];
   if (/^\/stop\b/.test(m.text)) return [{ kind: "text", externalId, text: "STOP", name }];
+  if (/^\/check\b/.test(m.text)) return [{ kind: "text", externalId, text: "CHECK", name }];
   return [{ kind: "text", externalId, text: m.text, name }];
 }
 
@@ -316,7 +321,8 @@ async function onStart(
       sender: clinic.name, clinicId: clinic.id, patientId: null,
       text: existing
         ? `Hi! This is ${clinic.name}. Reply BOOK to schedule an appointment, or STOP to stop messages.`
-        : "Hi! This chat sends appointment reminders from your clinic. Please open the invite link your clinic sent you to connect.",
+        : "Hi! This chat sends appointment reminders from your clinic. Please open the invite link your clinic sent you to connect." +
+        (SYMPTOM_CHECK_ON ? " Feeling unwell? Send /check for a symptom check." : ""),
     };
   }
 
@@ -363,10 +369,21 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
     .eq("channel", channel).eq("external_id", ev.externalId);
   const rows = (data ?? []) as LinkRow[];
 
+  // Symptom check works for anyone, connected to a clinic or not.
+  const kw0 = ev.text.trim().toUpperCase().replace(/[^A-Z ]/g, "").replace(/\s+/g, " ");
+  if (SYMPTOM_CHECK_ON && CHECK.has(kw0)) {
+    const clinicId = rows.find((r) => !r.opted_out_at)?.clinic_id ?? null;
+    const patientId = rows.find((r) => !r.opted_out_at)?.patient_id ?? null;
+    await logMessage({ clinicId, patientId, channel, direction: "inbound", externalId: ev.externalId, body: ev.text });
+    await reply_(channel, ev.externalId, await symptomCheckReply(channel, clinicId), "CareCall", clinicId, patientId);
+    return;
+  }
+
   if (!rows.length) {
     await logMessage({ clinicId: null, patientId: null, channel, direction: "inbound", externalId: ev.externalId, body: ev.text });
     await reply_(channel, ev.externalId,
-      "Hi! This chat sends appointment reminders from your clinic. Please open the invite link your clinic sent you to connect.",
+      "Hi! This chat sends appointment reminders from your clinic. Please open the invite link your clinic sent you to connect." +
+        (SYMPTOM_CHECK_ON ? " Feeling unwell? Send /check for a symptom check." : ""),
       "CareCall", null, null);
     return;
   }
@@ -533,4 +550,21 @@ async function bookingReply(rows: LinkRow[], clinic: ClinicInfo): Promise<string
 
   if (!lines.length) return `There's no appointment waiting to be booked right now.${callback}`;
   return `Pick a time that works for you:\n${lines.join("\n")}\nThe link is valid for 7 days.`;
+}
+
+/** Link to the symptom check: the patient's clinic page when it has one. */
+async function symptomCheckReply(channel: ChatChannel, clinicId: string | null): Promise<string> {
+  const portal = (Deno.env.get("PORTAL_URL") ?? "").replace(/\/$/, "");
+  let path = "/check";
+  if (clinicId) {
+    const { data } = await supabase.from("clinics")
+      .select("public_slug, symptom_check_enabled").eq("id", clinicId).maybeSingle();
+    const c = data as { public_slug: string | null; symptom_check_enabled: boolean } | null;
+    if (c?.public_slug && c.symptom_check_enabled) path = `/check/${c.public_slug}`;
+  }
+  return (
+    `Symptom check: answer a few questions and we'll tell you how soon to see a doctor and what kind. ` +
+    `It's not a diagnosis.\n\n${portal}${path}?src=${channel}\n\n` +
+    `If someone has chest pain, trouble breathing, signs of a stroke or heavy bleeding, call 911 now.`
+  );
 }

@@ -4,8 +4,17 @@ title: What's new
 summary: Dated list of user-visible changes; read when asked what's new or whether a feature exists.
 roles: staff
 routes: []
-updated: 2026-10-11
+updated: 2026-10-12
 ---
+
+## 2026-10-12
+
+- **CC** now opens from the CareCall logo at the top of the sidebar; the
+  CareCall name next to it opens About. **History** in the CC panel keeps your
+  last 20 chats in this browser.
+- **Symptom check** (testing only): a public page at `/check/<page address>`
+  and `/check` in Telegram. Emergency questions first, with a Call 911 screen;
+  then how soon to see a doctor and what kind. Turn it on in Clinic settings.
 
 ## 2026-10-11
 

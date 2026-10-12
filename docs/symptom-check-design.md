@@ -1,6 +1,6 @@
 # Symptom check: design sketch (Phase D1)
 
-**Status:** design, not built. **Roadmap:** Phase D (CareCall Discover), first slice D1.
+**Status:** D1a built (ApiMedic sandbox); D1b–D1d designed. **Roadmap:** Phase D (CareCall Discover), first slice D1.
 **Last updated:** 12 October 2026
 
 A patient answers a few questions about their symptoms, gets care-navigation
@@ -144,14 +144,17 @@ directly to its diagnosis loop and then its triage and specialist calls.
 
 | Infermedica triage level | ApiMedic signal | CareCall urgency |
 |---|---|---|
-| `emergency_ambulance`, `emergency` | red-flag condition in results | `emergency` |
-| `consultation_24` | — | `urgent` |
-| `consultation` | conditions found, no red flag | `routine` |
+| `emergency_ambulance`, `emergency` | — (our emergency screen) | `emergency` |
+| `consultation_24` | red-flag warning on a chosen symptom | `urgent` |
+| `consultation` | no red-flag warning | `routine` |
 | `self_care` | — | `self_care` |
 
-ApiMedic has no triage endpoint, so with ApiMedic the urgency is coarser:
-`emergency` on a red flag, otherwise `routine`. Another reason it is only the
-build-and-test engine.
+ApiMedic has no triage endpoint, so with ApiMedic the urgency is coarser: a
+red-flag warning on any chosen symptom gives `urgent` and the warning text is
+shown; otherwise `routine`. ApiMedic's red flags are conditional ("if the pain
+is sudden and severe…"), so they don't jump straight to the 911 screen;
+emergencies are caught by our own screen first. Another reason ApiMedic is only
+the build-and-test engine.
 
 **State:** the browser holds the answers so far and sends them with each call,
 so the edge function stays stateless. The server keeps a `symptom_checks` row

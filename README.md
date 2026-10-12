@@ -222,6 +222,7 @@ supabase functions deploy assistant-tools    --no-verify-jwt
 supabase functions deploy booking-api        --no-verify-jwt
 supabase functions deploy channel-webhook    --no-verify-jwt
 supabase functions deploy cc-nightly         --no-verify-jwt
+supabase functions deploy symptom-check      --no-verify-jwt
 ```
 
 `--no-verify-jwt` functions are called by Telnyx, chat platforms, patients'
@@ -304,6 +305,31 @@ project, the portal on Vercel and a Telegram bot.
       **needs chat invite**. Invite and connect them, and their link arrives
       within a minute.
    7. Reply `BOOK` for a fresh link, then `TIGIL` to stop messages.
+
+### 10. Symptom check (ApiMedic test service)
+
+Discover slice D1a: [docs/symptom-check-design.md](docs/symptom-check-design.md).
+The ApiMedic sandbox returns made-up results: for building and testing only.
+
+1. Register at apimedic.com (free) and copy the sandbox **API key** (username)
+   and **secret key** (password).
+2. Supabase secrets:
+   ```bash
+   supabase secrets set "APIMEDIC_USERNAME=<api key>" "APIMEDIC_PASSWORD=<secret key>" --project-ref <ref>
+   supabase secrets set SYMPTOM_ENGINE=apimedic SYMPTOM_MONTHLY_BUDGET=90 --project-ref <ref>
+   ```
+   `APIMEDIC_SANDBOX` defaults to the sandbox; set it to `false` only with a live
+   ApiMedic plan. `SYMPTOM_MONTHLY_BUDGET` caps engine calls per month (the free
+   plan allows 100). Leave `SYMPTOM_ENGINE` empty to turn the feature off.
+3. `supabase db push` (adds `symptom_checks` and the clinic fields), then deploy
+   `symptom-check` with `--no-verify-jwt` and redeploy `channel-webhook`.
+4. Portal: **Clinic settings → Symptom check**: set a page address, tick
+   **Show the symptom check**, add local emergency numbers.
+5. Test: open `/check/<page address>` on your phone, tick an emergency question
+   once (Call 911 screen), then do a normal check through to the result. In
+   Telegram, send `/check` to the bot.
+
+Engine tests: `deno test supabase/functions/_shared/symptom/`
 
 ---
 

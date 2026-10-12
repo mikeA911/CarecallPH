@@ -38,6 +38,12 @@ verify_jwt = false
 [functions.booking-api]
 verify_jwt = false
 
+# Public symptom check (/check, /check/<clinic>). No Supabase JWT: patients are
+# not portal users. Per-IP rate limits, per-check and monthly engine budgets
+# inside the function (docs/symptom-check-design.md §5).
+[functions.symptom-check]
+verify_jwt = false
+
 # Staff portal "Invite to chat" — signed-in user JWT required.
 [functions.channel-invite]
 verify_jwt = true

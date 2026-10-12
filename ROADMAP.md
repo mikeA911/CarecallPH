@@ -48,7 +48,7 @@ by country before any Southeast Asian expansion.
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
 | 3 | Localization and compliance hardening | **Planned** |
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
-| D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **Designed**: D1 next |
+| D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a built |
 | L | CareLink Records: FHIR timeline and authorized EHR access | **Planned** |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
@@ -292,7 +292,7 @@ into real availability. Design: `docs/symptom-check-design.md`.
 
 | Slice | Scope | Status |
 |---|---|---|
-| D1a | `SymptomEngine` interface + ApiMedic adapter, public `symptom-check` function, our own emergency screen (tap-to-call 911, local rescue numbers, no booking), `/check` page up to the result, Telegram `/check` entry, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Designed** |
+| D1a | `SymptomEngine` interface + ApiMedic adapter, public `symptom-check` function, our own emergency screen (tap-to-call 911, local rescue numbers, no booking), `/check` page up to the result, Telegram `/check` entry, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Built**: tested with a stubbed API; needs ApiMedic sandbox keys to run live (README §10) |
 | D1b | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen; CareCall clinics first, other facilities by distance only, no booking | **Designed**: needs a Places API key |
 | D1c | Book from the result as a new patient; staff see urgency and symptoms on the appointment | **Designed** |
 | D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Designed**: needs Infermedica trial (organization + business email) |
@@ -356,6 +356,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-12 | Symptom check D1a built: `/check` page and Telegram `/check`, emergency screen with 911 and local numbers, ApiMedic adapter, `symptom_checks` with 90-day retention, Clinic settings section |
 | 2026-10-12 | Discover D1 symptom check designed (ApiMedic to build, Infermedica to go live; Telegram entry, nearby care by location, 911 emergency screen); Voice and Phase 0b deferred until after Discover |
 | 2026-10-12 | CC opens from the sidebar logo (wordmark → About); CC chat History in the browser; Phase 0a accounts set up, pilot test under way |
 | 2026-10-11 | Phase 0 split into 0a (Recall pilot accounts) and 0b (telephony for Voice); AI voice instructions adapted for the Philippines |
