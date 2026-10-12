@@ -27,7 +27,7 @@ healthcare access and continuity platform for Southeast Asia*, Oct 2026).
 | Stage | Priority | Gate |
 |---|---|---|
 | 0–3 months | Recall clinic pilots and appointment outcome reporting | Validated messaging economics, consent and scheduling |
-| 3–6 months | Discover: symptom check on each clinic's page (D1), then CareCallPH.com (D2) | D1: doctor-reviewed safety rules, engine agreement. D2: clinical governance and safe matching |
+| 3–6 months | Discover: symptom check with nearby care, by Telegram and web (D1), then CareCallPH.com (D2) | D1: doctor-reviewed safety rules, engine agreement. D2: clinical governance and safe matching |
 | 6–9 months | CareLink FHIR demonstrator | Secure records and authorized integration |
 | 9–18 months | Voice add-on; selected EHR/device integrations and RPM clinical pilot | Carrier economics; clinical validation, oversight and jurisdiction-specific compliance |
 
@@ -48,7 +48,7 @@ by country before any Southeast Asian expansion.
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
 | 3 | Localization and compliance hardening | **Planned** |
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
-| D | CareCall Discover: symptom check (D1) on each clinic's page, then CareCallPH.com (D2) | **Designed**: D1 next |
+| D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **Designed**: D1 next |
 | L | CareLink Records: FHIR timeline and authorized EHR access | **Planned** |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
@@ -57,7 +57,8 @@ by country before any Southeast Asian expansion.
 1. Finish the README chat-only pilot (§9) with the test group, then turn
    international patient numbers back off.
 2. Symptom check D1a on ApiMedic's free sandbox; set up a domain and business
-   email and apply for the Infermedica trial (D1c).
+   email and apply for the Infermedica trial (D1d); Google Places API key for
+   nearby care (D1b).
 3. Apply now for the slow approvals: Meta business verification and app review
    (Messenger, WhatsApp) and a Viber commercial agreement (€100/month per bot).
 
@@ -287,13 +288,18 @@ Public patient entry point. A patient describes symptoms, gets medically
 governed care-navigation guidance, sees suitable participating clinics and books
 into real availability. Design: `docs/symptom-check-design.md`.
 
-**D1: symptom check on one clinic's page** (next)
+**D1: symptom check with nearby care** (next)
 
 | Slice | Scope | Status |
 |---|---|---|
-| D1a | `SymptomEngine` interface + ApiMedic adapter, public `symptom-check` function, our own emergency screen (911/ER, no booking), `/check/<clinic>` page up to the result, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Designed** |
-| D1b | Book from the result as a new patient; staff see urgency and symptoms on the appointment | **Designed** |
-| D1c | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Designed**: needs Infermedica trial (organization + business email) |
+| D1a | `SymptomEngine` interface + ApiMedic adapter, public `symptom-check` function, our own emergency screen (tap-to-call 911, local rescue numbers, no booking), `/check` page up to the result, Telegram `/check` entry, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Designed** |
+| D1b | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen; CareCall clinics first, other facilities by distance only, no booking | **Designed**: needs a Places API key |
+| D1c | Book from the result as a new patient; staff see urgency and symptoms on the appointment | **Designed** |
+| D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Designed**: needs Infermedica trial (organization + business email) |
+
+CareCall never calls 911 for the patient: dispatchers need the person, and
+Telnyx doesn't list PH emergency calling. In Voice, the AI tells the caller to
+dial 911 and sends the nearest ER by chat.
 
 D1 shows urgency and the kind of doctor, not condition names. Before any patient
 uses it: a doctor signs off the red-flag list, wording and test cases; PH FDA
@@ -313,7 +319,7 @@ uses it: a doctor signs off the red-flag list, wording and test cases; PH FDA
 | Item | Notes |
 |---|---|
 | CareCallPH.com public portal | Patient-facing; free symptom assessment within a defined budget |
-| Provider matching | Only participating clinics shown, with clear disclosure that listings aren't exhaustive |
+| Provider matching | CareCall clinics with booking first; other facilities by distance only, never sponsored; clear disclosure that listings aren't exhaustive |
 | Safety rules | Commercial listings never affect triage; emergencies never routed to paid listings; care-seeking guidance even with no match |
 | Filipino / Cebuano intake (D3) | Claude maps free text to engine symptom IDs only, never assesses; start a check from a chat app |
 
@@ -350,7 +356,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
-| 2026-10-12 | Discover D1 symptom check designed (ApiMedic to build, Infermedica to go live); Voice and Phase 0b deferred until after Discover |
+| 2026-10-12 | Discover D1 symptom check designed (ApiMedic to build, Infermedica to go live; Telegram entry, nearby care by location, 911 emergency screen); Voice and Phase 0b deferred until after Discover |
 | 2026-10-12 | CC opens from the sidebar logo (wordmark → About); CC chat History in the browser; Phase 0a accounts set up, pilot test under way |
 | 2026-10-11 | Phase 0 split into 0a (Recall pilot accounts) and 0b (telephony for Voice); AI voice instructions adapted for the Philippines |
 | 2026-10-11 | Product progression CareCall → CareLink (Recall, Discover, Voice, CareLink Records, RPM), delivery stages and gates, phases D / L / R, pricing hypotheses |
