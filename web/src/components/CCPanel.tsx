@@ -74,7 +74,7 @@ export default function CCPanel({ open, onClose }: { open: boolean; onClose: () 
   return (
     <aside className="cc-panel" role="dialog" aria-label="CC assistant">
       <header className="cc-head">
-        <span className="cc-mark" aria-hidden="true">CC</span>
+        <img className="cc-mark" src="/website-192x192.png" alt="" width={32} height={32} />
         <div className="cc-head-text">
           <strong>CC</strong>
           <span>CareCall assistant</span>
