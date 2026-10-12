@@ -398,7 +398,7 @@ export default function Dashboard() {
         </>
       )}
 
-      <footer className="copyright">&copy; BettrAI 2026</footer>
+      <footer className="copyright">&copy; 2026 CareCall</footer>
     </>
   );
 }

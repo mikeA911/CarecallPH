@@ -82,7 +82,7 @@ Everything the chat-only Recall pilot needs. No phone account required.
 
 | Item | Status |
 |---|---|
-| New repo from BAI-POP2 (`upstream` remote is set per clone, see README §1) | **Done** |
+| New repo from CareCall US (`upstream` remote is set per clone, see README §1) | **Done** |
 | Phone normalization: accept `09xx…` / `9xx…`, store `+639xx…` (import, add patient, clinic callback number; `/book` takes no phone) | **Built** |
 | Defaults: clinic timezone `Asia/Manila`, PH-friendly calling hours (Mon–Fri 08–18, Sat 08–12), `+63` placeholders in the portal | **Built** |
 | `BookPage` timezone label for `Asia/Manila` ("Philippine Time (PHT)") | **Built** |
@@ -405,4 +405,4 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 | 2026-10-02 | CC nightly review; README rewritten for CareCall PH; this roadmap |
 | 2026-10-01 | CC assistant, CC wiki and action items; WhatsApp channel; channel priority by PH reach |
 | 2026-10-01 | Phase 1 chat channels: Viber, Messenger, Telegram, `/connect` opt-in |
-| 2026-10-01 | Forked from BAI-POP2 (CareCall US) |
+| 2026-10-01 | Forked from CareCall US |
