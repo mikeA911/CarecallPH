@@ -30,7 +30,8 @@ updated: 2026-10-12
 - **Symptom check**: **Page address** (e.g. `santos-family-clinic` →
   `/check/santos-family-clinic`), **Show the symptom check** on/off, and **Local
   emergency numbers** (one per line) shown next to 911 on the emergency screen.
-  Page addresses use lowercase letters, numbers and dashes and must be unique.
+  Page addresses use lowercase letters, numbers and dashes and must be unique;
+  what you type is converted as you go ("CareCall Test Site" → `carecall-test-site`).
   See the symptom check page for what patients see.
 - **Pre-call text message**: on/off, and **Lead time before the call
   (seconds, 60–600)**. Patients get a heads-up message, then the call after the
