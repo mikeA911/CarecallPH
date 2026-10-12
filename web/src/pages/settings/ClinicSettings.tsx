@@ -7,6 +7,13 @@ import { CAMPAIGN_TYPES, type Clinic, type AppointmentTypeAssistant } from "../.
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type Hours = Record<string, { start: string; end: string } | null>;
 
+/** Page address as typed → web-safe: "CareCall Test Site" → "carecall-test-site". */
+function toSlug(typed: string, finished = false): string {
+  const s = typed.normalize("NFD").replace(/[\u0300-\u036f]/g, "") // drop accents: "Ñiño" → "Nino"
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 41);
+  return finished ? s.replace(/-+$/, "") : s; // keep a trailing dash while typing
+}
+
 export default function ClinicSettings() {
   const { activeClinicId } = useClinic();
   const [clinic, setClinic] = useState<Clinic | null>(null);
@@ -76,7 +83,7 @@ export default function ClinicSettings() {
       if (!parsed.ok) { setMsg(`Callback phone number: ${parsed.error}`); return; }
       phoneCallback = parsed.e164;
     }
-    const slug = (clinic.public_slug ?? "").trim().toLowerCase();
+    const slug = toSlug(clinic.public_slug ?? "", true);
     if (slug && !/^[a-z0-9][a-z0-9-]{1,40}$/.test(slug)) {
       setMsg("Page address: use 2–41 lowercase letters, numbers or dashes, e.g. santos-family-clinic.");
       return;
@@ -163,10 +170,13 @@ export default function ClinicSettings() {
         </p>
         <label htmlFor="slug">Page address</label>
         <input id="slug" value={clinic.public_slug ?? ""} placeholder="santos-family-clinic"
-               onChange={(e) => setClinic({ ...clinic, public_slug: e.target.value })} />
-        {clinic.public_slug && (
-          <p className="muted small">{window.location.origin}/check/{clinic.public_slug.trim().toLowerCase()}</p>
-        )}
+               onChange={(e) => setClinic({ ...clinic, public_slug: toSlug(e.target.value) })}
+               onBlur={() => setClinic({ ...clinic, public_slug: toSlug(clinic.public_slug ?? "", true) })} />
+        <p className="muted small">
+          {clinic.public_slug
+            ? <>{window.location.origin}/check/{toSlug(clinic.public_slug, true)}</>
+            : "Lowercase letters, numbers and dashes. Spaces become dashes as you type."}
+        </p>
         <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
           <input type="checkbox" style={{ width: "auto" }} checked={!!clinic.symptom_check_enabled}
                  onChange={(e) => setClinic({ ...clinic, symptom_check_enabled: e.target.checked })} />
