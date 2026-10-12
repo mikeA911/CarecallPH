@@ -157,7 +157,7 @@ export default function About({ onClose }: { onClose?: () => void }) {
         future outreach such as medication reminders and intake surveys.
       </p>
 
-      <footer className="copyright">&copy; BettrAI 2026</footer>
+      <footer className="copyright">&copy; 2026 CareCall</footer>
     </div>
   );
 }
