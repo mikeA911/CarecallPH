@@ -1,6 +1,6 @@
 # Symptom check: design sketch (Phase D1)
 
-**Status:** design, not built. **Roadmap:** Phase D (CareCall Discover), first slice D1.
+**Status:** D1a built (demo engine; ApiMedic appeared offline); Infermedica adapter built, awaiting a trial; D1b–D1c designed. **Roadmap:** Phase D (CareCall Discover), first slice D1.
 **Last updated:** 12 October 2026
 
 A patient answers a few questions about their symptoms, gets care-navigation
@@ -12,7 +12,7 @@ clinical assessment, CareCall handles safety rules, consent and booking.
 
 | Decision | Choice | Why |
 |---|---|---|
-| Engine | **ApiMedic** to build and test; **Infermedica** to go live | ApiMedic has a self-service free tier (100 checks a month); Infermedica needs an organization and business email, and is the stronger clinical engine |
+| Engine | **Demo** rules to build, test and show; **Infermedica** to go live. (ApiMedic, the first choice for testing, appeared offline in October 2026; its adapter is kept but unused) | Infermedica needs an organization and business email, and is the stronger clinical engine; the demo engine needs nothing and never goes to patients |
 | Swap | One `SymptomEngine` interface, engine picked by a secret | Moving to Infermedica is a config change, not a rewrite |
 | Entry points | **Telegram bot** (`/check` or "CHECK") and the web page `/check` (optionally `/check/<clinic>`) | Telegram is already live for the pilot; the web page serves everyone else |
 | Nearby care | Patient shares their **location** (Telegram location button, or the browser's location on the web, or types a town/barangay). We look up nearby facilities with the **Google Places API**, not a general web search | Few CareCall clinics at launch; the patient should still get a useful "where to go" answer |
@@ -144,14 +144,17 @@ directly to its diagnosis loop and then its triage and specialist calls.
 
 | Infermedica triage level | ApiMedic signal | CareCall urgency |
 |---|---|---|
-| `emergency_ambulance`, `emergency` | red-flag condition in results | `emergency` |
-| `consultation_24` | — | `urgent` |
-| `consultation` | conditions found, no red flag | `routine` |
+| `emergency_ambulance`, `emergency` | — (our emergency screen) | `emergency` |
+| `consultation_24` | red-flag warning on a chosen symptom | `urgent` |
+| `consultation` | no red-flag warning | `routine` |
 | `self_care` | — | `self_care` |
 
-ApiMedic has no triage endpoint, so with ApiMedic the urgency is coarser:
-`emergency` on a red flag, otherwise `routine`. Another reason it is only the
-build-and-test engine.
+ApiMedic has no triage endpoint, so with ApiMedic the urgency is coarser: a
+red-flag warning on any chosen symptom gives `urgent` and the warning text is
+shown; otherwise `routine`. ApiMedic's red flags are conditional ("if the pain
+is sudden and severe…"), so they don't jump straight to the 911 screen;
+emergencies are caught by our own screen first. Another reason ApiMedic is only
+the build-and-test engine.
 
 **State:** the browser holds the answers so far and sends them with each call,
 so the edge function stays stateless. The server keeps a `symptom_checks` row
@@ -271,14 +274,43 @@ table (e.g. "General practice" → GP / Family medicine).
 - **Engine terms:** ApiMedic's free tier and Infermedica's trial are for
   testing; patient use needs a commercial agreement.
 
+## 8a. Fitting the engine to the Philippines
+
+Infermedica's knowledge base is built in Europe, and disease patterns differ in
+the Philippines: dengue, leptospirosis after floods, typhoid, TB and other
+endemic infections are far more common. Rather than building our own engine,
+CareCall adds a thin Philippine layer around a validated one:
+
+1. **Tell the engine where the patient is.** Infermedica takes risk factors as
+   evidence; send the region (residence in Southeast Asia) and recent travel, if
+   the trial confirms such risk factors exist, so its probabilities shift.
+2. **Our own Philippine rules, owned by a doctor.** Deterministic, reviewed
+   rules applied after the engine, which can only raise urgency, never lower it:
+   DOH dengue warning signs, fever after flood water (leptospirosis), a cough
+   for 2+ weeks (TB, with free testing at health centers). The demo engine shows
+   what these look like; the doctor writes the real ones.
+3. **Measure it here.** A doctor-written set of Philippine test cases is run
+   against the engine before go-live and after every engine update, and (with
+   consent, later) the check's advice is compared with what the doctor found at
+   the visit. That data shows where the engine is off for Filipino patients.
+4. **AI only for language.** Claude or a local model may turn Filipino, Taglish
+   or Cebuano free text into engine symptom IDs (D3). It never decides urgency.
+
+Building our own knowledge base plus a local language model as the engine was
+considered and rejected for now: a validated medical knowledge base takes
+years of clinician work, language models give inconsistent answers to the same
+symptoms, and an engine of our own would make CareCall the maker of a medical
+device under the PH FDA, with the clinical evidence and liability that brings.
+The outcome data from step 3 is what would make our own engine possible later.
+
 ## 9. Delivery slices
 
 | Slice | Scope | Needs |
 |---|---|---|
-| **D1a** | Engine interface + ApiMedic adapter, `symptom-check` function, emergency screen with 911 and local numbers, `/check` page up to the result, Telegram `/check` entry, `symptom_checks`, clinic switch, CC wiki page | ApiMedic sandbox account |
+| **D1a** | Engine interface, demo engine + ApiMedic adapter, `symptom-check` function, emergency screen with 911 and local numbers, `/check` page up to the result, Telegram `/check` entry, `symptom_checks`, clinic switch, CC wiki page | ApiMedic sandbox account |
 | **D1b** | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen, CareCall clinics first (clinic `lat`/`lng`) | Google Cloud project + Places API key |
 | **D1c** | Booking for new patients from the result, staff view of the check | D1a |
-| **D1d** | Infermedica adapter (interview, triage, specialist); switch `SYMPTOM_ENGINE` | Infermedica trial (organization + business email) |
+| **D1d** | Infermedica adapter (interview, triage, specialist); switch `SYMPTOM_ENGINE`. Adapter **built** and tested against a fake API; live test needs the trial. Then the Philippine layer (§8a) | Infermedica trial (organization + business email) |
 | D2 | CareCallPH.com: the same check as the public front door, many CareCall clinics | Gates in ROADMAP Phase D |
 | D3 | Filipino / Cebuano free-text intake (Claude maps words to engine symptom IDs only); start a check from a chat app | D1c |
 

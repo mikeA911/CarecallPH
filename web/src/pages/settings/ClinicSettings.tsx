@@ -76,6 +76,15 @@ export default function ClinicSettings() {
       if (!parsed.ok) { setMsg(`Callback phone number: ${parsed.error}`); return; }
       phoneCallback = parsed.e164;
     }
+    const slug = (clinic.public_slug ?? "").trim().toLowerCase();
+    if (slug && !/^[a-z0-9][a-z0-9-]{1,40}$/.test(slug)) {
+      setMsg("Page address: use 2–41 lowercase letters, numbers or dashes, e.g. santos-family-clinic.");
+      return;
+    }
+    if (clinic.symptom_check_enabled && !slug) {
+      setMsg("Symptom check: choose a page address first.");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.from("clinics").update({
       name: clinic.name,
@@ -87,10 +96,14 @@ export default function ClinicSettings() {
       greeting_default: clinic.greeting_default,
       self_booking_enabled: clinic.self_booking_enabled,
       chat_optin_enabled: clinic.chat_optin_enabled,
+      symptom_check_enabled: clinic.symptom_check_enabled,
+      public_slug: slug || null,
+      local_emergency_numbers: clinic.local_emergency_numbers?.trim() || null,
     }).eq("id", clinic.id);
     setSaving(false);
-    if (!error) setClinic({ ...clinic, phone_callback: phoneCallback });
-    setMsg(error ? `Failed: ${error.message}` : "Clinic settings saved.");
+    if (!error) setClinic({ ...clinic, phone_callback: phoneCallback, public_slug: slug || null });
+    const taken = error?.code === "23505" ? "That page address is taken. Try another." : null;
+    setMsg(error ? taken ?? `Failed: ${error.message}` : "Clinic settings saved.");
   }
 
   if (!clinic) return <p className="empty">Loading…</p>;
@@ -141,6 +154,29 @@ export default function ClinicSettings() {
           Adds a link to connect Viber, Messenger, WhatsApp or Telegram to SMS sent by CareCall.
           Staff can always invite a patient from their page with Invite to chat.
         </p>
+
+        <h2>Symptom check</h2>
+        <p className="muted small">
+          A public page where patients answer a few questions and learn how soon to see a doctor and
+          what kind. Emergencies are sent to 911. It's not a diagnosis. Patients who message the
+          clinic's Telegram bot can also send /check.
+        </p>
+        <label htmlFor="slug">Page address</label>
+        <input id="slug" value={clinic.public_slug ?? ""} placeholder="santos-family-clinic"
+               onChange={(e) => setClinic({ ...clinic, public_slug: e.target.value })} />
+        {clinic.public_slug && (
+          <p className="muted small">{window.location.origin}/check/{clinic.public_slug.trim().toLowerCase()}</p>
+        )}
+        <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={!!clinic.symptom_check_enabled}
+                 onChange={(e) => setClinic({ ...clinic, symptom_check_enabled: e.target.checked })} />
+          Show the symptom check on the clinic's page
+        </label>
+        <label htmlFor="local-em">Local emergency numbers (one per line)</label>
+        <textarea id="local-em" rows={3} value={clinic.local_emergency_numbers ?? ""}
+                  placeholder={"City rescue: 0917 123 4567\nNearest ER (Provincial Hospital): 032 123 4567"}
+                  onChange={(e) => setClinic({ ...clinic, local_emergency_numbers: e.target.value })} />
+        <p className="muted small">Shown next to 911 on the emergency screen, for areas where 911 is slow.</p>
 
         <h2>Pre-call text message</h2>
         <p className="muted small">
