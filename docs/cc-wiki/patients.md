@@ -6,7 +6,7 @@ roles: staff
 routes:
   - /patients | staff | Patients
   - /patients/:id | staff | Patient detail
-updated: 2026-10-14
+updated: 2026-10-12
 ---
 
 ## Importing

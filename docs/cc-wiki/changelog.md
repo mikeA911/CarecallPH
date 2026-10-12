@@ -4,25 +4,19 @@ title: What's new
 summary: Dated list of user-visible changes; read when asked what's new or whether a feature exists.
 roles: staff
 routes: []
-updated: 2026-10-14
+updated: 2026-10-12
 ---
 
-## 2026-10-15
+## 2026-10-12
 
 - **Medicine reminders**: on the patient page, add the patient's medicines and
   ask them to agree in the chat; they get reminders at the doctor's times and
   reply 1 taken / 2 skipped. Adherence shows the last 30 days.
-
-## 2026-10-14
-
 - **Appointment reminders**: chat reminders 24 hours and 2 hours before each
   appointment (turn on in Clinic settings). Patients reply 1 to confirm, 2 to
   change the time, 3 to cancel; requests appear in CC action items.
 - **Symptom check**: one switch in Clinic settings creates the clinic's link
   and QR code; the CareCall page `/check` lets patients pick a clinic and book.
-
-## 2026-10-12
-
 - **CC** now opens from the CareCall logo at the top of the sidebar; the
   CareCall name next to it opens About. **History** in the CC panel keeps your
   last 20 chats in this browser.
