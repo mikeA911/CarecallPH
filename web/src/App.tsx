@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import { useSession, roleAtLeast } from "./lib/session";
 import { useClinic } from "./lib/clinic";
@@ -113,7 +113,10 @@ function Sidebar() {
 
   return (
     <nav className="sidebar">
-      <div className="brand">Care<span>Call</span></div>
+      <Link to="/about" className="brand" title="About CareCall">
+        <img className="brand-icon" src="/website-192x192.png" alt="" width={32} height={32} />
+        <img className="brand-wordmark" src="/carecall.png" alt="CareCall, about this app" width={61} height={28} />
+      </Link>
 
       {isAdmin && <ClinicSwitcher />}
 
