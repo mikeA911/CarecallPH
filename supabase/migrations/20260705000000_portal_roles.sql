@@ -278,24 +278,23 @@ declare
   v_actor uuid;
   v_clinic uuid;
   v_target uuid;
+  v_row jsonb;
 begin
   begin
     v_actor := nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub';
   exception when others then v_actor := null; end;
 
-  if tg_op = 'DELETE' then
-    v_target := old.id;
-    v_clinic := case when tg_table_name = 'clinics' then old.id else old.clinic_id end;
-  else
-    v_target := new.id;
-    v_clinic := case when tg_table_name = 'clinics' then new.id else new.clinic_id end;
-  end if;
+  -- Read fields through jsonb: the clinics row has no clinic_id column, and
+  -- PL/pgSQL rejects new.clinic_id there even inside an unused CASE branch.
+  v_row := case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end;
+  v_target := (v_row ->> 'id')::uuid;
+  v_clinic := case when tg_table_name = 'clinics' then v_target else (v_row ->> 'clinic_id')::uuid end;
 
   insert into audit_log (clinic_id, actor_user_id, action, target_type, target_id, detail)
   values (
     v_clinic, v_actor,
     lower(tg_op), tg_table_name, v_target,
-    case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end
+    v_row
   );
 
   if tg_op = 'DELETE' then return old; else return new; end if;
