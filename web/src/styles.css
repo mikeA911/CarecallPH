@@ -651,11 +651,9 @@ a.btn { display: inline-block; text-decoration: none; }
    Opened from the sidebar logo; drawer on the right edge; full screen on phones.
    =================================================================== */
 .cc-mark {
-  display: inline-grid; place-items: center; flex: none;
-  width: 32px; height: 32px; border-radius: 10px;
-  background: var(--blue); color: #fff;
-  font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: -0.02em;
-  box-shadow: inset -3px -3px 0 var(--teal);
+  display: block; flex: none;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: #fff; border: 1px solid var(--line);
 }
 
 .cc-panel {

@@ -85,7 +85,7 @@ export default function CCActions() {
       {review && (
         <section className="cc-review" aria-label="Latest nightly review">
           <div className="cc-review-head">
-            <span className="cc-mark" aria-hidden="true">CC</span>
+            <img className="cc-mark" src="/website-192x192.png" alt="" width={32} height={32} />
             <div>
               <strong>Nightly review</strong>
               <span className="muted small">
