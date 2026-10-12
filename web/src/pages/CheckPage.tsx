@@ -2,7 +2,7 @@
 // Design: docs/symptom-check-design.md
 //
 // Flow: intro + consent → emergency questions → about you → symptoms →
-// one follow-up question → result. The emergency questions and the emergency
+// follow-up questions (tick any / yes-no-don't know / pick one) → result. The emergency questions and the emergency
 // screen are in this page, so they work even if the API or the engine is down.
 // The page never shows condition names; only urgency, the kind of doctor and
 // engine warnings. Nothing typed here is stored as typed.
@@ -29,6 +29,7 @@ export default function CheckPage() {
   const [step, setStep] = useState<Step>("intro");
   const [checkId, setCheckId] = useState<string | null>(null);
   const [clinic, setClinic] = useState<CheckClinic | null>(null);
+  const [demo, setDemo] = useState(false);
   const [available, setAvailable] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -52,6 +53,7 @@ export default function CheckPage() {
         if (!data) { setAvailable(false); return null; }
         setCheckId(data.check_id);
         setClinic(data.clinic);
+        setDemo(data.demo === true);
         setAvailable(data.available);
         return data.check_id;
       });
@@ -101,11 +103,15 @@ export default function CheckPage() {
 
   const searchAnswers = (): Answer[] => chosen.map((s) => ({ symptomId: s.id, present: true, source: "search" }));
 
-  function answerQuestion(noneOfThese: boolean) {
+  /** "multi": every choice ticked or not. */
+  function answerTicked(noneOfThese: boolean) {
     if (!question) return;
-    const answers: Answer[] = question.choices.map((c) => ({
+    answerWith(question.choices.map((c) => ({
       symptomId: c.id, present: !noneOfThese && !!ticked[c.id], source: "question",
-    }));
+    })));
+  }
+
+  function answerWith(answers: Answer[]) {
     const all = [...followUps, ...answers];
     setFollowUps(all);
     runNext([...searchAnswers(), ...all]);
@@ -123,6 +129,11 @@ export default function CheckPage() {
       <div className="book-card">
         <div className="book-clinic">{clinic?.name ?? "CareCall"}</div>
         <div className="book-subtitle">Symptom check</div>
+        {demo && (
+          <div className="check-demo" role="note">
+            <strong>DEMO</strong> Test version with made-up rules. Not medical advice.
+          </div>
+        )}
 
         <div className="book-body">
           {step === "notfound" && (
@@ -214,20 +225,45 @@ export default function CheckPage() {
           {step === "question" && question && (
             <>
               <h1>{question.text}</h1>
-              <p className="book-muted">Tick any that apply.</p>
-              <div className="check-list">
-                {question.choices.map((c) => (
-                  <label key={c.id} className={`check-option${ticked[c.id] ? " on" : ""}`}>
-                    <input type="checkbox" checked={!!ticked[c.id]}
-                      onChange={(e) => setTicked({ ...ticked, [c.id]: e.target.checked })} />
-                    <span>{c.name}</span>
-                  </label>
-                ))}
-              </div>
-              <button className="book-btn" disabled={busy} onClick={() => answerQuestion(false)}>
-                {busy ? "Checking…" : "Continue"}
-              </button>
-              <button className="book-link" disabled={busy} onClick={() => answerQuestion(true)}>None of these</button>
+              {question.kind === "multi" && (
+                <>
+                  <p className="book-muted">Tick any that apply.</p>
+                  <div className="check-list">
+                    {question.choices.map((c) => (
+                      <label key={c.id} className={`check-option${ticked[c.id] ? " on" : ""}`}>
+                        <input type="checkbox" checked={!!ticked[c.id]}
+                          onChange={(e) => setTicked({ ...ticked, [c.id]: e.target.checked })} />
+                        <span>{c.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <button className="book-btn" disabled={busy} onClick={() => answerTicked(false)}>
+                    {busy ? "Checking…" : "Continue"}
+                  </button>
+                  <button className="book-link" disabled={busy} onClick={() => answerTicked(true)}>None of these</button>
+                </>
+              )}
+              {question.kind === "single" && question.choices[0] && (
+                <div className="book-list">
+                  {([["Yes", true], ["No", false], ["Don't know", "unknown"]] as const).map(([label, present]) => (
+                    <button key={label} className="book-option" disabled={busy}
+                      onClick={() => answerWith([{ symptomId: question.choices[0].id, present, source: "question" }])}>
+                      <span className="book-option-main">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {question.kind === "one_of" && (
+                <div className="book-list">
+                  {question.choices.map((c) => (
+                    <button key={c.id} className="book-option" disabled={busy}
+                      onClick={() => answerWith([{ symptomId: c.id, present: true, source: "question" }])}>
+                      <span className="book-option-main">{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {busy && question.kind !== "multi" && <p className="book-muted small">Checking…</p>}
             </>
           )}
 

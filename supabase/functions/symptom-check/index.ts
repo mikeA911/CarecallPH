@@ -19,7 +19,7 @@
 // Stored per check (symptom_checks): age band, sex, symptom IDs, urgency,
 // top specialty, outcome. Never names, free text, conditions, location or IP.
 //
-// Secrets: SYMPTOM_ENGINE (apimedic; empty = off), SYMPTOM_MONTHLY_BUDGET
+// Secrets: SYMPTOM_ENGINE (demo | infermedica | apimedic; empty = off), SYMPTOM_MONTHLY_BUDGET
 // (default 90), plus the engine's own (see _shared/symptom/apimedic.ts).
 import { json, supabase } from "../_shared/lib.ts";
 import {
@@ -27,7 +27,7 @@ import {
 } from "../_shared/symptom/engine.ts";
 
 const MONTHLY_BUDGET = Number(Deno.env.get("SYMPTOM_MONTHLY_BUDGET") ?? "90") || 90;
-const MAX_CALLS_PER_CHECK = 15;
+const MAX_CALLS_PER_CHECK = 20;
 const CHECK_TTL_MS = 2 * 60 * 60 * 1000;
 const START_PER_MIN = 10;
 const REQUESTS_PER_MIN = 90; // searches are per keystroke (debounced)
@@ -105,6 +105,7 @@ async function start(body: Record<string, unknown>) {
 
   return pub({
     check_id: (data as { id: string }).id,
+    demo: engine === "demo",
     clinic: clinic && { name: clinic.name, phone: clinic.phone, local_emergency_numbers: clinic.local_emergency_numbers },
     available: await engineAvailable(engine),
   });
@@ -126,7 +127,7 @@ async function search(body: Record<string, unknown>) {
   const check = await loadCheck(body.check_id);
   const blocked = gate(check);
   if (blocked) return blocked;
-  const engine = createEngine();
+  const engine = createEngine(check!.id);
   if (!engine) return pub({ error: "unavailable" }, 503);
   const q = String(body.q ?? "").slice(0, 60);
   const symptoms = await withEngine(check!, engine, () => engine.searchSymptoms(q, null));
@@ -141,9 +142,9 @@ async function next(body: Record<string, unknown>) {
   const person = parsePerson(body.person);
   const answers = parseAnswers(body.answers);
   if (!person) return pub({ error: "bad_person" }, 400);
-  if (!answers.some((a) => a.present)) return pub({ error: "no_symptoms" }, 400);
+  if (!answers.some((a) => a.present === true)) return pub({ error: "no_symptoms" }, 400);
 
-  const engine = createEngine();
+  const engine = createEngine(check!.id);
   if (!engine) return pub({ error: "unavailable" }, 503);
   if (check!.engine_calls >= MAX_CALLS_PER_CHECK) return pub({ error: "too_many_steps" }, 429);
 
@@ -153,7 +154,7 @@ async function next(body: Record<string, unknown>) {
   const base = {
     age_band: ageBand(person.birthYear),
     sex: person.sex,
-    symptom_ids: answers.filter((a) => a.present).map((a) => a.symptomId),
+    symptom_ids: answers.filter((a) => a.present === true).map((a) => a.symptomId),
     updated_at: new Date().toISOString(),
   };
   if ("question" in step) {
@@ -194,6 +195,7 @@ function gate(check: CheckRow | null): Response | null {
 
 async function engineAvailable(engine: string | null): Promise<boolean> {
   if (!engine || !createEngine()) return false;
+  if (engine === "demo") return true; // no API calls, no budget
   const { data } = await supabase.rpc("symptom_engine_calls_this_month", { p_engine: engine });
   return typeof data !== "number" || data < MONTHLY_BUDGET;
 }
@@ -234,7 +236,8 @@ function parseAnswers(a: unknown): Answer[] {
     const o = (x ?? {}) as Record<string, unknown>;
     const id = String(o.symptomId ?? "");
     if (!/^[A-Za-z0-9_-]{1,40}$/.test(id)) return [];
-    return [{ symptomId: id, present: o.present === true, source: o.source === "question" ? "question" : "search" } as Answer];
+    const present = o.present === "unknown" ? "unknown" : o.present === true;
+    return [{ symptomId: id, present, source: o.source === "question" ? "question" : "search" } as Answer];
   });
 }
 

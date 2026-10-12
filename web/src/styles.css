@@ -822,3 +822,8 @@ a.btn { display: inline-block; text-decoration: none; }
 .check-emergency ul { padding-left: 20px; margin: 0; }
 .check-emergency li { margin: 4px 0; }
 .check-local a { font-weight: 600; }
+.check-demo {
+  margin-top: 10px; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: #FFF4E5; border: 1px dashed var(--amber); color: #7A4405; font-size: 13px;
+}
+.check-demo strong { letter-spacing: 0.06em; margin-right: 6px; }

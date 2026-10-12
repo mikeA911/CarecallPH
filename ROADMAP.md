@@ -292,10 +292,11 @@ into real availability. Design: `docs/symptom-check-design.md`.
 
 | Slice | Scope | Status |
 |---|---|---|
-| D1a | `SymptomEngine` interface + ApiMedic adapter, public `symptom-check` function, our own emergency screen (tap-to-call 911, local rescue numbers, no booking), `/check` page up to the result, Telegram `/check` entry, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Built**: tested with a stubbed API; needs ApiMedic sandbox keys to run live (README §10) |
+| D1a | `SymptomEngine` interface, built-in **demo engine** (made-up rules, DEMO banner), public `symptom-check` function, our own emergency screen (tap-to-call 911, local rescue numbers, no booking), `/check` page up to the result, Telegram `/check` entry, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Built**: runs with `SYMPTOM_ENGINE=demo` (README §10) |
 | D1b | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen; CareCall clinics first, other facilities by distance only, no booking | **Designed**: needs a Places API key |
 | D1c | Book from the result as a new patient; staff see urgency and symptoms on the appointment | **Designed** |
-| D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Designed**: needs Infermedica trial (organization + business email) |
+| D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Built**, tested against a fake API: needs the Infermedica trial (organization + business email) |
+| D1e | Philippine layer: region risk factors, doctor-owned PH rules (dengue, leptospirosis, TB) that only raise urgency, PH test cases, outcome comparison (design §8a) | **Planned** |
 
 CareCall never calls 911 for the patient: dispatchers need the person, and
 Telnyx doesn't list PH emergency calling. In Voice, the AI tells the caller to
@@ -309,10 +310,11 @@ uses it: a doctor signs off the red-flag list, wording and test cases; PH FDA
 
 | Engine | Verdict |
 |---|---|
-| ApiMedic (priaid) | Build and test: self-service sign-up, 100 free checks a month; no triage levels, older engine |
+| ApiMedic (priaid) | Was the test engine; website and API appeared offline in October 2026. Adapter kept, unused; replaced by the built-in demo engine |
 | Infermedica | Go-live candidate: interview, triage, specialist; trial needs an organization and business email |
 | Isabel | Strong clinically, but access by request only; no advantage over Infermedica for us |
 | Open-source rule engines | Not for patients: no clinical validation |
+| Own knowledge base + local LLM | Not now: years of clinician work to validate, inconsistent LLM answers, and CareCall would become a medical device maker. Instead a Philippine layer around Infermedica (D1e), whose outcome data could support our own engine later |
 
 **D2 and later**
 
@@ -356,6 +358,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-12 | Demo symptom engine and Infermedica adapter; ApiMedic appeared offline; Philippine layer planned (D1e) |
 | 2026-10-12 | Symptom check D1a built: `/check` page and Telegram `/check`, emergency screen with 911 and local numbers, ApiMedic adapter, `symptom_checks` with 90-day retention, Clinic settings section |
 | 2026-10-12 | Discover D1 symptom check designed (ApiMedic to build, Infermedica to go live; Telegram entry, nearby care by location, 911 emergency screen); Voice and Phase 0b deferred until after Discover |
 | 2026-10-12 | CC opens from the sidebar logo (wordmark → About); CC chat History in the browser; Phase 0a accounts set up, pilot test under way |

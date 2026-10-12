@@ -8,13 +8,17 @@ export interface Symptom { id: string; name: string }
 export interface Question {
   id: string;
   text: string;
-  /** "multi": tick any that apply; unticked choices count as absent. */
-  kind: "multi";
+  /**
+   * "multi": tick any that apply; unticked choices count as absent.
+   * "single": yes / no / don't know about the one choice.
+   * "one_of": pick exactly one choice; only that one is sent, as present.
+   */
+  kind: "multi" | "single" | "one_of";
   choices: Symptom[];
 }
 export interface Answer {
   symptomId: string;
-  present: boolean;
+  present: boolean | "unknown";
   /** "search": picked by the patient; "question": answered a follow-up. */
   source: "search" | "question";
 }
@@ -29,13 +33,17 @@ export interface Assessment {
 }
 
 export interface SymptomEngine {
-  readonly name: "apimedic" | "infermedica";
+  readonly name: EngineName;
+  /** True for the built-in demo engine: results are illustrative only. */
+  readonly demo: boolean;
   /** Upstream calls made by this instance (for the monthly budget). */
   readonly calls: number;
   searchSymptoms(text: string, person: Person | null): Promise<Symptom[]>;
   /** Next question, or the assessment when the engine has enough. */
   next(person: Person, answers: Answer[]): Promise<{ question: Question } | { assessment: Assessment }>;
 }
+
+export type EngineName = "demo" | "apimedic" | "infermedica";
 
 export class EngineError extends Error {}
 

@@ -7,11 +7,11 @@ const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 export type Sex = "male" | "female";
 export type Urgency = "emergency" | "urgent" | "routine" | "self_care";
 export type Symptom = { id: string; name: string };
-export type Answer = { symptomId: string; present: boolean; source: "search" | "question" };
-export type Question = { id: string; text: string; kind: "multi"; choices: Symptom[] };
+export type Answer = { symptomId: string; present: boolean | "unknown"; source: "search" | "question" };
+export type Question = { id: string; text: string; kind: "multi" | "single" | "one_of"; choices: Symptom[] };
 export type CheckClinic = { name: string; phone: string | null; local_emergency_numbers: string | null };
 
-export type StartResp = { check_id: string; clinic: CheckClinic | null; available: boolean };
+export type StartResp = { check_id: string; clinic: CheckClinic | null; available: boolean; demo?: boolean };
 export type NextResp = {
   question?: Question;
   result?: { urgency: Urgency; specialties: string[]; red_flags: string[] };
@@ -85,6 +85,22 @@ export function specialtyLabel(name: string): string {
     "Urology": "a urinary tract doctor (urologist)",
     "Psychiatry": "a mental health doctor (psychiatrist)",
     "Pulmonology": "a lung doctor (pulmonologist)",
+    // Infermedica's names
+    "General practitioner": "a general doctor (GP or family medicine)",
+    "Family doctor": "a general doctor (GP or family medicine)",
+    "Internist": "an internist (internal medicine)",
+    "Otolaryngologist": "an ear, nose and throat doctor (ENT)",
+    "Gastroenterologist": "a stomach and digestion specialist (gastroenterologist)",
+    "Dermatologist": "a skin doctor (dermatologist)",
+    "Pediatrician": "a children's doctor (pediatrician)",
+    "Gynecologist": "a women's health doctor (OB-GYN)",
+    "Ophthalmologist": "an eye doctor (ophthalmologist)",
+    "Cardiologist": "a heart doctor (cardiologist)",
+    "Neurologist": "a nerve and brain doctor (neurologist)",
+    "Orthopedist": "a bone and joint doctor (orthopedist)",
+    "Urologist": "a urinary tract doctor (urologist)",
+    "Psychiatrist": "a mental health doctor (psychiatrist)",
+    "Pulmonologist": "a lung doctor (pulmonologist)",
   };
   return map[name] ?? name;
 }

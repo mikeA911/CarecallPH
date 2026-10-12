@@ -306,28 +306,38 @@ project, the portal on Vercel and a Telegram bot.
       within a minute.
    7. Reply `BOOK` for a fresh link, then `TIGIL` to stop messages.
 
-### 10. Symptom check (ApiMedic test service)
+### 10. Symptom check
 
-Discover slice D1a: [docs/symptom-check-design.md](docs/symptom-check-design.md).
-The ApiMedic sandbox returns made-up results: for building and testing only.
+Discover slice D1: [docs/symptom-check-design.md](docs/symptom-check-design.md).
+Pick the engine with the `SYMPTOM_ENGINE` secret (empty = feature off):
 
-1. Register at apimedic.com (free) and copy the sandbox **API key** (username)
-   and **secret key** (password).
-2. Supabase secrets:
+| `SYMPTOM_ENGINE` | What it is | Secrets |
+|---|---|---|
+| `demo` | Built-in, made-up rules for trying the flow; the page shows a DEMO banner. Never for patients | none |
+| `infermedica` | Infermedica Engine API v3, the go-live candidate | `INFERMEDICA_APP_ID`, `INFERMEDICA_APP_KEY`, optional `INFERMEDICA_MODEL` |
+| `apimedic` | ApiMedic (priaid); the service appeared offline in October 2026 | `APIMEDIC_USERNAME`, `APIMEDIC_PASSWORD`, `APIMEDIC_SANDBOX` |
+
+1. Start with the demo engine:
    ```bash
-   supabase secrets set "APIMEDIC_USERNAME=<api key>" "APIMEDIC_PASSWORD=<secret key>" --project-ref <ref>
-   supabase secrets set SYMPTOM_ENGINE=apimedic SYMPTOM_MONTHLY_BUDGET=90 --project-ref <ref>
+   supabase secrets set SYMPTOM_ENGINE=demo --project-ref <ref>
    ```
-   `APIMEDIC_SANDBOX` defaults to the sandbox; set it to `false` only with a live
-   ApiMedic plan. `SYMPTOM_MONTHLY_BUDGET` caps engine calls per month (the free
-   plan allows 100). Leave `SYMPTOM_ENGINE` empty to turn the feature off.
-3. `supabase db push` (adds `symptom_checks` and the clinic fields), then deploy
-   `symptom-check` with `--no-verify-jwt` and redeploy `channel-webhook`.
-4. Portal: **Clinic settings → Symptom check**: set a page address, tick
+   For Infermedica, once the trial is approved:
+   ```bash
+   supabase secrets set "INFERMEDICA_APP_ID=<app id>" "INFERMEDICA_APP_KEY=<app key>" --project-ref <ref>
+   supabase secrets set SYMPTOM_ENGINE=infermedica SYMPTOM_MONTHLY_BUDGET=600 --project-ref <ref>
+   ```
+   `SYMPTOM_MONTHLY_BUDGET` caps engine API calls per month (the Infermedica
+   trial has 2,000 calls in 60 days; one check uses roughly 5–12). The demo
+   engine makes no calls and ignores it.
+2. `supabase db push` (adds `symptom_checks` and the clinic fields), then deploy
+   `symptom-check` with `--no-verify-jwt` and redeploy `channel-webhook` and `cc-chat`.
+3. Portal: **Clinic settings → Symptom check**: set a page address, tick
    **Show the symptom check**, add local emergency numbers.
-5. Test: open `/check/<page address>` on your phone, tick an emergency question
-   once (Call 911 screen), then do a normal check through to the result. In
-   Telegram, send `/check` to the bot.
+4. Test: open `/check/<page address>` on your phone, tick an emergency question
+   once (Call 911 screen), then do a normal check through to the result. With
+   the demo engine, try Fever → Muscle or body pain → flood water Yes (urgent,
+   leptospirosis note) and Cough → Less than a week (self care). In Telegram,
+   send `/check` to the bot.
 
 Engine tests: `deno test supabase/functions/_shared/symptom/`
 

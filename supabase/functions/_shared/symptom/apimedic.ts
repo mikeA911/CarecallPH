@@ -42,6 +42,7 @@ type DiagnosisRow = {
 
 export class ApiMedicEngine implements SymptomEngine {
   readonly name = "apimedic" as const;
+  readonly demo = false;
   #calls = 0;
   get calls() { return this.#calls; }
 
@@ -123,7 +124,7 @@ export class ApiMedicEngine implements SymptomEngine {
   }
 
   async next(person: Person, answers: Answer[]): Promise<{ question: Question } | { assessment: Assessment }> {
-    const present = unique(answers.filter((a) => a.present).map((a) => a.symptomId));
+    const present = unique(answers.filter((a) => a.present === true).map((a) => a.symptomId));
     if (!present.length) throw new EngineError("no symptoms chosen");
 
     // One round of "do you also have any of these?" from ApiMedic's proposals.
