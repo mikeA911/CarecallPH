@@ -104,7 +104,7 @@ function ClinicSwitcher() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ onOpenCC }: { onOpenCC: () => void }) {
   const { role, signOut, session } = useSession();
   const reviewCount = useReviewCount();
   const actionCount = useOpenActionCount();
@@ -113,10 +113,15 @@ function Sidebar() {
 
   return (
     <nav className="sidebar">
-      <Link to="/about" className="brand" title="About CareCall">
-        <img className="brand-icon" src="/website-192x192.png" alt="" width={32} height={32} />
-        <img className="brand-wordmark" src="/carecall.png" alt="CareCall, about this app" width={61} height={28} />
-      </Link>
+      {/* Logo opens CC; the wordmark goes to About. */}
+      <div className="brand">
+        <button type="button" className="brand-cc" onClick={onOpenCC} title="Ask CC" aria-label="Ask CC, the CareCall assistant">
+          <img className="brand-icon" src="/website-192x192.png" alt="" width={32} height={32} />
+        </button>
+        <Link to="/about" className="brand-about" title="About CareCall">
+          <img className="brand-wordmark" src="/carecall.png" alt="CareCall, about this app" width={61} height={28} />
+        </Link>
+      </div>
 
       {isAdmin && <ClinicSwitcher />}
 
@@ -162,6 +167,7 @@ function Sidebar() {
 export default function App() {
   const { session, loading, forcePasswordChange } = useSession();
   const location = useLocation();
+  const [ccOpen, setCcOpen] = useState(false);
 
   // Public patient pages (/book, /connect) never reach this component: main.tsx
   // routes them to PublicApp, outside the sign-in gate.
@@ -170,7 +176,7 @@ export default function App() {
 
   return (
     <div className="layout">
-      <Sidebar />
+      <Sidebar onOpenCC={() => setCcOpen(true)} />
       <main className="content">
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -192,7 +198,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace state={{ from: location }} />} />
         </Routes>
       </main>
-      <CCPanel />
+      <CCPanel open={ccOpen} onClose={() => setCcOpen(false)} />
     </div>
   );
 }

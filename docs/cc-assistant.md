@@ -1,6 +1,6 @@
 # CC — the CareCall assistant
 
-CC is a chat assistant inside the signed-in portal (launcher bottom-right). It:
+CC is a chat assistant inside the signed-in portal (open it with the CareCall logo at the top of the sidebar). It:
 
 - answers how-to questions from the **CC wiki** (`docs/cc-wiki/`),
 - shows buttons that navigate to the right screen,
