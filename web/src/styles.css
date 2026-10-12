@@ -73,6 +73,15 @@ nav.sidebar .brand {
   color: #fff; margin-bottom: var(--sp-2); letter-spacing: -0.02em;
 }
 nav.sidebar .brand span { color: #A9C4FA; }
+/* Brand: CareCall icon + wordmark, links to About */
+nav.sidebar a.brand {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px; border-radius: var(--radius-sm); align-self: flex-start;
+}
+nav.sidebar a.brand:hover { background: rgba(255,255,255,0.12); }
+nav.sidebar a.brand:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.brand-icon { border-radius: 8px; background: #fff; display: block; }
+.brand-wordmark { height: 28px; width: auto; border-radius: 6px; display: block; }
 nav.sidebar a {
   color: #DCE6FB; text-decoration: none; padding: 6px 12px;
   border-radius: var(--radius-sm); font-weight: 500;
