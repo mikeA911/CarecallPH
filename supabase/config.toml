@@ -4,7 +4,7 @@
 #   supabase functions deploy start-campaign
 #
 # project_id is the Supabase project ref (used by `supabase link`).
-project_id = "ckuzdngupcxugvjqoyuo"
+project_id = "fpoiparkhyiqxrcktshy"
 
 # ---------------------------------------------------------------------------
 # Edge functions

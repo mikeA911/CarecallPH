@@ -13,7 +13,7 @@
 -- Written idempotently so it is safe to re-run during development.
 
 create table if not exists cc_action_items (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   clinic_id uuid not null references clinics(id) on delete cascade,
   campaign_id uuid references campaigns(id) on delete set null,
   created_by uuid references auth.users(id),          -- the user CC was talking to
@@ -54,7 +54,7 @@ create policy cc_action_items_update on cc_action_items for update to authentica
 -- Usage log (service role writes; admins read)
 -- ============================================================
 create table if not exists cc_usage (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id),
   clinic_id uuid references clinics(id),
   model text not null,

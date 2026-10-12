@@ -173,13 +173,11 @@ That admin creates clinics, clinic admins and staff from the portal. New clinics
 default to **Timezone** `Asia/Manila` and calling hours Mon–Fri 08:00–18:00,
 Sat 08:00–12:00; adjust per clinic in Clinic settings.
 
-Per-clinic feature flags (no portal toggle yet):
+Self-booking links and chat invites are switched on per clinic in **Clinic
+settings**. The CC nightly review is on by default; to turn it off for a clinic:
 
 ```sql
-update clinics set self_booking_enabled = true,   -- /book links in messages
-                   chat_optin_enabled   = true,   -- /connect chat invites
-                   cc_nightly_enabled   = true    -- default true
-where id = '<clinic id>';
+update clinics set cc_nightly_enabled = false where id = '<clinic id>';
 ```
 
 ### 3. Secrets

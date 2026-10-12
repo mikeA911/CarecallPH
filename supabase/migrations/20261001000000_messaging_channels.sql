@@ -33,7 +33,7 @@ alter table clinics
 -- patient_channels — one row per (patient, chat channel)
 -- ============================================================
 create table if not exists patient_channels (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   patient_id uuid not null references patients(id) on delete cascade,
   clinic_id uuid references clinics(id),
   channel message_channel not null check (channel <> 'sms'),
@@ -55,7 +55,7 @@ create index if not exists idx_patient_channels_external
 -- A token may be claimed on more than one channel until it expires.
 -- ============================================================
 create table if not exists channel_invites (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   token_hash text not null unique,
   patient_id uuid not null references patients(id) on delete cascade,
   clinic_id uuid references clinics(id),
@@ -69,7 +69,7 @@ create index if not exists idx_channel_invites_patient on channel_invites (patie
 -- channel_messages — outbound + inbound log for every channel (incl. SMS)
 -- ============================================================
 create table if not exists channel_messages (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   clinic_id uuid references clinics(id),
   patient_id uuid references patients(id) on delete set null,
   campaign_id uuid references campaigns(id) on delete set null,
