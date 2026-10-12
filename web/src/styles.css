@@ -832,3 +832,6 @@ a.btn { display: inline-block; text-decoration: none; }
 .public-link { margin-top: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
 .public-link-url { display: block; margin-top: 2px; font-weight: 600; overflow-wrap: anywhere; }
 .public-link-qr { border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.badge.confirmed { background: #D1F0E8; color: var(--teal-dark); }
+.badge.cancelled, .badge.no_show { background: #f0f1f3; color: var(--grey); }
+.badge.completed { background: #E4EDFC; color: var(--blue); }

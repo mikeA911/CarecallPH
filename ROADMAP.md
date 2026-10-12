@@ -221,8 +221,11 @@ ask questions. The same tools serve voice and chat.
 
 **2c. Appointment reminders and confirmations**
 
-- Reminder 24 hours and 2 hours before, on the patient's channel: reply
-  **C** to confirm, **R** to reschedule (hands off to 2a/2b), **X** to cancel.
+- **Built** (2026-10-14): reminder 24 hours and 2 hours before, on the
+  patient's channel, 07:00–21:00 clinic time, per-clinic switch: reply **1** (C)
+  to confirm, **2** (R) to ask for a new time (CC action item for staff),
+  **3** (X) to cancel (slot freed, action item). Shown on the patient page.
+- Planned: patient picks the new time by chat (hands off to 2a/2b).
 - `appointments.status` confirmed / no_show tracking; no-show rate in CC reports.
 
 **2d. Portal and data**
@@ -360,6 +363,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-14 | Appointment reminders (2c): 24h and 2h chat reminders, replies 1 confirm / 2 new time / 3 cancel, action items, patient page status |
 | 2026-10-13 | Clinic settings: one switch for the symptom check, link made automatically with copy and QR; one public page `/check` with a clinic picker |
 | 2026-10-13 | Book from the symptom check (D1c), Appointments on the patient page; restored `get_available_slots(p_tz)` (booking links failed without it) |
 | 2026-10-13 | Philippine layer (D1e): PH questions and draft rules around every symptom engine, rules recorded per check, PH test cases |

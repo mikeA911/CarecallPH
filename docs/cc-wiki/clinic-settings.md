@@ -5,7 +5,7 @@ summary: Display name, callback number, timezone, calling hours, greeting, booki
 roles: clinic_admin
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 - **Display name**: how the clinic is named in calls and messages.
@@ -27,6 +27,9 @@ updated: 2026-10-13
   and lets patients reply BOOK in a chat app. Chat campaigns always send links.
 - **Chat app invites in text messages**: adds a link to connect a chat app to
   texts CareCall sends. **Invite to chat** on a patient's page works either way.
+- **Appointment reminders**: chat reminders 24 hours and 2 hours before each
+  appointment; patients reply 1 confirm, 2 new time, 3 cancel. See the
+  appointment reminders page.
 - **Symptom check and online booking**: tick **Let patients check symptoms and
   book online** and save. CareCall creates the clinic's link from its name plus
   a random number (e.g. `/check/carecall-test-site-4821`) and shows it with

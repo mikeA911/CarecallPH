@@ -18,7 +18,25 @@ type Intake = {
 type ApptRow = {
   id: string; starts_at: string; status: string; source: string | null; intake: Intake | null;
   providers?: { name: string } | null;
+  appointment_reminders?: { kind: string; status: string; response: string | null }[];
 };
+
+const RESPONSE_LABEL: Record<string, string> = {
+  confirm: "patient confirmed", reschedule: "patient asked for a new time", cancel: "patient cancelled",
+};
+
+/** "Reminded 24h, 2h · patient confirmed" */
+function reminderSummary(rs: ApptRow["appointment_reminders"]): string | null {
+  if (!rs?.length) return null;
+  const sent = rs.filter((r) => r.status === "sent").map((r) => r.kind).sort().reverse();
+  const failed = rs.some((r) => r.status !== "sent");
+  const answer = rs.find((r) => r.response)?.response;
+  return [
+    sent.length ? `Reminded ${sent.join(", ")}` : null,
+    failed ? "a reminder couldn't be sent" : null,
+    answer ? RESPONSE_LABEL[answer] ?? answer : null,
+  ].filter(Boolean).join(" · ");
+}
 
 const URGENCY_LABEL: Record<string, string> = {
   urgent: "See a doctor today", routine: "Next few days", self_care: "Self care", emergency: "Emergency",
@@ -47,7 +65,7 @@ export default function PatientDetail() {
         .select("id, started_at, result, verified, duration_seconds, summary, campaigns(name)")
         .eq("patient_id", id).order("started_at", { ascending: false }),
       supabase.from("appointments")
-        .select("id, starts_at, status, source, intake, providers(name)")
+        .select("id, starts_at, status, source, intake, providers(name), appointment_reminders(kind, status, response)")
         .eq("patient_id", id).order("starts_at", { ascending: false }).limit(20),
     ]);
     setPatient(p as Patient);
@@ -121,7 +139,12 @@ export default function PatientDetail() {
                 {SOURCE_LABEL[a.source ?? ""] ?? a.source ?? "—"}
                 {a.intake && <IntakeSummary intake={a.intake} />}
               </td>
-              <td><span className={`badge ${a.status}`}>{a.status}</span></td>
+              <td>
+                <span className={`badge ${a.status}`}>{a.status}</span>
+                {reminderSummary(a.appointment_reminders) && (
+                  <div className="small muted" style={{ marginTop: 4 }}>{reminderSummary(a.appointment_reminders)}</div>
+                )}
+              </td>
             </tr>
           ))}
           {!appts.length && <tr><td colSpan={4} className="empty">No appointments yet.</td></tr>}
