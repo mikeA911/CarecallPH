@@ -14,7 +14,7 @@ export type PhoneResult = { ok: true; e164: string } | { ok: false; error: strin
 const MOBILE_HINT = "Use a PH mobile number like 0917 123 4567, 917 123 4567 or +63 917 123 4567.";
 const ANY_HINT = "Use a PH mobile (0917 123 4567) or a landline with area code (02 8123 4567, 032 123 4567).";
 
-const INTL_HINT = " Numbers from other countries need + and the country code, e.g. +855 12 345 678.";
+const INTL_HINT = " Numbers from other countries need + and the country code, e.g. +1 415 555 0100 or +65 9123 4567.";
 
 export function normalizePhPhone(
   raw: string,

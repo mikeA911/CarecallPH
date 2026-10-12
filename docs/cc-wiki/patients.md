@@ -20,7 +20,7 @@ On **Patients**, use **Import CSV** with the columns
   are ignored (`0917-123-4567`, `+63 (917) 123 4567`). It is saved as
   `+639171234567`. Landlines are rejected, because text messages need a mobile.
   For testing, numbers from other countries are currently accepted too when
-  written with + and the country code (e.g. `+855 12 345 678`); Philippine
+  written with + and the country code (e.g. `+1 415 555 0100` or `+65 9123 4567`); Philippine
   numbers are still required for the pilot. Rejected rows show the reason in the preview's
   **Issue** column, for example "Invalid phone number "0917123456". Use a PH
   mobile number like 0917 123 4567, 917 123 4567 or +63 917 123 4567." or
