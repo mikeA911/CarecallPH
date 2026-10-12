@@ -3,9 +3,8 @@
 //
 // ILLUSTRATIVE ONLY. These rules are not clinically validated and must never
 // be used for real patients; the page shows a DEMO banner whenever this engine
-// is on. They include a few Philippine patterns (dengue warning signs, flood
-// water and leptospirosis, a cough lasting weeks) so demos feel realistic, and
-// they exercise every question kind the page supports. No API calls.
+// is on. Philippine patterns (dengue, leptospirosis, TB…) come from the PH
+// layer (ph_layer.ts), which wraps every engine, this one included. No API calls.
 import type { Answer, Assessment, Person, Question, Symptom, SymptomEngine, Urgency } from "./types.ts";
 
 const SYMPTOMS: Symptom[] = [
@@ -34,6 +33,7 @@ const SYMPTOMS: Symptom[] = [
   { id: "d_weight_loss", name: "Losing weight without trying" },
 ];
 const NAME = new Map(SYMPTOMS.map((s) => [s.id, s.name]));
+const MILD = ["d_runny_nose", "d_sore_throat", "d_cough", "d_itchy_eyes"];
 
 /** Follow-up "do you also have…" lists, by the first matching symptom. */
 const RELATED: [string, string[]][] = [
@@ -45,13 +45,13 @@ const RELATED: [string, string[]][] = [
   ["d_sore_throat", ["d_fever", "d_cough", "d_runny_nose", "d_ear_pain"]],
 ];
 
-const Q_FLOOD = "d_flood";        // single: waded in flood water in the last 2 weeks?
-const Q_COUGH_WEEKS = "d_cough_2w"; // one_of: how long the cough has lasted
 
 export class DemoEngine implements SymptomEngine {
   readonly name = "demo" as const;
   readonly demo = true;
   readonly calls = 0;
+
+  nameOf(id: string): Promise<string | null> { return Promise.resolve(NAME.get(id) ?? null); }
 
   searchSymptoms(text: string): Promise<Symptom[]> {
     const q = text.trim().toLowerCase();
@@ -64,7 +64,6 @@ export class DemoEngine implements SymptomEngine {
   next(_person: Person, answers: Answer[]): Promise<{ question: Question } | { assessment: Assessment }> {
     const has = (id: string) => answers.some((a) => a.symptomId === id && a.present === true);
     const answered = (id: string) => answers.some((a) => a.symptomId === id);
-    const answeredAny = (ids: string[]) => ids.some(answered);
 
     // 1. "Do you also have any of these?"
     if (!answers.some((a) => a.source === "question")) {
@@ -76,26 +75,6 @@ export class DemoEngine implements SymptomEngine {
         } });
       }
     }
-    // 2. Fever: flood water exposure (yes / no / don't know).
-    if (has("d_fever") && !answered(Q_FLOOD)) {
-      return Promise.resolve({ question: {
-        id: Q_FLOOD, kind: "single",
-        text: "In the last 2 weeks, have you waded through flood water or mud?",
-        choices: [{ id: Q_FLOOD, name: "Waded through flood water or mud" }],
-      } });
-    }
-    // 3. Cough: how long (pick one).
-    const coughOptions = ["d_cough_lt1w", "d_cough_1to2w", Q_COUGH_WEEKS];
-    if (has("d_cough") && !answeredAny(coughOptions)) {
-      return Promise.resolve({ question: {
-        id: "cough_length", kind: "one_of", text: "How long have you had the cough?",
-        choices: [
-          { id: "d_cough_lt1w", name: "Less than a week" },
-          { id: "d_cough_1to2w", name: "1 to 2 weeks" },
-          { id: Q_COUGH_WEEKS, name: "More than 2 weeks" },
-        ],
-      } });
-    }
     return Promise.resolve({ assessment: assess(has) });
   }
 }
@@ -104,31 +83,19 @@ function assess(has: (id: string) => boolean): Assessment {
   const flags: string[] = [];
   let urgency: Urgency = "routine";
   let specialties = ["General practice"];
-  const urgent = (msg: string) => { urgency = "urgent"; flags.push(msg); };
 
-  if (has("d_fever") && (has("d_bleeding_gums") || has("d_belly_pain") || has("d_vomiting"))) {
-    urgent("Fever with bleeding, belly pain or repeated vomiting can be dengue warning signs. See a doctor today, and drink plenty of fluids.");
-    specialties = ["General practice", "Internal medicine"];
-  }
-  if (has("d_fever") && has(Q_FLOOD)) {
-    urgent("Fever after wading in flood water can be leptospirosis, which needs early treatment. Tell the doctor about the flood water.");
-    specialties = ["General practice", "Internal medicine"];
-  }
   if (has("d_yellow")) {
-    urgent("Yellow eyes or skin need a doctor's check soon.");
+    urgency = "urgent";
+    flags.push("Yellow eyes or skin need a doctor's check soon.");
     specialties = ["Internal medicine", "Gastroenterology"];
   }
-  if (has(Q_COUGH_WEEKS) || (has("d_cough") && (has("d_night_sweats") || has("d_weight_loss")))) {
-    flags.push("A cough for more than 2 weeks, night sweats or weight loss should be checked for TB. Testing is free at health centers.");
-    specialties = ["General practice", "Pulmonology"];
-  }
+  if (has("d_night_sweats") || has("d_weight_loss")) specialties = ["General practice", "Internal medicine"];
   if (has("d_pee_pain") && urgency === "routine") specialties = ["General practice", "Urology"];
   if (has("d_ear_pain") && urgency === "routine") specialties = ["General practice", "Otolaryngology"];
   if (has("d_rash") && !has("d_fever") && urgency === "routine") specialties = ["Dermatology"];
 
-  const mild = ["d_runny_nose", "d_sore_throat", "d_cough", "d_itchy_eyes"];
-  const others = SYMPTOMS.map((s) => s.id).filter((id) => !mild.includes(id));
-  if (urgency === "routine" && !flags.length && mild.some(has) && !others.some(has) && !has(Q_COUGH_WEEKS) && !has("d_cough_1to2w")) {
+  const others = SYMPTOMS.map((s) => s.id).filter((id) => !MILD.includes(id));
+  if (urgency === "routine" && MILD.some(has) && !others.some(has)) {
     urgency = "self_care";
     flags.push("Rest, fluids and paracetamol for discomfort. See a doctor if it lasts more than a week or you get a fever.");
   }

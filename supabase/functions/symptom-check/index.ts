@@ -23,8 +23,9 @@
 // (default 90), plus the engine's own (see _shared/symptom/apimedic.ts).
 import { json, supabase } from "../_shared/lib.ts";
 import {
-  type Answer, ageBand, createEngine, EngineError, engineName, type Person, type SymptomEngine,
+  type Answer, ageBand, createEngine, EngineError, engineName, type Person, phLayerOn, type SymptomEngine,
 } from "../_shared/symptom/engine.ts";
+import { PH_RULES_VERSION } from "../_shared/symptom/ph_layer.ts";
 
 const MONTHLY_BUDGET = Number(Deno.env.get("SYMPTOM_MONTHLY_BUDGET") ?? "90") || 90;
 const MAX_CALLS_PER_CHECK = 20;
@@ -162,11 +163,13 @@ async function next(body: Record<string, unknown>) {
     return pub({ question: step.question });
   }
 
-  const a = step.assessment;
+  const a = step.assessment as typeof step.assessment & { phRules?: string[] };
   await supabase.from("symptom_checks").update({
     ...base,
     urgency: a.urgency,
     specialty: a.specialties[0] ?? null,
+    ph_rules: a.phRules ?? null,
+    ph_rules_version: phLayerOn() ? PH_RULES_VERSION : null,
     outcome: a.urgency === "emergency" ? "emergency_shown" : "advised",
   }).eq("id", check!.id);
 

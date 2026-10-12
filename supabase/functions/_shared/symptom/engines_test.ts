@@ -23,39 +23,21 @@ function assessment(r: { question: Question } | { assessment: Assessment }): Ass
 }
 
 // ---------------------------------------------------------------- demo
-Deno.test("demo: fever asks related, then flood water, then dengue signs → urgent", async () => {
+Deno.test("demo: related question, then an assessment; mild cold → self care", async () => {
   const e = new DemoEngine();
   eq((await e.searchSymptoms("fev")).map((s) => s.id), ["d_fever"]);
-  const q1 = question(await e.next(person, [pick("d_fever")]));
+  eq(await e.nameOf("d_fever"), "Fever");
+  const q1 = question(await e.next(person, [pick("d_cough")]));
   eq(q1.kind, "multi");
-  const a1 = [pick("d_fever"), ...q1.choices.map((c) => ans(c.id, c.id === "d_bleeding_gums"))];
-  const q2 = question(await e.next(person, a1));
-  eq([q2.kind, q2.id], ["single", "d_flood"]);
-  const r = assessment(await e.next(person, [...a1, ans("d_flood", false)]));
-  eq(r.urgency, "urgent");
-  eq(r.redFlags.length, 1);
+  const r = assessment(await e.next(person, [pick("d_cough"), ...q1.choices.map((c) => ans(c.id, c.id === "d_runny_nose"))]));
+  eq(r.urgency, "self_care");
   eq(e.calls, 0);
 });
 
-Deno.test("demo: fever + flood water → leptospirosis warning", async () => {
+Deno.test("demo: yellow eyes → urgent", async () => {
   const e = new DemoEngine();
-  const q1 = question(await e.next(person, [pick("d_fever")]));
-  const a1 = [pick("d_fever"), ...q1.choices.map((c) => ans(c.id, false))];
-  const r = assessment(await e.next(person, [...a1, ans("d_flood", true)]));
+  const r = assessment(await e.next(person, [pick("d_yellow"), ans("d_fever", false)]));
   eq(r.urgency, "urgent");
-  eq(r.redFlags[0].includes("leptospirosis"), true);
-});
-
-Deno.test("demo: cough over 2 weeks → TB note; a short cold → self care", async () => {
-  const e = new DemoEngine();
-  const q1 = question(await e.next(person, [pick("d_cough")]));
-  const a1 = [pick("d_cough"), ...q1.choices.map((c) => ans(c.id, c.id === "d_runny_nose"))];
-  const q2 = question(await e.next(person, a1));
-  eq(q2.kind, "one_of");
-  const long = assessment(await e.next(person, [...a1, ans("d_cough_2w", true)]));
-  eq([long.urgency, long.specialties[1]], ["routine", "Pulmonology"]);
-  const short = assessment(await e.next(person, [...a1, ans("d_cough_lt1w", true)]));
-  eq(short.urgency, "self_care");
 });
 
 // ---------------------------------------------------------- infermedica
@@ -134,4 +116,6 @@ Deno.test("infermedica: question and triage mapping", () => {
   eq(["emergency_ambulance", "emergency", "consultation_24", "consultation", "self_care", undefined].map((l) => triageToUrgency(l, false)),
     ["emergency", "emergency", "urgent", "routine", "self_care", "routine"]);
   eq(diagnosticBody(person, [pick("x"), pick("x")]).evidence.length, 1, "duplicates dropped");
+  eq(diagnosticBody(person, [pick("s_98")], ["p_region"]).evidence.at(-1),
+    { id: "p_region", choice_id: "present", source: "predefined" }, "region evidence");
 });

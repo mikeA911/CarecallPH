@@ -276,6 +276,17 @@ table (e.g. "General practice" → GP / Family medicine).
 
 ## 8a. Fitting the engine to the Philippines
 
+**Status:** built as `_shared/symptom/ph_layer.ts` (rules version
+`draft-2026-10-12`, awaiting doctor sign-off): PH questions (days of fever,
+flood water, cough of 2+ weeks), an animal-bite search item, 8 rules (animal
+bite, dengue warning signs, leptospirosis, child dehydration, fever over a
+week, jaundice, dengue watch, TB cough) that only raise urgency, fired rules
+saved in `symptom_checks.ph_rules`, Infermedica region evidence via
+`INFERMEDICA_EXTRA_EVIDENCE`, and PH test cases in `ph_layer_test.ts`.
+Next: doctor review of rules, wording and cases; confirm Infermedica's region
+risk factors on the trial; outcome comparison once booking from the result
+(D1c) links a check to a visit.
+
 Infermedica's knowledge base is built in Europe, and disease patterns differ in
 the Philippines: dengue, leptospirosis after floods, typhoid, TB and other
 endemic infections are far more common. Rather than building our own engine,

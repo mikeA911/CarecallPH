@@ -85,6 +85,7 @@ export function specialtyLabel(name: string): string {
     "Urology": "a urinary tract doctor (urologist)",
     "Psychiatry": "a mental health doctor (psychiatrist)",
     "Pulmonology": "a lung doctor (pulmonologist)",
+    "Animal Bite Treatment Center": "an Animal Bite Treatment Center (or your health center) for rabies shots",
     // Infermedica's names
     "General practitioner": "a general doctor (GP or family medicine)",
     "Family doctor": "a general doctor (GP or family medicine)",

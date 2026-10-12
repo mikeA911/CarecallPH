@@ -114,6 +114,10 @@ export class ApiMedicEngine implements SymptomEngine {
     return list;
   }
 
+  async nameOf(id: string): Promise<string | null> {
+    return (await this.allSymptoms()).find((s) => s.id === id)?.name ?? null;
+  }
+
   async searchSymptoms(text: string): Promise<Symptom[]> {
     const q = text.trim().toLowerCase();
     if (q.length < 2) return [];
