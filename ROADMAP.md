@@ -363,6 +363,7 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 | M2 | Prescriptions: draft (assistant/doctor), sign (doctor), PDF and print, send by Telegram, verify page; feeds M1 | **Designed**: confirm e-prescription rules first |
 | M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
 | M4 | Adherence and readings reports in CC; missed-dose and no-reading alerts; FHIR groundwork for Phase R | **Designed** |
+| M5 | **Dictate to CC** (doctors): a microphone button in CC; the doctor says the medicines or the monitoring plan, CC fills in a **draft** prescription or plan for the doctor to check, edit and sign. Never signs or sends by itself | **Idea**: after M2 and M3 |
 
 **Gate:** doctor sign-off on default limits, wording and escalation; agreed
 review times at the pilot clinic; e-prescription rules confirmed. Dangerous

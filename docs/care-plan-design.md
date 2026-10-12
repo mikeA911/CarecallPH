@@ -206,5 +206,24 @@ vital_readings        patient, clinic, measure, values (e.g. {sys, dia, pulse}),
 | **M3** | Vital signs: monitoring plan (what, when, how, why, targets, what to do if high or low) drafted and signed like a prescription, sent as a document; chat requests from the plan, reading parser, Readings to review, critical-reading message, chart on the patient page |
 | **M4** | Reports: adherence and readings in CC (aggregate), missed-dose and no-reading alerts; FHIR mapping groundwork for Phase R |
 
+### Later: dictate to CC (M5)
+
+A **Dictate** button in CC, shown to doctors (clinicians linked to a login).
+The doctor speaks, e.g. *"Amlodipine 5 milligrams once a day in the morning
+for 30 days, and blood pressure every morning for two weeks, target below
+140 over 90, call the clinic if above 160 over 100"*.
+
+1. Speech to text: the browser's speech recognition (English and Filipino
+   where supported) or a speech-to-text service; the text is shown so the
+   doctor can correct it.
+2. CC turns the text into a **draft** prescription and/or monitoring plan in
+   the same forms staff use, with any unclear item flagged ("dose not stated",
+   "how long?"). It never invents a dose or a limit that wasn't said.
+3. The doctor reviews, edits and **signs** as usual. Nothing is sent to the
+   patient or a pharmacy until the doctor signs.
+
+Privacy: the audio isn't stored; the transcript is kept only in the draft.
+Needs M2 and M3 first.
+
 **Before building:** confirm the e-prescription rules (§2) and who reviews
 readings at the pilot clinic and how quickly.
