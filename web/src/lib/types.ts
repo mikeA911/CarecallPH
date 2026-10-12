@@ -38,6 +38,7 @@ export type Clinic = {
   self_booking_enabled: boolean;
   chat_optin_enabled: boolean;
   symptom_check_enabled: boolean;
+  reminders_enabled: boolean;
   public_slug: string | null;
   local_emergency_numbers: string | null;
   active: boolean;

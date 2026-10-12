@@ -6,7 +6,7 @@ roles: staff
 routes:
   - /patients | staff | Patients
   - /patients/:id | staff | Patient detail
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 ## Importing
@@ -62,7 +62,8 @@ Shows the patient's details, **Chat apps** (each app, when they connected, when
 they said YES, and a status: Waiting for birthday, Birthday didn't match, Waiting
 for YES, Active or Stopped messages), the
 last 20 **Messages** sent and received, their **Appointments** (when, clinician,
-how it was booked: AI call, booking link or symptom check, and status), and
+how it was booked: AI call, booking link or symptom check, status, and
+reminders sent and the patient's answer), and
 their **Call history** across campaigns. A booking from the symptom check also
 shows what the patient shared: urgency, kind of doctor, symptoms and any
 Philippine warnings to watch for.

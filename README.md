@@ -223,6 +223,7 @@ supabase functions deploy booking-api        --no-verify-jwt
 supabase functions deploy channel-webhook    --no-verify-jwt
 supabase functions deploy cc-nightly         --no-verify-jwt
 supabase functions deploy symptom-check      --no-verify-jwt
+supabase functions deploy send-reminders     --no-verify-jwt
 ```
 
 `--no-verify-jwt` functions are called by Telnyx, chat platforms, patients'

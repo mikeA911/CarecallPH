@@ -128,6 +128,7 @@ export default function ClinicSettings() {
       self_booking_enabled: c.self_booking_enabled,
       chat_optin_enabled: c.chat_optin_enabled,
       symptom_check_enabled: c.symptom_check_enabled,
+      reminders_enabled: c.reminders_enabled,
       public_slug: slug || null,
       local_emergency_numbers: c.local_emergency_numbers?.trim() || null,
     }).eq("id", c.id);
@@ -180,6 +181,17 @@ export default function ClinicSettings() {
         <p className="muted small">
           Adds a link to connect Viber, Messenger, WhatsApp or Telegram to SMS sent by CareCall.
           Staff can always invite a patient from their page with Invite to chat.
+        </p>
+
+        <h2>Appointment reminders</h2>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={!!clinic.reminders_enabled}
+                 onChange={(e) => setClinic({ ...clinic, reminders_enabled: e.target.checked })} />
+          Remind patients by chat 24 hours and 2 hours before their appointment
+        </label>
+        <p className="muted small">
+          Sent between 7 AM and 9 PM on the patient's chat app (or SMS if they agreed to texts). Patients reply
+          1 to confirm, 2 to change the time, 3 to cancel. Change and cancel requests appear in CC action items.
         </p>
 
         <h2>Symptom check and online booking</h2>

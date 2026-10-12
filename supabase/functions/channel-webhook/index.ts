@@ -18,6 +18,8 @@
 //   YES / OO / OPO / SIGE → opt in (DPA consent record), set preferred channel
 //   BOOK / ISKEDYUL       → send a self-booking link per open campaign
 //   STOP / TIGIL / HINTO  → opt out
+//   1 / 2 / 3 (or C / R / X, CONFIRM, PALIT, KANSELA) after an appointment
+//                         reminder → confirm, ask to change the time, cancel
 //   CHECK / SINTOMAS      → symptom check link (anyone, connected or not; only
 //                           when SYMPTOM_ENGINE is set)
 //   anything else         → logged for staff; short auto-reply
@@ -31,6 +33,7 @@
 
 import { supabase, createBookingLink, audit } from "../_shared/lib.ts";
 import { dobCandidates } from "../_shared/dob.ts";
+import { parseReminderReply, type ReminderResponse, whenText } from "../_shared/reminders.ts";
 import {
   type ChatChannel,
   ChannelError,
@@ -430,6 +433,14 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
     return;
   }
 
+  // A reply to an appointment reminder (only when one is waiting for an answer).
+  const reminderReply = parseReminderReply(ev.text);
+  if (reminderReply) {
+    const live = verified.filter((r) => r.opted_in_at && !r.opted_out_at).map((r) => r.patient_id);
+    const answer = live.length ? await answerReminder(reminderReply, live) : null;
+    if (answer) { await say(answer); return; }
+  }
+
   if (YES.has(kw)) {
     const ids = verified.map((r) => r.id);
     const patientIds = verified.map((r) => r.patient_id);
@@ -567,4 +578,67 @@ async function symptomCheckReply(channel: ChatChannel, clinicId: string | null):
     `It's not a diagnosis.\n\n${portal}${path}?src=${channel}\n\n` +
     `If someone has chest pain, trouble breathing, signs of a stroke or heavy bleeding, call 911 now.`
   );
+}
+
+/**
+ * Apply a 1 / 2 / 3 reply to the patient's latest unanswered reminder (sent in
+ * the last 30 hours, appointment still upcoming). Returns the reply text, or
+ * null when no reminder is waiting (the message is then handled as usual).
+ */
+async function answerReminder(reply: ReminderResponse, patientIds: string[]): Promise<string | null> {
+  const now = new Date();
+  const { data } = await supabase.from("appointment_reminders")
+    .select("id, clinic_id, patient_id, appointments!inner(id, starts_at, status, providers(name), " +
+      "patients(first_name, last_name))")
+    .in("patient_id", patientIds)
+    .eq("status", "sent").is("response", null)
+    .gte("created_at", new Date(now.getTime() - 30 * 3600_000).toISOString())
+    .in("appointments.status", ["booked", "confirmed"])
+    .gt("appointments.starts_at", now.toISOString())
+    .order("created_at", { ascending: false }).limit(1);
+  const r = (data ?? [])[0] as unknown as {
+    id: string; clinic_id: string; patient_id: string;
+    appointments: { id: string; starts_at: string; status: string; providers: { name: string } | null;
+      patients: { first_name: string; last_name: string } | null };
+  } | undefined;
+  if (!r) return null;
+
+  const { data: c } = await supabase.from("clinics")
+    .select("name, phone_callback, timezone").eq("id", r.clinic_id).maybeSingle();
+  const clinic = c as { name: string; phone_callback: string | null; timezone: string | null } | null;
+  const tz = clinic?.timezone || "Asia/Manila";
+  const w = whenText(new Date(r.appointments.starts_at), now, tz);
+  const when = `${w.day} at ${w.time}`;
+  const who = `${r.appointments.patients?.first_name ?? ""} ${r.appointments.patients?.last_name ?? ""}`.trim() || "A patient";
+  const doctor = r.appointments.providers?.name ? ` with ${r.appointments.providers.name}` : "";
+  const call = clinic?.phone_callback ? ` or call ${clinic.phone_callback}` : "";
+
+  await supabase.from("appointment_reminders")
+    .update({ response: reply, responded_at: now.toISOString() }).eq("id", r.id);
+
+  if (reply === "confirm") {
+    await supabase.from("appointments").update({ status: "confirmed" }).eq("id", r.appointments.id);
+    return `Thank you, you're confirmed for ${when}${doctor}. See you!`;
+  }
+
+  if (reply === "cancel") {
+    await supabase.from("appointments").update({ status: "cancelled" }).eq("id", r.appointments.id);
+    await supabase.from("cc_action_items").insert({
+      clinic_id: r.clinic_id, source: "reminder", category: "patients", severity: "info",
+      title: `Cancelled by patient: ${who}`,
+      detail: `${who} cancelled their appointment ${when}${doctor} by replying to the reminder. The time is open again.`,
+      route: `/patients/${r.patient_id}`,
+    });
+    return `Your appointment ${when} is cancelled. To book again, message ${clinic?.name ?? "the clinic"}${call}.`;
+  }
+
+  await supabase.from("cc_action_items").insert({
+    clinic_id: r.clinic_id, source: "reminder", category: "patients", severity: "warning",
+    title: `Wants a new time: ${who}`,
+    detail: `${who} can't make their appointment ${when}${doctor} and asked to change the time ` +
+      `(reply to the reminder). Contact them to pick a new time, then cancel or move the old one.`,
+    route: `/patients/${r.patient_id}`,
+  });
+  return `OK, ${clinic?.name ?? "the clinic"} will contact you to pick a new time. ` +
+    `Your appointment ${when} stays booked until then.`;
 }
