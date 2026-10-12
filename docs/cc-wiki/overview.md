@@ -6,7 +6,7 @@ roles: staff
 routes:
   - / | staff | Dashboard
   - /about | staff | About CareCall
-updated: 2026-10-02
+updated: 2026-10-12
 ---
 
 CareCall helps small private clinics in the Philippines (Metro Manila, Cebu)
@@ -30,7 +30,9 @@ Users only ever see data for their own clinic.
 
 ## About CC
 
-CC is the assistant in the portal. CC can:
+CC is the assistant in the portal. Open it by clicking the CareCall logo (the
+icon) at the top of the sidebar; click the **CareCall** name next to it for the
+About page. CC can:
 
 - answer questions about how CareCall works (from this wiki),
 - take you to the right screen,

@@ -1,4 +1,5 @@
-// CC — the CareCall assistant drawer, mounted once in the signed-in layout.
+// CC — the CareCall assistant drawer, mounted once in the signed-in layout and
+// opened from the logo at the top of the sidebar.
 //
 // Thin client over the cc-chat edge function. Keeps the conversation in
 // sessionStorage so it survives navigation and reloads within the tab, sends
@@ -20,8 +21,7 @@ function loadHistory(): Msg[] {
   try { return JSON.parse(sessionStorage.getItem(STORE) ?? "[]") as Msg[]; } catch { return []; }
 }
 
-export default function CCPanel() {
-  const [open, setOpen] = useState(false);
+export default function CCPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [msgs, setMsgs] = useState<Msg[]>(loadHistory);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,17 +66,10 @@ export default function CCPanel() {
 
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(draft); }
-    if (e.key === "Escape") setOpen(false);
+    if (e.key === "Escape") onClose();
   }
 
-  if (!open) {
-    return (
-      <button className="cc-launch" onClick={() => setOpen(true)} aria-label="Ask CC, the CareCall assistant">
-        <span className="cc-mark" aria-hidden="true">CC</span>
-        <span className="cc-launch-text">Ask CC</span>
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
     <aside className="cc-panel" role="dialog" aria-label="CC assistant">
@@ -89,7 +82,7 @@ export default function CCPanel() {
         {msgs.length > 0 && (
           <button className="link cc-new" onClick={() => setMsgs([])} disabled={busy}>New chat</button>
         )}
-        <button className="cc-close" onClick={() => setOpen(false)} aria-label="Close">×</button>
+        <button className="cc-close" onClick={onClose} aria-label="Close">×</button>
       </header>
 
       <div className="cc-list" ref={listRef} aria-live="polite">

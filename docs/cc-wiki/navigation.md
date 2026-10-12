@@ -16,8 +16,11 @@ routes:
   - /settings/users | clinic_admin | Users
   - /admin/clinics | admin | Clinics (platform)
   - /admin/settings | admin | Global settings
-updated: 2026-10-01
+updated: 2026-10-12
 ---
+
+At the top of the left sidebar, the CareCall logo opens CC (this assistant) and
+the **CareCall** name next to it opens the About page.
 
 The left sidebar has these items:
 

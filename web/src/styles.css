@@ -73,13 +73,18 @@ nav.sidebar .brand {
   color: #fff; margin-bottom: var(--sp-2); letter-spacing: -0.02em;
 }
 nav.sidebar .brand span { color: #A9C4FA; }
-/* Brand: CareCall icon + wordmark, links to About */
-nav.sidebar a.brand {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px; border-radius: var(--radius-sm); align-self: flex-start;
+/* Brand: CareCall icon opens CC; the wordmark links to About */
+nav.sidebar .brand { display: flex; align-items: center; gap: 4px; align-self: flex-start; }
+nav.sidebar .brand-cc,
+nav.sidebar a.brand-about {
+  display: flex; align-items: center;
+  padding: 4px; border: none; border-radius: var(--radius-sm);
+  background: transparent; cursor: pointer;
 }
-nav.sidebar a.brand:hover { background: rgba(255,255,255,0.12); }
-nav.sidebar a.brand:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+nav.sidebar .brand-cc:hover,
+nav.sidebar a.brand-about:hover { background: rgba(255,255,255,0.12); }
+nav.sidebar .brand-cc:focus-visible,
+nav.sidebar a.brand-about:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .brand-icon { border-radius: 8px; background: #fff; display: block; }
 .brand-wordmark { height: 28px; width: auto; border-radius: 6px; display: block; }
 nav.sidebar a {
@@ -643,7 +648,7 @@ a.btn { display: inline-block; text-decoration: none; }
 
 /* ===================================================================
    CC — in-portal assistant (CareCall PH)
-   Launcher bottom-right; drawer on the right edge; full screen on phones.
+   Opened from the sidebar logo; drawer on the right edge; full screen on phones.
    =================================================================== */
 .cc-mark {
   display: inline-grid; place-items: center; flex: none;
@@ -652,15 +657,6 @@ a.btn { display: inline-block; text-decoration: none; }
   font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: -0.02em;
   box-shadow: inset -3px -3px 0 var(--teal);
 }
-.cc-launch {
-  position: fixed; right: 20px; bottom: 20px; z-index: 40;
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 16px 8px 8px; border-radius: 99px;
-  background: var(--card); color: var(--ink); border: 1px solid var(--line);
-  box-shadow: var(--shadow-modal);
-}
-.cc-launch:hover { background: var(--card); border-color: var(--blue); }
-.cc-launch-text { font-weight: 600; }
 
 .cc-panel {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 50;
@@ -714,7 +710,6 @@ a.btn { display: inline-block; text-decoration: none; }
 
 @media (max-width: 760px) {
   .cc-panel { width: 100vw; border-left: none; }
-  .cc-launch { right: 12px; bottom: 12px; }
 }
 
 /* CC action items page */
