@@ -20,6 +20,8 @@
 //   STOP / TIGIL / HINTO  → opt out
 //   1 / 2 / 3 (or C / R / X, CONFIRM, PALIT, KANSELA) after an appointment
 //                         reminder → confirm, ask to change the time, cancel
+//   Care plans (M1): YES / NO to a consent request, 1 / 2 after a medicine
+//   reminder (taken / skipped), STOP REMINDERS to stop medicine reminders
 //   CHECK / SINTOMAS      → symptom check link (anyone, connected or not; only
 //                           when SYMPTOM_ENGINE is set)
 //   anything else         → logged for staff; short auto-reply
@@ -34,6 +36,7 @@
 import { supabase, createBookingLink, audit } from "../_shared/lib.ts";
 import { dobCandidates } from "../_shared/dob.ts";
 import { parseReminderReply, type ReminderResponse, whenText } from "../_shared/reminders.ts";
+import { isWithdraw, MISSED_AFTER_MS, parseConsentReply, parseDoseReply } from "../_shared/care.ts";
 import {
   type ChatChannel,
   ChannelError,
@@ -433,6 +436,13 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
     return;
   }
 
+  // Care plans: consent answers, STOP REMINDERS, medicine replies.
+  const careAnswer = await careReply(
+    ev.text, verified.map((r) => r.patient_id),
+    verified.filter((r) => r.opted_in_at && !r.opted_out_at).map((r) => r.patient_id), clinic.name,
+  );
+  if (careAnswer) { await say(careAnswer); return; }
+
   // A reply to an appointment reminder (only when one is waiting for an answer).
   const reminderReply = parseReminderReply(ev.text);
   if (reminderReply) {
@@ -641,4 +651,66 @@ async function answerReminder(reply: ReminderResponse, patientIds: string[]): Pr
   });
   return `OK, ${clinic?.name ?? "the clinic"} will contact you to pick a new time. ` +
     `Your appointment ${when} stays booked until then.`;
+}
+
+/**
+ * Care plan replies (M1), or null when the message isn't one:
+ *   STOP REMINDERS                       → withdraw medicine-reminder consent
+ *   YES / NO to a consent request         → record the answer (3-day window)
+ *   1 / 2 after a medicine reminder       → taken / skipped (until it's missed);
+ *     if an appointment reminder was sent after it, that one gets the reply.
+ */
+async function careReply(text: string, patientIds: string[], livePatientIds: string[], clinicName: string): Promise<string | null> {
+  const now = new Date();
+  if (!patientIds.length) return null;
+
+  if (isWithdraw(text)) {
+    const { data } = await supabase.from("care_consents").update({ withdrawn_at: now.toISOString() })
+      .in("patient_id", patientIds).is("withdrawn_at", null).not("consented_at", "is", null).select("id");
+    return (data ?? []).length
+      ? `Medicine reminders are stopped. Your doctor's instructions don't change: keep taking your medicines ` +
+        `as prescribed unless your doctor says otherwise. To start again, ask ${clinicName}.`
+      : `You don't have medicine reminders on.`;
+  }
+
+  const consent = parseConsentReply(text);
+  if (consent) {
+    const { data } = await supabase.from("care_consents").select("id")
+      .in("patient_id", patientIds)
+      .is("consented_at", null).is("declined_at", null).is("withdrawn_at", null)
+      .gte("requested_at", new Date(now.getTime() - 3 * 24 * 3600_000).toISOString())
+      .order("requested_at", { ascending: false }).limit(1);
+    const pending = (data ?? [])[0] as { id: string } | undefined;
+    if (pending) {
+      await supabase.from("care_consents")
+        .update(consent === "yes" ? { consented_at: now.toISOString() } : { declined_at: now.toISOString() })
+        .eq("id", pending.id);
+      return consent === "yes"
+        ? `Thank you! Your medicine reminders start at the next time your doctor set. ` +
+          `Reply STOP REMINDERS any time to stop.`
+        : `OK, no medicine reminders. If you change your mind, just tell ${clinicName}.`;
+    }
+  }
+
+  const dose = parseDoseReply(text);
+  if (dose && livePatientIds.length) {
+    const { data } = await supabase.from("medication_doses").select("patient_id, due_at, sent_at")
+      .in("patient_id", livePatientIds).eq("status", "sent")
+      .gt("due_at", new Date(now.getTime() - MISSED_AFTER_MS).toISOString())
+      .order("sent_at", { ascending: false }).limit(1);
+    const latest = (data ?? [])[0] as { patient_id: string; due_at: string; sent_at: string } | undefined;
+    if (!latest) return null;
+
+    const { data: appt } = await supabase.from("appointment_reminders").select("created_at")
+      .in("patient_id", livePatientIds).eq("status", "sent").is("response", null)
+      .gte("created_at", latest.sent_at).limit(1);
+    if ((appt ?? []).length) return null; // a newer appointment reminder takes the reply
+
+    await supabase.from("medication_doses").update({ status: dose, answered_at: now.toISOString() })
+      .eq("patient_id", latest.patient_id).eq("due_at", latest.due_at).eq("status", "sent");
+    return dose === "taken"
+      ? "Thanks! Marked as taken ✅"
+      : `OK, noted as skipped. If you're having trouble with this medicine, tell ${clinicName}.`;
+  }
+  return null;
 }

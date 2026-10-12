@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { useSession, roleAtLeast } from "../lib/session";
 import { useClinic } from "../lib/clinic";
 import ChatSection from "../components/ChatSection";
+import MedicinesSection from "../components/MedicinesSection";
 import type { Patient } from "../lib/types";
 
 type CallRow = {
@@ -126,6 +127,9 @@ export default function PatientDetail() {
       <ChatSection patientId={patient.id} firstName={patient.first_name}
                    clinicName={activeClinic?.name ?? "your clinic"}
                    canInvite={patient.active && !patient.do_not_call} />
+
+      <MedicinesSection patientId={patient.id} clinicId={patient.clinic_id}
+                        canMessage={patient.active && !patient.do_not_call} />
 
       <h2>Appointments</h2>
       <table>
