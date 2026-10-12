@@ -7,6 +7,8 @@
 //   screen { check_id, emergency }            → { ok }   (emergency questions answered)
 //   search { check_id, q }                    → { symptoms: [{ id, name }] }
 //   next   { check_id, person, answers }      → { question } | { result }
+//   clinics { check_id }                      → participating clinics (one public page)
+//   choose_clinic { check_id, clinic_slug }   → { clinic }   (booking.ts)
 //   slots  { check_id, on_date? }             → { days } | { times }   (booking.ts, D1c)
 //   book   { check_id, provider_id, slot_start, first_name, last_name,
 //            phone, date_of_birth }           → { booked, when }        (booking.ts, D1c)
@@ -29,7 +31,7 @@ import {
   type Answer, ageBand, createEngine, EngineError, engineName, type Person, phLayerOn, type SymptomEngine,
 } from "../_shared/symptom/engine.ts";
 import { PH_RULES_VERSION } from "../_shared/symptom/ph_layer.ts";
-import { book, type BookableCheck, slots } from "./booking.ts";
+import { book, type BookableCheck, chooseClinic, clinics, slots } from "./booking.ts";
 
 const MONTHLY_BUDGET = Number(Deno.env.get("SYMPTOM_MONTHLY_BUDGET") ?? "90") || 90;
 const MAX_CALLS_PER_CHECK = 20;
@@ -73,6 +75,14 @@ Deno.serve(async (req) => {
       case "screen": return await screen(body);
       case "search": return await search(body);
       case "next": return await next(body);
+      case "clinics": {
+        const check = await loadCheck(body.check_id);
+        return check ? await clinics(check, pub) : pub({ error: "expired" }, 404);
+      }
+      case "choose_clinic": {
+        const check = await loadCheck(body.check_id);
+        return check ? await chooseClinic(check, body, pub) : pub({ error: "expired" }, 404);
+      }
       case "slots": {
         const check = await loadCheck(body.check_id);
         return check ? await slots(check, body, pub) : pub({ error: "expired" }, 404);

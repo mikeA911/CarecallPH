@@ -44,6 +44,17 @@ real engine (Infermedica) comes once the clinic platform's trial is approved.
 
 CareCall never calls 911 for the patient. The patient calls.
 
+## One page or the clinic's own link
+
+- **The clinic's link** (`/check/<clinic link name>`): the clinic is already
+  chosen; the patient books with this clinic only. Best for the clinic's QR
+  poster, Facebook page and Google Maps listing.
+- **The CareCall page** (`/check`, also what Telegram users get if they aren't
+  connected to a clinic): after the result, **Find a clinic and book** lists
+  every clinic that turned the symptom check on. Clinics with the kind of
+  doctor the patient needs come first, then the soonest open time. Nothing is
+  sponsored, and the list says it isn't every clinic nearby.
+
 ## Turning it on (clinic admin)
 
 **Clinic settings → Symptom check and online booking**:

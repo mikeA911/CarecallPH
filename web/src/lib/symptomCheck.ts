@@ -50,6 +50,11 @@ export const symptomApi = {
   search: (checkId: string, q: string) => post<{ symptoms: Symptom[] }>({ action: "search", check_id: checkId, q }),
   next: (checkId: string, person: { birthYear: number; sex: Sex }, answers: Answer[]) =>
     post<NextResp>({ action: "next", check_id: checkId, person, answers }),
+  clinics: (checkId: string) => post<{
+    clinics: { slug: string; name: string; phone: string | null; specialty_match: boolean; next_label: string | null }[];
+  }>({ action: "clinics", check_id: checkId }),
+  chooseClinic: (checkId: string, clinicSlug: string) =>
+    post<{ clinic: CheckClinic }>({ action: "choose_clinic", check_id: checkId, clinic_slug: clinicSlug }),
   slots: (checkId: string, onDate?: string) =>
     post<SlotsResp>({ action: "slots", check_id: checkId, on_date: onDate }),
   book: (checkId: string, details: {

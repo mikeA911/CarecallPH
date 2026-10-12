@@ -267,7 +267,7 @@ export default function CheckPage() {
             </>
           )}
 
-          {step === "result" && result && <Result result={result} clinic={clinic} checkId={checkId} onRestart={restart} />}
+          {step === "result" && result && <Result result={result} clinic={clinic} checkId={checkId} onRestart={restart} onClinicChosen={setClinic} />}
 
           {step === "unavailable" && (
             <>
@@ -346,10 +346,12 @@ function SymptomPicker({ checkId, chosen, setChosen, busy, onNext, onUnavailable
   );
 }
 
-function Result({ result, clinic, checkId, onRestart }: {
+function Result({ result, clinic, checkId, onRestart, onClinicChosen }: {
   result: NonNullable<NextResp["result"]>; clinic: CheckClinic | null; checkId: string | null; onRestart: () => void;
+  onClinicChosen: (c: CheckClinic) => void;
 }) {
   const [booking, setBooking] = useState(false);
+  const [picking, setPicking] = useState(false);
   const head = {
     urgent: { en: "See a doctor today", fil: "Magpatingin sa doktor ngayong araw." },
     routine: { en: "See a doctor in the next few days", fil: "Magpatingin sa doktor sa susunod na mga araw." },
@@ -374,6 +376,23 @@ function Result({ result, clinic, checkId, onRestart }: {
           <h2 className="check-h2">Warning signs</h2>
           <ul className="check-flags">{result.red_flags.map((f) => <li key={f}>{f}</li>)}</ul>
         </>
+      )}
+
+      {!clinic && checkId && (
+        <div className="check-clinic">
+          {picking ? (
+            <ClinicPicker checkId={checkId} urgent={result.urgency === "urgent"}
+              onChosen={(c) => { onClinicChosen(c); setBooking(true); setPicking(false); }} />
+          ) : (
+            <>
+              <strong>Book a visit</strong>
+              <p>See clinics that use CareCall and book a time with a doctor.</p>
+              <button className="book-btn" style={{ marginTop: 6 }} onClick={() => setPicking(true)}>
+                Find a clinic and book
+              </button>
+            </>
+          )}
+        </div>
       )}
 
       {clinic && (
@@ -401,6 +420,55 @@ function Result({ result, clinic, checkId, onRestart }: {
         This is not a diagnosis.
       </div>
       <button className="book-link" onClick={onRestart}>Start a new check</button>
+    </>
+  );
+}
+
+type ListedClinic = { slug: string; name: string; phone: string | null; specialty_match: boolean; next_label: string | null };
+
+/** One public page (/check): pick a participating clinic, then book there. */
+function ClinicPicker({ checkId, urgent, onChosen }: {
+  checkId: string; urgent: boolean; onChosen: (c: CheckClinic) => void;
+}) {
+  const [list, setList] = useState<ListedClinic[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    symptomApi.clinics(checkId).then(({ data }) => setList(data?.clinics ?? []));
+  }, [checkId]);
+
+  async function choose(c: ListedClinic) {
+    setBusy(true); setErr("");
+    const { data } = await symptomApi.chooseClinic(checkId, c.slug);
+    setBusy(false);
+    if (data?.clinic) onChosen(data.clinic);
+    else setErr("That clinic isn't taking online bookings right now. Please pick another.");
+  }
+
+  if (!list) return <p className="book-muted">Finding clinics…</p>;
+  if (!list.length) {
+    return <p>No clinics are taking online bookings yet. Please see a doctor or visit your barangay health center.</p>;
+  }
+  return (
+    <>
+      <strong>Pick a clinic</strong>
+      {err && <p className="book-err">{err}</p>}
+      <div className="book-list" style={{ marginTop: 8 }}>
+        {list.map((c) => (
+          <button key={c.slug} className="book-option" disabled={busy} onClick={() => choose(c)}>
+            <span className="book-option-main">{c.name}</span>
+            <span className="book-option-sub">
+              {c.specialty_match ? "Has the kind of doctor you need · " : ""}
+              {c.next_label ? `Next open: ${c.next_label}` : urgent ? "No times left today: call the clinic" : "No open times online"}
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="small muted">
+        Clinics that use CareCall, not every clinic near you. Listed by the kind of doctor you need, then
+        the soonest open time.
+      </p>
     </>
   );
 }

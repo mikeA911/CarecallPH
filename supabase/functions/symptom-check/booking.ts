@@ -1,5 +1,8 @@
 // Book from the symptom check result (Discover slice D1c).
 //
+//   clinics       { check_id }             → { clinics: [...] }   (one public page, /check)
+//   choose_clinic { check_id, clinic_slug } → { clinic }           attaches the clinic to the check
+//
 //   slots { check_id, on_date? } → { days } | { times }   (clinic-local)
 //   book  { check_id, provider_id, slot_start, first_name, last_name, phone,
 //           date_of_birth }        → { booked, when, already? } | { booked: false, reason }
@@ -41,12 +44,17 @@ export type BookableCheck = {
 type Pub = (data: unknown, status?: number) => Response;
 type Slot = { slot_start: string; slot_end: string; provider_id: string; provider_name: string };
 
-/** Why this check can't book, or null if it can. */
-function notBookable(c: BookableCheck): string | null {
-  if (!c.clinic_id) return "no_clinic";
+/** Why this check has no bookable result yet, or null. */
+function noResult(c: BookableCheck): string | null {
   if (c.urgency === "emergency") return "emergency";
   if (!c.urgency || (c.outcome !== "advised" && c.outcome !== "booked")) return "no_result";
   return null;
+}
+
+/** Why this check can't book, or null if it can. */
+function notBookable(c: BookableCheck): string | null {
+  if (!c.clinic_id) return "no_clinic";
+  return noResult(c);
 }
 
 async function clinicTz(clinicId: string): Promise<string> {
@@ -63,23 +71,23 @@ export function specialtyMatches(providerSpecialty: string | null, wanted: strin
   return [...a].some((x) => b.has(x));
 }
 
-async function candidateProviders(c: BookableCheck): Promise<{ id: string; name: string }[]> {
+async function candidateProviders(c: BookableCheck, clinicId = c.clinic_id!) {
   const { data } = await supabase.from("providers")
-    .select("id, name, specialty").eq("clinic_id", c.clinic_id!).eq("active", true);
+    .select("id, name, specialty").eq("clinic_id", clinicId).eq("active", true);
   const all = (data ?? []) as { id: string; name: string; specialty: string | null }[];
   const matched = all.filter((p) => specialtyMatches(p.specialty, c.specialty));
-  return (matched.length ? matched : all).map(({ id, name }) => ({ id, name }));
+  return { providers: (matched.length ? matched : all).map(({ id, name }) => ({ id, name })), matched: matched.length > 0 };
 }
 
-async function openSlots(c: BookableCheck, tz: string, onDate?: string): Promise<Slot[]> {
+async function openSlots(c: BookableCheck, tz: string, onDate?: string, clinicId = c.clinic_id!, limit = 300): Promise<Slot[]> {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: tz });
   const urgent = c.urgency === "urgent";
   const from = urgent ? today : onDate ?? today;
   const days = urgent || onDate ? 1 : 10;
   const out: Slot[] = [];
-  for (const p of await candidateProviders(c)) {
+  for (const p of (await candidateProviders(c, clinicId)).providers) {
     const { data, error } = await supabase.rpc("get_available_slots", {
-      p_provider_id: p.id, p_from: from, p_days: days, p_limit: 300, p_tz: tz,
+      p_provider_id: p.id, p_from: from, p_days: days, p_limit: limit, p_tz: tz,
     });
     if (error) throw error;
     for (const s of (data ?? []) as { slot_start: string; slot_end: string }[]) {
@@ -87,6 +95,70 @@ async function openSlots(c: BookableCheck, tz: string, onDate?: string): Promise
     }
   }
   return out.sort((a, b) => a.slot_start.localeCompare(b.slot_start));
+}
+
+const MAX_LISTED_CLINICS = 20;
+
+/**
+ * Participating clinics for the one public page (/check): clinics that turned
+ * the symptom check on. Order: a doctor of the right kind first, then the
+ * soonest open time, then name. No sponsored order. Location comes with D1b.
+ */
+export async function clinics(c: BookableCheck, pub: Pub) {
+  const why = noResult(c);
+  if (why) return pub({ error: why }, 409);
+  const { data } = await supabase.from("clinics")
+    .select("id, name, phone_callback, public_slug, timezone")
+    .eq("symptom_check_enabled", true).eq("active", true).not("public_slug", "is", null)
+    .order("name").limit(MAX_LISTED_CLINICS);
+  const rows = (data ?? []) as { id: string; name: string; phone_callback: string | null; public_slug: string; timezone: string | null }[];
+
+  const list = await Promise.all(rows.map(async (cl) => {
+    const tz = cl.timezone || "Asia/Manila";
+    const { matched } = await candidateProviders(c, cl.id);
+    const first = (await openSlots(c, tz, undefined, cl.id, 1))[0];
+    return {
+      slug: cl.public_slug,
+      name: cl.name,
+      phone: cl.phone_callback,
+      specialty_match: matched,
+      next_open: first ? first.slot_start : null,
+      next_label: first ? nextLabel(first.slot_start, tz) : null,
+    };
+  }));
+  list.sort((a, b) =>
+    Number(b.specialty_match) - Number(a.specialty_match) ||
+    (a.next_open ?? "9999").localeCompare(b.next_open ?? "9999") ||
+    a.name.localeCompare(b.name));
+  return pub({ clinics: list.map(({ next_open: _n, ...x }) => x), today_only: c.urgency === "urgent" });
+}
+
+/** Attach the chosen clinic to a check started on the public page. */
+export async function chooseClinic(c: BookableCheck, body: Record<string, unknown>, pub: Pub) {
+  const why = noResult(c);
+  if (why) return pub({ error: why }, 409);
+  if (c.appointment_id) return pub({ error: "already_booked" }, 409);
+  const slug = String(body.clinic_slug ?? "").trim().toLowerCase();
+  const { data } = await supabase.from("clinics")
+    .select("id, name, phone_callback, local_emergency_numbers, symptom_check_enabled, active")
+    .eq("public_slug", slug).maybeSingle();
+  const cl = data as {
+    id: string; name: string; phone_callback: string | null; local_emergency_numbers: string | null;
+    symptom_check_enabled: boolean; active: boolean;
+  } | null;
+  if (!cl || !cl.symptom_check_enabled || cl.active === false) return pub({ error: "not_found" }, 404);
+  await supabase.from("symptom_checks")
+    .update({ clinic_id: cl.id, updated_at: new Date().toISOString() }).eq("id", c.id);
+  return pub({ clinic: { name: cl.name, phone: cl.phone_callback, local_emergency_numbers: cl.local_emergency_numbers } });
+}
+
+function nextLabel(iso: string, tz: string): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("en-CA", { timeZone: tz });
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
+  if (day === today) return `Today ${time}`;
+  return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz })}, ${time}`;
 }
 
 export async function slots(c: BookableCheck, body: Record<string, unknown>, pub: Pub) {
