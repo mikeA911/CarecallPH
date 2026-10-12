@@ -827,3 +827,5 @@ a.btn { display: inline-block; text-decoration: none; }
   background: #FFF4E5; border: 1px dashed var(--amber); color: #7A4405; font-size: 13px;
 }
 .check-demo strong { letter-spacing: 0.06em; margin-right: 6px; }
+.intake { margin-top: 6px; padding: 6px 8px; border-left: 3px solid var(--amber); background: #FFF8EC; border-radius: 4px; color: var(--ink); }
+.intake div + div { margin-top: 2px; }

@@ -127,6 +127,18 @@ export const PH_RULES: Rule[] = [
   },
 ];
 
+/** Short labels for staff (appointment intake), by rule ID. */
+export const PH_RULE_LABELS: Record<string, string> = {
+  animal_bite: "Animal bite or scratch (rabies risk)",
+  dengue_warning: "Possible dengue warning signs",
+  leptospirosis: "Fever after flood water (leptospirosis risk)",
+  child_dehydration: "Young child with diarrhea and vomiting (dehydration risk)",
+  long_fever: "Fever over a week",
+  jaundice: "Yellow eyes or skin",
+  dengue_watch: "Fever 2–7 days (dengue check)",
+  tb_cough: "Cough 2+ weeks (TB check)",
+};
+
 const RANK: Record<Urgency, number> = { self_care: 0, routine: 1, urgent: 2, emergency: 3 };
 
 /** Apply the PH rules to an engine assessment. Exported for tests. */

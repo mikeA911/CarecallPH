@@ -12,6 +12,21 @@ type CallRow = {
   campaigns?: { name: string };
 };
 
+type Intake = {
+  urgency?: string; specialty?: string | null; symptoms?: string[]; ph_warnings?: string[]; demo?: boolean;
+};
+type ApptRow = {
+  id: string; starts_at: string; status: string; source: string | null; intake: Intake | null;
+  providers?: { name: string } | null;
+};
+
+const URGENCY_LABEL: Record<string, string> = {
+  urgent: "See a doctor today", routine: "Next few days", self_care: "Self care", emergency: "Emergency",
+};
+const SOURCE_LABEL: Record<string, string> = {
+  voice: "AI call", booking_link: "Booking link", symptom_check: "Symptom check",
+};
+
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const { role } = useSession();
@@ -20,19 +35,24 @@ export default function PatientDetail() {
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [calls, setCalls] = useState<CallRow[]>([]);
+  const [appts, setAppts] = useState<ApptRow[]>([]);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [{ data: p }, { data: c }] = await Promise.all([
+    const [{ data: p }, { data: c }, { data: a }] = await Promise.all([
       supabase.from("patients").select("*").eq("id", id).single(),
       supabase.from("call_logs")
         .select("id, started_at, result, verified, duration_seconds, summary, campaigns(name)")
         .eq("patient_id", id).order("started_at", { ascending: false }),
+      supabase.from("appointments")
+        .select("id, starts_at, status, source, intake, providers(name)")
+        .eq("patient_id", id).order("starts_at", { ascending: false }).limit(20),
     ]);
     setPatient(p as Patient);
     setCalls((c as unknown as CallRow[]) ?? []);
+    setAppts((a as unknown as ApptRow[]) ?? []);
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -89,6 +109,25 @@ export default function PatientDetail() {
                    clinicName={activeClinic?.name ?? "your clinic"}
                    canInvite={patient.active && !patient.do_not_call} />
 
+      <h2>Appointments</h2>
+      <table>
+        <thead><tr><th>When</th><th>Clinician</th><th>Booked by</th><th>Status</th></tr></thead>
+        <tbody>
+          {appts.map((a) => (
+            <tr key={a.id}>
+              <td>{new Date(a.starts_at).toLocaleString()}</td>
+              <td>{a.providers?.name ?? "—"}</td>
+              <td>
+                {SOURCE_LABEL[a.source ?? ""] ?? a.source ?? "—"}
+                {a.intake && <IntakeSummary intake={a.intake} />}
+              </td>
+              <td><span className={`badge ${a.status}`}>{a.status}</span></td>
+            </tr>
+          ))}
+          {!appts.length && <tr><td colSpan={4} className="empty">No appointments yet.</td></tr>}
+        </tbody>
+      </table>
+
       <h2>Call history</h2>
       <table>
         <thead><tr><th>When</th><th>Campaign</th><th>Verified</th><th>Result</th><th>Length</th></tr></thead>
@@ -106,5 +145,17 @@ export default function PatientDetail() {
         </tbody>
       </table>
     </>
+  );
+}
+
+/** What the patient shared from the symptom check when booking. */
+function IntakeSummary({ intake }: { intake: Intake }) {
+  return (
+    <div className="intake small">
+      {intake.urgency && <div><strong>{URGENCY_LABEL[intake.urgency] ?? intake.urgency}</strong>
+        {intake.specialty ? ` · ${intake.specialty}` : ""}{intake.demo ? " · demo engine" : ""}</div>}
+      {!!intake.symptoms?.length && <div>Symptoms: {intake.symptoms.join(", ")}</div>}
+      {!!intake.ph_warnings?.length && <div>Watch for: {intake.ph_warnings.join("; ")}</div>}
+    </div>
   );
 }

@@ -7,6 +7,9 @@
 //   screen { check_id, emergency }            → { ok }   (emergency questions answered)
 //   search { check_id, q }                    → { symptoms: [{ id, name }] }
 //   next   { check_id, person, answers }      → { question } | { result }
+//   slots  { check_id, on_date? }             → { days } | { times }   (booking.ts, D1c)
+//   book   { check_id, provider_id, slot_start, first_name, last_name,
+//            phone, date_of_birth }           → { booked, when }        (booking.ts, D1c)
 //
 // Safety: the emergency questions live in the page itself, so they work even
 // when this function or the engine is down. The engine is only called after
@@ -26,6 +29,7 @@ import {
   type Answer, ageBand, createEngine, EngineError, engineName, type Person, phLayerOn, type SymptomEngine,
 } from "../_shared/symptom/engine.ts";
 import { PH_RULES_VERSION } from "../_shared/symptom/ph_layer.ts";
+import { book, type BookableCheck, slots } from "./booking.ts";
 
 const MONTHLY_BUDGET = Number(Deno.env.get("SYMPTOM_MONTHLY_BUDGET") ?? "90") || 90;
 const MAX_CALLS_PER_CHECK = 20;
@@ -34,14 +38,10 @@ const START_PER_MIN = 10;
 const REQUESTS_PER_MIN = 90; // searches are per keystroke (debounced)
 const MAX_ANSWERS = 30;
 
-type CheckRow = {
-  id: string;
-  clinic_id: string | null;
+type CheckRow = BookableCheck & {
   created_at: string;
   screened_at: string | null;
-  urgency: string | null;
   engine_calls: number;
-  outcome: string;
 };
 
 function cors(): Record<string, string> {
@@ -61,9 +61,10 @@ Deno.serve(async (req) => {
   try {
     const ip = clientIp(req);
     const action = String(body.action ?? "");
-    const limit = action === "start" ? START_PER_MIN : REQUESTS_PER_MIN;
+    const strict = action === "start" || action === "book";
+    const limit = strict ? START_PER_MIN : REQUESTS_PER_MIN;
     if (ip) {
-      const { data: count } = await supabase.rpc("bump_symptom_rate", { p_ip: `${action === "start" ? "s" : "r"}:${ip}` });
+      const { data: count } = await supabase.rpc("bump_symptom_rate", { p_ip: `${strict ? "s" : "r"}:${ip}` });
       if (typeof count === "number" && count > limit) return pub({ error: "rate_limited" }, 429);
     }
 
@@ -72,6 +73,14 @@ Deno.serve(async (req) => {
       case "screen": return await screen(body);
       case "search": return await search(body);
       case "next": return await next(body);
+      case "slots": {
+        const check = await loadCheck(body.check_id);
+        return check ? await slots(check, body, pub) : pub({ error: "expired" }, 404);
+      }
+      case "book": {
+        const check = await loadCheck(body.check_id);
+        return check ? await book(check, body, createEngine(check.id), pub) : pub({ error: "expired" }, 404);
+      }
       default: return pub({ error: "unknown action" }, 400);
     }
   } catch (e) {
@@ -182,7 +191,9 @@ async function loadCheck(id: unknown): Promise<CheckRow | null> {
   const s = String(id ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(s)) return null;
   const { data } = await supabase.from("symptom_checks")
-    .select("id, clinic_id, created_at, screened_at, urgency, engine_calls, outcome").eq("id", s).maybeSingle();
+    .select("id, clinic_id, created_at, screened_at, urgency, specialty, engine_calls, outcome, appointment_id, " +
+      "age_band, sex, symptom_ids, ph_rules, engine")
+    .eq("id", s).maybeSingle();
   const row = data as CheckRow | null;
   if (!row || Date.now() - new Date(row.created_at).getTime() > CHECK_TTL_MS) return null;
   return row;
