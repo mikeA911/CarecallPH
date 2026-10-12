@@ -50,6 +50,7 @@ by country before any Southeast Asian expansion.
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
 | D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a built |
 | L | CareLink Records: FHIR timeline and authorized EHR access | **Planned** |
+| M | Care plans: prescriptions written in CareCall, medicine reminders and vital signs by chat, with consent | **Designed** (`docs/care-plan-design.md`) |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
 **Next three actions**
@@ -345,6 +346,28 @@ review of paid referral / fee-splitting restrictions.
 
 **Gate:** secure records and authorized integration.
 
+## Phase M: Care plans (medicines and vital signs)
+
+The doctor or an assistant writes the prescription in CareCall; the doctor
+signs it. The same entry gives the pharmacy prescription (PDF / print, with
+PRC and PTR numbers, generic names) and the patient's medicine reminders by
+chat. The doctor can also ask for vital signs (blood pressure, blood sugar…)
+by chat, with limits they set; out-of-range readings go to **Readings to
+review**, dangerous ones also tell the patient to seek care or call 911.
+Nothing is sent before the patient agrees in the chat (recorded consent,
+withdraw any time). Design: `docs/care-plan-design.md`.
+
+| Slice | Scope | Status |
+|---|---|---|
+| M1 | Consent in chat; medicines added by staff; reminders with 1 taken / 2 skipped, missed doses, adherence; STOP REMINDERS | **Designed** |
+| M2 | Prescriptions: draft (assistant/doctor), sign (doctor), PDF and print, send by Telegram, verify page; feeds M1 | **Designed**: confirm e-prescription rules first |
+| M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
+| M4 | Adherence and readings reports in CC; missed-dose and no-reading alerts; FHIR groundwork for Phase R | **Designed** |
+
+**Gate:** doctor sign-off on default limits, wording and escalation; agreed
+review times at the pilot clinic; e-prescription rules confirmed. Dangerous
+drugs (S2) are out of scope.
+
 ## Phase R: CareLink RPM Intelligence
 
 | Item | Notes |
@@ -363,6 +386,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-14 | Phase M designed: prescriptions in CareCall feeding medicine reminders, vital signs by chat with doctor's limits, chat consent |
 | 2026-10-14 | Appointment reminders (2c): 24h and 2h chat reminders, replies 1 confirm / 2 new time / 3 cancel, action items, patient page status |
 | 2026-10-13 | Clinic settings: one switch for the symptom check, link made automatically with copy and QR; one public page `/check` with a clinic picker |
 | 2026-10-13 | Book from the symptom check (D1c), Appointments on the patient page; restored `get_available_slots(p_tz)` (booking links failed without it) |
