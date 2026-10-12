@@ -84,12 +84,13 @@ Everything the chat-only Recall pilot needs. No phone account required.
 | Phone normalization: accept `09xx…` / `9xx…`, store `+639xx…` (import, add patient, clinic callback number; `/book` takes no phone) | **Built** |
 | Defaults: clinic timezone `Asia/Manila`, PH-friendly calling hours (Mon–Fri 08–18, Sat 08–12), `+63` placeholders in the portal | **Built** |
 | `BookPage` timezone label for `Asia/Manila` ("Philippine Time (PHT)") | **Built** |
-| Supabase project in Singapore; migrations, Vault secrets, functions deployed | Planned |
+| Supabase project in Singapore; migrations, Vault secrets, functions deployed | **Done**: project `fpoiparkhyiqxrcktshy`, all migrations, cron running |
 | `supabase/config.toml` `project_id` set to the new project | **Done** |
 | Migrations apply on a new Supabase project (`gen_random_uuid()`; enum values compared as text) | **Built**: full chain tested on a local Supabase stand-in |
-| Vercel portal with `VITE_*` variables | Planned |
-| Telegram bot and webhook (`docs/messaging-channels.md` §3) | Planned |
-| Chat-only pilot test (README §9) passes | Planned |
+| Vercel portal with `VITE_*` variables | **Done** |
+| CC turned on: `ANTHROPIC_API_KEY` function secret, `cc-chat` and `cc-nightly` deployed | **Done** |
+| Telegram bot and webhook (`docs/messaging-channels.md` §3) | **Done** |
+| Chat-only pilot test (README §9) passes | In progress (testers in the US and Singapore) |
 | Turn international patient numbers back off (`ALLOW_INTERNATIONAL_PATIENT_PHONES` in `web/src/pages/Patients.tsx`, temporarily `true` for testing outside the Philippines) | Before the PH pilot |
 
 ## Phase 0b: PH telephony for Voice
@@ -167,13 +168,15 @@ matches the chat plan in the concept paper (booking links by chat, no calls).
 - **CC action items** page with sidebar badge
 - **Nightly review** (`cc-nightly`, 02:00 Manila): per-clinic analysis, up to 5
   action items, summary on the action items page; usage logged
+- Opened from the sidebar logo (2026-10-12); **History** of up to 20 chats per
+  user, kept in the browser only
 
 **Planned**
 
 | Item | Notes |
 |---|---|
 | Wiki pages for every Phase 0–2 feature as it ships | Rule: no wiki page, not done |
-| Persist CC conversations | Let admins see what users ask; feeds wiki gaps |
+| Persist CC conversations server-side | History across devices; lets admins see what users ask; feeds wiki gaps. Browser-only history is built |
 | "Wiki gap" log | CC records questions it couldn't answer from the wiki |
 | Wizard prefill | e.g. open New campaign with fields from the chat |
 | Morning digest by email or Viber to clinic admins | Pushes the nightly summary out |
@@ -324,6 +327,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-12 | CC opens from the sidebar logo (wordmark → About); CC chat History in the browser; Phase 0a accounts set up, pilot test under way |
 | 2026-10-11 | Phase 0 split into 0a (Recall pilot accounts) and 0b (telephony for Voice); AI voice instructions adapted for the Philippines |
 | 2026-10-11 | Product progression CareCall → CareLink (Recall, Discover, Voice, CareLink Records, RPM), delivery stages and gates, phases D / L / R, pricing hypotheses |
 | 2026-10-11 | Chat birthday check, per-clinic patient uniqueness, lighter patient pages |

@@ -74,6 +74,7 @@ generated bundle is stale.
 
 ## Next steps
 
-- Persist conversations server-side so admins can review what CC was asked.
+- Persist conversations server-side so admins can review what CC was asked
+  (today History is kept in the browser only: `localStorage`, up to 20 chats per user).
 - Prefill for wizards (e.g. open New campaign with fields filled from the chat).
 - Retrieval over the wiki once it outgrows the prompt index (currently ~4k tokens).

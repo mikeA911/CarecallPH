@@ -40,6 +40,11 @@ About page. CC can:
 - analyse campaign results with aggregate numbers,
 - file **action items** for the clinic admin, listed on the CC action items page.
 
+**New chat** starts a fresh conversation and keeps the old one. **History**
+lists your last 20 chats so you can reopen or delete them. History is saved in
+this browser only: it doesn't follow you to another computer, and clearing the
+browser's site data removes it.
+
 Every night at 2:00 AM (Manila time) CC also reviews each clinic's running
 campaigns and Review queue on its own. It files up to 5 action items marked
 "nightly review" and leaves a short summary at the top of the CC action items
