@@ -5,7 +5,7 @@ summary: Display name, callback number, timezone, calling hours, greeting, booki
 roles: clinic_admin
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-14
+updated: 2026-10-12
 ---
 
 - **Display name**: how the clinic is named in calls and messages.

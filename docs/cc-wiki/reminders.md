@@ -6,7 +6,7 @@ roles: staff
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
   - /cc | staff | CC action items
-updated: 2026-10-14
+updated: 2026-10-12
 ---
 
 ## What patients get

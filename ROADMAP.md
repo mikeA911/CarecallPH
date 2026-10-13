@@ -222,7 +222,7 @@ ask questions. The same tools serve voice and chat.
 
 **2c. Appointment reminders and confirmations**
 
-- **Built** (2026-10-14): reminder 24 hours and 2 hours before, on the
+- **Built** (2026-10-12): reminder 24 hours and 2 hours before, on the
   patient's channel, 07:00–21:00 clinic time, per-clinic switch: reply **1** (C)
   to confirm, **2** (R) to ask for a new time (CC action item for staff),
   **3** (X) to cancel (slot freed, action item). Shown on the patient page.
@@ -387,12 +387,12 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
-| 2026-10-15 | Care plans M1: medicine reminders by chat with recorded consent, 1 taken / 2 skipped, missed doses, adherence on the patient page |
-| 2026-10-14 | Phase M designed: prescriptions in CareCall feeding medicine reminders, vital signs by chat with doctor's limits, chat consent |
-| 2026-10-14 | Appointment reminders (2c): 24h and 2h chat reminders, replies 1 confirm / 2 new time / 3 cancel, action items, patient page status |
-| 2026-10-13 | Clinic settings: one switch for the symptom check, link made automatically with copy and QR; one public page `/check` with a clinic picker |
-| 2026-10-13 | Book from the symptom check (D1c), Appointments on the patient page; restored `get_available_slots(p_tz)` (booking links failed without it) |
-| 2026-10-13 | Philippine layer (D1e): PH questions and draft rules around every symptom engine, rules recorded per check, PH test cases |
+| 2026-10-12 | Care plans M1: medicine reminders by chat with recorded consent, 1 taken / 2 skipped, missed doses, adherence on the patient page |
+| 2026-10-12 | Phase M designed: prescriptions in CareCall feeding medicine reminders, vital signs by chat with doctor's limits, chat consent |
+| 2026-10-12 | Appointment reminders (2c): 24h and 2h chat reminders, replies 1 confirm / 2 new time / 3 cancel, action items, patient page status |
+| 2026-10-12 | Clinic settings: one switch for the symptom check, link made automatically with copy and QR; one public page `/check` with a clinic picker |
+| 2026-10-12 | Book from the symptom check (D1c), Appointments on the patient page; restored `get_available_slots(p_tz)` (booking links failed without it) |
+| 2026-10-12 | Philippine layer (D1e): PH questions and draft rules around every symptom engine, rules recorded per check, PH test cases |
 | 2026-10-12 | Demo symptom engine and Infermedica adapter; ApiMedic appeared offline; Philippine layer planned (D1e) |
 | 2026-10-12 | Symptom check D1a built: `/check` page and Telegram `/check`, emergency screen with 911 and local numbers, ApiMedic adapter, `symptom_checks` with 90-day retention, Clinic settings section |
 | 2026-10-12 | Discover D1 symptom check designed (ApiMedic to build, Infermedica to go live; Telegram entry, nearby care by location, 911 emergency screen); Voice and Phase 0b deferred until after Discover |

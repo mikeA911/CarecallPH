@@ -5,7 +5,7 @@ summary: The public symptom check page (/check/<clinic>), what patients see, eme
 roles: staff
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-13
+updated: 2026-10-12
 ---
 
 ## What it is

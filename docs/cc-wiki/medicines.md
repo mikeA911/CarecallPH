@@ -5,7 +5,7 @@ summary: Adding a patient's medicines, asking for consent in the chat, the remin
 roles: staff
 routes:
   - /patients/:id | staff | Patient detail
-updated: 2026-10-15
+updated: 2026-10-12
 ---
 
 ## Setting it up (patient page → Medicines)
