@@ -41,11 +41,13 @@ The left sidebar has these items:
 Under **Manage** (clinic admin and above): **Clinicians** (clinicians, their
 weekly hours and PRC numbers), **Clinic settings** (clinic details, DOH
 facility code and address, reminders, symptom check link, calling hours,
-records retention), **Users** (invite users, access and clinical role, make a
-doctor).
+holidays and closures, records retention with open privacy requests and
+disposal, message history), **Users** (invite users, access and clinical role,
+make a doctor).
 
 Under **Platform** (platform admins only): **Clinics**, **Global settings**
-(including the default records retention period).
+(default records retention, message-history defaults, the national holiday
+list).
 
 The sidebar depends on the user's access (staff, clinic admin, platform
 admin). Their clinical role (front desk, nurse / assistant, doctor) doesn't
@@ -61,17 +63,18 @@ Open a patient from **Patients**. From top to bottom:
 - **Chat apps** and **Messages**: invite to a chat app, and the last messages.
 - **Medicines**: medicine reminders by chat and adherence. Everyone sees the
   list; nurses and doctors add or stop medicines and ask for consent.
-- **Vital signs** (nurses and doctors only): the monitoring plan (drafted by a
-  nurse or doctor, signed by a doctor), consent, a chart and the readings.
+- **Vital signs** (nurses and doctors only): the monitoring plan (typed or
+  dictated to CC, drafted by a nurse or doctor, signed by a doctor), consent,
+  a chart and the readings.
 - **Clinical notes** (nurses and doctors only): dictate, record a consultation
   with consent, or type; CC drafts the note; doctors sign with their password.
 - **Appointments**: visits, how they were booked and reminder answers. A
   symptom-check booking shows the urgency to everyone and the symptoms to
   nurses and doctors.
 - **Call history**: AI calls to this patient.
-- **Privacy requests**: log a patient's request to see,
-  correct, restrict or erase their data; clinic admins answer it. A
-  **restricted** record is view-only.
+- **Privacy requests**: log a patient's request to see, correct, restrict
+  or erase their data; clinic admins answer it. A **restricted** record shows
+  a banner and badge and is view-only: no messages, calls or changes.
 
 **Profile** and **Sign out** are at the bottom of the sidebar (scroll the
 sidebar on a short screen).

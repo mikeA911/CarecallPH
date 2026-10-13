@@ -109,6 +109,8 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
   target and critical limits, what to do if high or low); after the patient
   agrees, CareCall asks for readings and checks them against the doctor's
   limits; **Readings to review** for nurses and doctors; chart per measure.
+  Doctors can **dictate the plan**: CC fills in a draft with only what was
+  said and lists what to check.
 - **Alerts and reports**: 3 missed doses in a row or no readings for 3 days
   files a follow-up for nurses and doctors; CC reports adherence, response
   rate, readings waiting and the blood pressure trend (counts only).
@@ -478,14 +480,19 @@ its Data Protection Officer or counsel. What the code does:
   is transcribed and never stored; signed notes can't be changed; the audit log
   never holds note text.
 - **Retention**: 7 years after the last consultation by default (DOH records
-  schedule, to be confirmed); records past it are listed for review, never
-  deleted automatically.
+  schedule, to be confirmed); records past it are listed for review and
+  disposed of only by a clinic admin. Contact history is purged nightly:
+  messages after 365 days, call transcripts and recording links after 90
+  (adjustable per clinic).
+- **Privacy requests**: access, correction, restriction and erasure handled
+  on the patient page (see Care plans and clinical notes above).
+- **Booking**: no slots on Philippine holidays (per clinic: all, regular only
+  or none) or on a clinic's own closed days.
+- **Telnyx webhooks** require a valid Ed25519 signature or a secret URL token
+  (secrets set once the PH Telnyx account exists).
 
-Hardening still open (tracked in [ROADMAP.md](ROADMAP.md)): Telnyx webhook
-signature verification (`telnyx-signature-ed25519`) in `telnyx-call-events`,
-recording access controls, purge jobs for messages and transcripts, patient
-data requests (deletion and restriction), NPC registration and
-breach-response procedure.
+Hardening still open (tracked in [ROADMAP.md](ROADMAP.md)): recording access
+controls, NPC registration, breach-response procedure, processing agreements.
 
 ---
 
