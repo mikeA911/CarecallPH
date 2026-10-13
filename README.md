@@ -246,6 +246,8 @@ supabase secrets set \
   TELNYX_ASSISTANT_ID=<assistant id> \
   TELNYX_FROM_NUMBER=+<E.164> \
   TELNYX_MESSAGING_PROFILE_ID=<messaging profile id> \
+  TELNYX_PUBLIC_KEY=<Telnyx portal → Account → Public Key> \
+  TELNYX_WEBHOOK_TOKEN=$(openssl rand -hex 24) \
   TOOL_WEBHOOK_SECRET=$(openssl rand -hex 32) \
   CLINIC_NAME="Fallback Clinic Name" \
   CLINIC_CALLBACK_NUMBER=+63XXXXXXXXXX \
@@ -253,6 +255,11 @@ supabase secrets set \
   PORTAL_URL=https://<portal-domain> \
   ANTHROPIC_API_KEY=sk-ant-...
 ```
+
+Telnyx webhooks: `telnyx-call-events` refuses any request without a valid
+Telnyx signature (`TELNYX_PUBLIC_KEY`) or the secret token in the URL. Point
+webhooks Telnyx doesn't sign (e.g. AI Assistant insights) at
+`.../telnyx-call-events?token=<TELNYX_WEBHOOK_TOKEN>`.
 
 Clinical notes: `GEMINI_API_KEY` (speech-to-text; paid Google AI account;
 without it doctors type or paste). Optional: `NOTES_MODEL` (default

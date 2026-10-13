@@ -60,6 +60,11 @@ export type Clinic = Address & {
   lng?: number | null;
   /** Years to keep patient records after the last consultation; null = platform default. */
   record_retention_years?: number | null;
+  /** Which national holidays close the clinic (no booking slots). */
+  holiday_closures?: "all" | "regular" | "none";
+  /** Days to keep chat messages, and call transcripts and recording links; null = platform default. */
+  message_retention_days?: number | null;
+  call_record_retention_days?: number | null;
   active: boolean;
   created_at: string;
 };

@@ -21,6 +21,8 @@ obligations with their Data Protection Officer or counsel.
   date of birth before seeing or choosing times.
 - Staff only see their own clinic's data.
 - CC sees only aggregate numbers, not names or phone numbers.
+- Old messages and call transcripts are deleted every night after the
+  clinic's message-history period (Clinic settings → Message history).
 - Patients can ask to see, correct, restrict or erase their data: log and
   answer it under **Privacy requests** on their page (see Patient privacy
   requests). Records are kept for the retention period and disposed of only

@@ -1,7 +1,7 @@
 ---
 id: clinic-settings
 title: Clinic settings
-summary: Display name, callback number, timezone, calling hours, greeting, booking links and chat invites, symptom check page, pre-call message and lead time, campaign types.
+summary: Name, callback number, timezone, hours, booking links, chat invites, symptom check page, pre-call message, holidays and closures, message history, campaign types.
 roles: clinic_admin
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
@@ -48,3 +48,15 @@ updated: 2026-10-13
   lead time. Longer leads (5–10 minutes) give patients time to use a booking link.
 - **Campaign types & Telnyx assistants**: maps each campaign type to the AI
   voice assistant that handles it.
+- **Holidays and closures**: choose which national holidays close the clinic
+  (regular holidays and special non-working days, regular holidays only, or
+  none) and add other closed days (town fiesta, training) with a reason. Closed
+  days get no booking slots anywhere (booking links, chat, symptom check,
+  dashboard); appointments already booked on them stay, so move or cancel
+  them. The holiday list itself is kept by platform admins (Global settings).
+- **Records retention**: see Patient privacy requests.
+- **Message history**: how long chat and text messages, and call transcripts,
+  summaries and recording links, are kept (empty = platform default: 365 days
+  and 90 days). A nightly clean-up deletes older ones; a call's outcome stays.
+  This is contact history, not the medical record. Recordings stored at
+  Telnyx follow Telnyx's own retention setting.
