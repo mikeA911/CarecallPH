@@ -25,7 +25,8 @@ the **CareCall** name next to it opens the About page.
 
 The left sidebar has these items:
 
-- **Dashboard**: today's activity, quick links, appointment slots, recent activity.
+- **Dashboard**: today's activity, quick links, appointment slots, recent activity,
+  and a map of the clinic (its location is set in Clinic settings → **Find on map**).
 - **Review queue**: patients who need a human (failed identity check, asked for
   a person, dialing problems). The number badge shows how many are waiting.
 - **Campaigns**: list of campaigns and their progress. Open one for detail.
