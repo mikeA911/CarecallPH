@@ -1,7 +1,7 @@
 ---
 id: vital-signs
 title: Vital signs by chat
-summary: Monitoring plans the doctor signs, consent in the chat, reading requests and replies, out-of-range and critical readings, Readings to review, chart, FHIR.
+summary: Monitoring plans the doctor signs (typed or dictated), consent in the chat, reading requests and replies, out-of-range and critical readings, Readings to review, chart, FHIR.
 roles: staff
 routes:
   - /patients/:id | staff | Patient detail
@@ -32,6 +32,26 @@ Nurses and doctors only. Front desk never sees plans or readings.
 3. **Ask patient to agree** (needs a chat app). The request names the doctor
    and the measures. When the patient replies YES, they get the doctor's plan
    (their instruction sheet) and requests start at the plan's times.
+
+## Dictating the plan
+
+**Dictate a plan** (or **Dictate a new version** / **Dictate the draft
+again**) lets the doctor say the plan instead of typing it, e.g. "Blood
+pressure every morning at 7 for two weeks, target below 140 over 90; if 180
+over 120 or more, call 911; if above 160 over 100 twice, rest and measure
+again, then message the clinic". Speak (speech-to-text, the audio is never
+stored) or type, then **Make the draft**. CC fills in the plan editor:
+
+- only what was said; it never adds a measure, time, limit or instruction;
+- **Check before saving** lists anything to fill in: a missing time, missing
+  critical limits (without them the patient is never told to seek urgent
+  care), unclear words, numbers that don't fit;
+- **Fill empty limits with the suggested ones** fills only the empty limits
+  with the defaults, for the doctor to confirm;
+- the dictated measures replace those of an existing draft.
+
+Nothing is saved until **Save draft**, and nothing runs until a doctor signs.
+Medicines said in the dictation are not added: add them under Medicines.
 
 ## What the patient does
 

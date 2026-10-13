@@ -81,7 +81,7 @@ flowchart LR
 | `admin-manage` | Portal | Sign-in | Users (access level, clinical role, make doctor), clinics, passwords |
 | `channel-invite` | Portal | Sign-in | "Invite to chat" links and QR codes |
 | `care-plan` | Portal | Sign-in, nurse/doctor | Ask a patient to agree to medicine reminders or vital signs; stop them; doctor signs a monitoring plan (password) |
-| `clinical-note` | Portal | Sign-in, nurse/doctor | Speech-to-text, CC drafts a SOAP note, doctor signs (password) |
+| `clinical-note` | Portal | Sign-in, nurse/doctor | Speech-to-text, CC drafts a SOAP note or a dictated monitoring plan, doctor signs notes (password) |
 | `fhir` | Portal (and FHIR clients) | Sign-in, nurse/doctor for records | FHIR R4 export with PH Core profiles |
 | `cc-chat` | Portal | Sign-in | CC conversations (runs as the user, RLS applies) |
 | `cc-nightly` | pg_cron 02:00 Manila | Service key | CC's nightly review per clinic |

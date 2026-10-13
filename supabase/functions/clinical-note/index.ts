@@ -12,6 +12,12 @@
 //        CC drafts a SOAP note from the transcript and saves it as a draft
 //        (or updates draft note_id). Returns the note, what to check, and
 //        the medicines mentioned.
+//   POST { action: "transcribe", patient_id, purpose: "plan", audio_base64, mime }
+//        Speech to text for a dictated monitoring plan (M5).
+//   POST { action: "plan_draft", patient_id, transcript }
+//        CC turns a dictated monitoring plan into draft measures for the plan
+//        editor (M5). Nothing is saved: the portal opens the draft for the
+//        doctor to check, save and sign. Never invents a limit or time.
 //   POST { action: "sign", note_id, password }
 //        Doctors only (clinical role doctor, linked to an active clinician),
 //        re-entering their password: the electronic signature. A signed note
@@ -28,6 +34,7 @@ import {
   ageOn, audioTypeOk, base64Bytes, consentProblem, DRAFT_SYSTEM, draftUserMessage, MAX_AUDIO_BYTES,
   MAX_TRANSCRIPT_CHARS, NOTE_MODES, NOTE_SCHEMA, type NoteMode, parseDraft, transcribePrompt,
 } from "../_shared/notes.ts";
+import { MAX_PLAN_TRANSCRIPT_CHARS, parsePlanDraft, PLAN_SCHEMA, PLAN_SYSTEM, planUserMessage } from "../_shared/plan_dictation.ts";
 
 const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
 const NOTES_MODEL = Deno.env.get("NOTES_MODEL") ?? "claude-opus-5-5";
@@ -62,6 +69,26 @@ Deno.serve(async (req) => {
   if (caller.role !== "admin" && patient.clinic_id !== caller.clinicId) {
     return reply({ error: "forbidden: patient is not in your clinic" }, 403);
   }
+  if (action === "plan_draft") {
+    if (!ANTHROPIC_KEY) return reply({ error: "CC isn't set up (ANTHROPIC_API_KEY)." }, 503);
+    const transcript = String(body.transcript ?? "").trim();
+    if (!transcript) return reply({ error: "Dictate or type the plan first." }, 400);
+    if (transcript.length > MAX_PLAN_TRANSCRIPT_CHARS) return reply({ error: "That's too long for one plan." }, 413);
+    const { data: c } = await supabase.from("clinics").select("timezone").eq("id", patient.clinic_id).maybeSingle();
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: (c as { timezone: string | null } | null)?.timezone || "Asia/Manila" });
+    try {
+      const text = await claudeJson(PLAN_SYSTEM, planUserMessage(transcript, today), PLAN_SCHEMA, 4000);
+      const draft = parsePlanDraft(text, today);
+      if (!draft) throw new Error(`plan draft didn't match the schema: ${text.slice(0, 200)}`);
+      await audit({ clinicId: patient.clinic_id, actorUserId: caller.userId, action: "monitoring_plan_dictated",
+        targetType: "patient", targetId: patient.id, detail: { measures: draft.items.map((i) => i.measure), unclear: draft.unclear.length } });
+      return reply({ ...draft, start_date: today });
+    } catch (e) {
+      console.error("clinical-note plan_draft", e);
+      return reply({ error: e instanceof RefusalError ? e.message : "CC couldn't draft the plan. Try again, or fill it in by hand." }, 502);
+    }
+  }
+
   const mode = String(body.mode ?? "typed") as NoteMode;
   if (!NOTE_MODES.includes(mode)) return reply({ error: "mode must be dictation, recording or typed" }, 400);
   const consent = body.recording_consent === true;
@@ -75,8 +102,10 @@ Deno.serve(async (req) => {
     if (!audio || !audioTypeOk(mime)) return reply({ error: "Send the recording as audio (webm, ogg, mp4, mp3 or wav)." }, 400);
     if (base64Bytes(audio) > MAX_AUDIO_BYTES) return reply({ error: "The recording is too long. Keep it under about 10 minutes." }, 413);
     try {
-      const transcript = await transcribe(audio, mime.split(";")[0], mode);
-      await audit({ clinicId: patient.clinic_id, actorUserId: caller.userId, action: "clinical_note_transcribed",
+      const purpose = body.purpose === "plan" ? "plan" : "note";
+      const transcript = await transcribe(audio, mime.split(";")[0], mode, purpose);
+      await audit({ clinicId: patient.clinic_id, actorUserId: caller.userId,
+        action: purpose === "plan" ? "monitoring_plan_transcribed" : "clinical_note_transcribed",
         targetType: "patient", targetId: patient.id, detail: { mode, engine: "gemini", chars: transcript.length } });
       return reply({ transcript, engine: "gemini" });
     } catch (e) {
@@ -150,12 +179,12 @@ async function sign(caller: Caller, noteId: string, password: string) {
 
 // --- speech to text (Gemini) -----------------------------------------------
 
-async function transcribe(audioBase64: string, mime: string, mode: NoteMode): Promise<string> {
+async function transcribe(audioBase64: string, mime: string, mode: NoteMode, purpose: "note" | "plan"): Promise<string> {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": GEMINI_KEY },
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ inline_data: { mime_type: mime, data: audioBase64 } }, { text: transcribePrompt(mode) }] }],
+      contents: [{ role: "user", parts: [{ inline_data: { mime_type: mime, data: audioBase64 } }, { text: transcribePrompt(mode, purpose) }] }],
       generationConfig: { temperature: 0 },
     }),
   });
@@ -170,6 +199,14 @@ async function transcribe(audioBase64: string, mime: string, mode: NoteMode): Pr
 class RefusalError extends Error {}
 
 async function draftNote(transcript: string, o: { mode: NoteMode; patientAge: number | null; sex: string | null }) {
+  const text = await claudeJson(DRAFT_SYSTEM, draftUserMessage(transcript, o), NOTE_SCHEMA, 8000);
+  const draft = parseDraft(text);
+  if (!draft) throw new Error(`draft didn't match the schema: ${text.slice(0, 200)}`);
+  return draft;
+}
+
+/** One structured-output request to Claude; returns the JSON text. */
+async function claudeJson(system: string, user: string, schema: unknown, maxTokens: number): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -181,20 +218,17 @@ async function draftNote(transcript: string, o: { mode: NoteMode; patientAge: nu
     },
     body: JSON.stringify({
       model: NOTES_MODEL,
-      max_tokens: 8000,
+      max_tokens: maxTokens,
       fallbacks: "default",
-      output_config: { effort: "medium", format: { type: "json_schema", schema: NOTE_SCHEMA } },
-      system: DRAFT_SYSTEM,
-      messages: [{ role: "user", content: draftUserMessage(transcript, o) }],
+      output_config: { effort: "medium", format: { type: "json_schema", schema } },
+      system,
+      messages: [{ role: "user", content: user }],
     }),
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`Anthropic ${res.status}: ${JSON.stringify(j).slice(0, 300)}`);
-  if (j.stop_reason === "refusal") throw new RefusalError("CC couldn't draft this note. Write it by hand.");
+  if (j.stop_reason === "refusal") throw new RefusalError("CC couldn't draft this. Write it by hand.");
   if (j.stop_reason === "max_tokens") throw new Error("draft cut off (max_tokens)");
-  const text = ((j.content ?? []) as { type: string; text?: string }[])
+  return ((j.content ?? []) as { type: string; text?: string }[])
     .filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
-  const draft = parseDraft(text);
-  if (!draft) throw new Error(`draft didn't match the schema: ${text.slice(0, 200)}`);
-  return draft;
 }

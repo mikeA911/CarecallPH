@@ -210,7 +210,17 @@ vital_readings        patient, clinic, measure, values (e.g. {sys, dia, pulse}),
 | **M5** | Dictate to CC: prescriptions and monitoring plans by voice (below) |
 | **M6** | Clinical notes by voice (demo built, below) |
 
-### Later: dictate to CC (M5)
+### Dictate to CC (M5; monitoring plans built, prescriptions with M2)
+
+**Built for monitoring plans:** **Dictate a plan** in the patient's Vital
+signs section (nurses and doctors). Speech-to-text as for clinical notes
+(Gemini, audio never stored) or typing; `clinical-note` action `plan_draft`
+has Claude return the measures as structured output
+(`_shared/plan_dictation.ts`); the server drops anything the editor wouldn't
+accept and adds to the check list every missing time or critical limit. The
+draft opens in the plan editor with "Check before saving" and **Fill empty
+limits with the suggested ones**; nothing is saved until the doctor saves,
+and nothing runs until a doctor signs. The design below was the plan:
 
 A **Dictate** button in CC, shown to doctors (clinicians linked to a login).
 The doctor speaks, e.g. *"Amlodipine 5 milligrams once a day in the morning

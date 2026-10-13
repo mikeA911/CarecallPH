@@ -6,6 +6,7 @@
 // and checks each against the doctor's limits; out-of-range readings go to
 // Readings to review. Design: docs/care-plan-design.md §4, §4a, §5.
 import { useCallback, useEffect, useState } from "react";
+import { mmss, useRecorder } from "../lib/recorder";
 import { supabase } from "../lib/supabase";
 import { callFunction } from "../lib/api";
 import { useSession } from "../lib/session";
@@ -54,6 +55,8 @@ export default function VitalSignsSection({ patientId, clinicId, canMessage }: {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [editing, setEditing] = useState(false);
+  const [dictating, setDictating] = useState(false);
+  const [dictated, setDictated] = useState<Dictated | null>(null);
   const [addingReading, setAddingReading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -175,16 +178,26 @@ export default function VitalSignsSection({ patientId, clinicId, canMessage }: {
         </PlanCard>
       )}
 
-      {!running && !draft && !editing && (
+      {!editing && !dictating && (
         <div className="row-actions" style={{ marginTop: 10 }}>
-          <button className="secondary" onClick={() => setEditing(true)}>Start a monitoring plan</button>
+          {!running && !draft && <button className="secondary" onClick={() => setEditing(true)}>Start a monitoring plan</button>}
+          <button className="secondary" onClick={() => setDictating(true)}
+                  title="Say the plan; CC fills in a draft for you to check and sign">
+            {draft ? "Dictate the draft again" : running ? "Dictate a new version" : "Dictate a plan"}
+          </button>
         </div>
+      )}
+
+      {dictating && (
+        <DictatePlan patientId={patientId} replacesDraft={!!draft}
+                     onCancel={() => setDictating(false)}
+                     onDraft={(d) => { setDictating(false); setDictated(d); setEditing(true); }} />
       )}
 
       {editing && (
         <PlanEditor patientId={patientId} clinicId={clinicId} userId={session?.user?.id ?? null}
-                    draft={draft} copyFrom={draft ? null : running}
-                    onClose={(t) => { setEditing(false); if (t) setMsg(t); load(); }} />
+                    draft={draft} copyFrom={draft ? null : running} dictated={dictated}
+                    onClose={(t) => { setEditing(false); setDictated(null); if (t) setMsg(t); load(); }} />
       )}
 
       <h3 style={{ marginTop: 18 }}>Readings</h3>
@@ -281,11 +294,14 @@ const strip = (v: VitalPlan & { created_at?: string; plan_id?: string; clinic_id
 };
 
 /** Edit the draft (or start one, copied from the running plan for a new version). */
-function PlanEditor({ patientId, clinicId, userId, draft, copyFrom, onClose }: {
+function PlanEditor({ patientId, clinicId, userId, draft, copyFrom, dictated, onClose }: {
   patientId: string; clinicId: string; userId: string | null; draft: Plan | null; copyFrom: Plan | null;
+  /** A plan dictated to CC: its measures replace the draft's (the draft rows are removed on save). */
+  dictated?: Dictated | null;
   onClose: (msg?: string) => void;
 }) {
   const [items, setItems] = useState<Item[]>(() =>
+    dictated ? dictated.items.map((d) => withKey(fromDictation(d, dictated.start_date))) :
     (draft ?? copyFrom)?.vital_plans.map((v) => {
       const s = strip(v);
       if (!draft) delete s.id;            // a copy: new rows on the new draft
@@ -362,10 +378,23 @@ function PlanEditor({ patientId, clinicId, userId, draft, copyFrom, onClose }: {
   return (
     <div className="form-card" style={{ marginTop: 12, maxWidth: 760 }}>
       <strong>{draft ? "Edit draft plan" : copyFrom ? "New version of the plan" : "New monitoring plan"}</strong>
-      <p className="small muted">
-        Default limits are suggestions for the doctor to confirm or change for this patient. CareCall only compares
-        readings with these numbers and quotes the doctor's instructions; it never explains a reading.
-      </p>
+      {dictated ? (
+        <div className="form-card" style={{ marginTop: 8 }}>
+          <strong className="small">Drafted by CC from the dictation. Check every field before saving.</strong>
+          {dictated.unclear.length > 0 && (
+            <ul className="small" aria-label="Check before saving" style={{ margin: "6px 0 0 18px", padding: 0 }}>
+              {dictated.unclear.map((u, n) => <li key={n}>{u}</li>)}
+            </ul>
+          )}
+          <details className="small" style={{ marginTop: 6 }}><summary>What was said</summary>
+            <p style={{ whiteSpace: "pre-wrap" }}>{dictated.transcript}</p></details>
+        </div>
+      ) : (
+        <p className="small muted">
+          Default limits are suggestions for the doctor to confirm or change for this patient. CareCall only compares
+          readings with these numbers and quotes the doctor's instructions; it never explains a reading.
+        </p>
+      )}
 
       {items.map((i) => {
         const info = MEASURE_INFO[i.measure];
@@ -444,6 +473,13 @@ function PlanEditor({ patientId, clinicId, userId, draft, copyFrom, onClose }: {
                    value={i.if_low ?? ""} onChange={(e) => set(i.key, { if_low: e.target.value })} />
             <p className="small muted" style={{ marginBottom: 0 }}>{limitsText(i.measure, i)}</p>
             <div className="row-actions">
+              {LIMIT_KEYS.some((k) => i[k] == null && info.defaults[k] != null) && (
+                <button type="button" className="link"
+                        onClick={() => set(i.key, Object.fromEntries(LIMIT_KEYS.filter((k) => i[k] == null && info.defaults[k] != null)
+                          .map((k) => [k, info.defaults[k]])) as Partial<VitalPlan>)}>
+                  Fill empty limits with the suggested ones
+                </button>
+              )}
               <button type="button" className="link" onClick={() => setItems(items.filter((x) => x.key !== i.key))}>
                 Remove {info.label.toLowerCase()}
               </button>
@@ -640,5 +676,92 @@ function MeasureChart({ measure, readings, limits }: { measure: Measure; reading
         <text x={W - P.r} y={H - 4} fontSize="10" textAnchor="end" fill="#6B7280">{new Date(t1).toLocaleDateString()}</text>
       </svg>
     </figure>
+  );
+}
+
+// --- Dictate a plan to CC (M5) ----------------------------------------------
+
+type DictatedItem = Omit<VitalPlan, "id" | "how_to" | "start_date">;
+type Dictated = { items: DictatedItem[]; unclear: string[]; start_date: string; transcript: string };
+
+/** A dictated measure as a plan row: how-to from the standard text, nothing else added. */
+function fromDictation(d: DictatedItem, start: string): VitalPlan {
+  const limits = Object.fromEntries(LIMIT_KEYS.map((k) => [k, d[k] ?? null])) as Limits;
+  return {
+    measure: d.measure, reason: d.reason ?? "", how_to: MEASURE_INFO[d.measure].howTo,
+    times_of_day: d.times_of_day?.length ? d.times_of_day : [""], days_of_week: d.days_of_week ?? null,
+    start_date: start, until_date: d.until_date ?? null, if_high: d.if_high ?? "", if_low: d.if_low ?? "", ...limits,
+  };
+}
+
+const PLAN_SAMPLE = "Blood pressure po every morning at 7 and evening at 7 for two weeks, para makita kung tama na ang " +
+  "amlodipine. Target below 140 over 90. If it's 180 over 120 or higher, or below 90 over 60, emergency na: call 911. " +
+  "If above 160 over 100 twice in a row, rest fifteen minutes, measure again, then message the clinic.";
+
+/** Say (or type) the plan; CC turns it into a draft. The audio is never stored. */
+function DictatePlan({ patientId, replacesDraft, onCancel, onDraft }: {
+  patientId: string; replacesDraft: boolean; onCancel: () => void; onDraft: (d: Dictated) => void;
+}) {
+  const [stt, setStt] = useState<string | null | undefined>(undefined);
+  const [transcript, setTranscript] = useState("");
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    callFunction<{ stt: string | null }>("clinical-note", { action: "status" }).then(({ data }) => setStt(data?.stt ?? null));
+  }, []);
+
+  async function transcribed(audio_base64: string, mime: string) {
+    setBusy("Transcribing…"); setErr("");
+    const { data, error } = await callFunction<{ transcript: string }>("clinical-note", {
+      action: "transcribe", purpose: "plan", mode: "dictation", patient_id: patientId, audio_base64, mime,
+    });
+    setBusy("");
+    if (error) { setErr(error); return; }
+    setTranscript((t) => (t ? `${t}\n${data?.transcript ?? ""}` : data?.transcript ?? ""));
+  }
+  const { recording, seconds, error: micError, start, stop } = useRecorder(transcribed, 3 * 60);
+
+  async function draft() {
+    setBusy("CC is drafting the plan…"); setErr("");
+    const { data, error } = await callFunction<Omit<Dictated, "transcript">>("clinical-note", {
+      action: "plan_draft", patient_id: patientId, transcript,
+    });
+    setBusy("");
+    if (error || !data) { setErr(error ?? "No draft."); return; }
+    onDraft({ ...data, transcript });
+  }
+
+  return (
+    <div className="form-card" style={{ marginTop: 12, maxWidth: 760 }}>
+      <strong>Dictate the monitoring plan</strong>
+      <p className="small muted" style={{ marginBottom: 6 }}>
+        Say what to measure, when, for how long, the target, when it's an emergency, and what to do if high or low.
+        CC fills in a draft for you to check and sign; it never adds a limit or time you didn't say. The recording
+        is used once for speech-to-text and never stored.
+        {replacesDraft && " The dictated measures replace the current draft's."}
+      </p>
+      {stt === null && (
+        <p className="small muted">Speech-to-text isn't set up yet, so type the plan below.{" "}
+          <button className="link" onClick={() => setTranscript(PLAN_SAMPLE)}>Use a sample</button></p>
+      )}
+      {stt && (
+        <div className="row-actions">
+          {!recording
+            ? <button onClick={start} disabled={!!busy}>{transcript ? "Dictate more" : "Start dictating"}</button>
+            : <button className="danger" onClick={stop}>Stop ({mmss(seconds)})</button>}
+          {recording && <span className="rec-dot" aria-live="polite">Recording</span>}
+        </div>
+      )}
+      <label htmlFor="plan-dictation">What was said (edit if needed)</label>
+      <textarea id="plan-dictation" rows={5} value={transcript} disabled={recording}
+                placeholder="Blood pressure every morning at 7 for two weeks, target below 140 over 90…"
+                onChange={(e) => setTranscript(e.target.value)} />
+      {(err || micError) && <p role="alert" className="small">{err || micError}</p>}
+      {busy && <p role="status" className="small">{busy}</p>}
+      <div className="row-actions" style={{ marginTop: 10 }}>
+        <button disabled={!transcript.trim() || !!busy || recording} onClick={draft}>Make the draft</button>
+        <button className="link" disabled={recording} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
   );
 }

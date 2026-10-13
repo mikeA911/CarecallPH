@@ -29,8 +29,10 @@ export function consentProblem(mode: NoteMode, consent: boolean): string | null 
     : null;
 }
 
-export function transcribePrompt(mode: NoteMode): string {
-  const who = mode === "recording"
+export function transcribePrompt(mode: NoteMode, purpose: "note" | "plan" = "note"): string {
+  const who = purpose === "plan"
+    ? "This is a doctor in the Philippines dictating a home-monitoring plan for a patient (what to measure, when, targets and what to do)."
+    : mode === "recording"
     ? "This is a recording of a consultation between a doctor and a patient in the Philippines. " +
       "Label each turn \"Doctor:\" or \"Patient:\" (or \"Other:\" for anyone else)."
     : "This is a doctor in the Philippines dictating a clinical note after a consultation.";
