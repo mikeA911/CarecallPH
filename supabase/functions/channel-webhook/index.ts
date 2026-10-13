@@ -37,12 +37,15 @@ import { supabase, createBookingLink, audit } from "../_shared/lib.ts";
 import { dobCandidates } from "../_shared/dob.ts";
 import { parseReminderReply, type ReminderResponse, whenText } from "../_shared/reminders.ts";
 import { isWithdraw, MISSED_AFTER_MS, parseConsentReply, parseDoseReply } from "../_shared/care.ts";
+import { BUTTONS, type ChatButton, replyFromCallback } from "../_shared/buttons.ts";
+import { OFFER_VALID_MS, offerMessage, parsePick, pickSlots, type Slot, slotLabel } from "../_shared/reschedule.ts";
 import {
   type ChatChannel,
   ChannelError,
   findInvite,
   logMessage,
   sendRaw,
+  telegramButtonTapped,
 } from "../_shared/channels.ts";
 
 const VIBER_TOKEN = Deno.env.get("VIBER_AUTH_TOKEN") ?? "";
@@ -64,8 +67,11 @@ const OPEN_STATUSES = ["pending", "notified", "callback_requested", "no_answer",
 // ---------------------------------------------------------------------------
 type Inbound =
   | { kind: "start"; externalId: string; token: string | null; name?: string }
-  | { kind: "text"; externalId: string; text: string; name?: string }
+  | { kind: "text"; externalId: string; text: string; name?: string; tap?: { id: string; messageId: number | null } }
   | { kind: "gone"; externalId: string };
+
+/** A reply with optional buttons (shown on Telegram). */
+type Reply = { text: string; buttons?: ChatButton[][] };
 
 type ClinicInfo = { id: string | null; name: string; callback: string | null; selfBooking: boolean };
 
@@ -113,7 +119,10 @@ Deno.serve(async (req) => {
       }
       case "telegram": {
         if (!verifyTelegram(req)) return new Response("bad secret", { status: 401 });
-        for (const ev of parseTelegram(JSON.parse(raw))) await dispatch("telegram", ev);
+        for (const ev of parseTelegram(JSON.parse(raw))) {
+          if (ev.kind === "text" && ev.tap) await telegramButtonTapped(ev.tap.id, ev.externalId, ev.tap.messageId);
+          await dispatch("telegram", ev);
+        }
         return ok();
       }
       case "messenger": {
@@ -211,6 +220,14 @@ function parseTelegram(u: any): Inbound[] {
   if (u.my_chat_member?.new_chat_member?.status === "kicked") {
     return [{ kind: "gone", externalId: String(u.my_chat_member.chat.id) }];
   }
+  // A tapped reply button: handled like the reply it stands for.
+  const cb = u.callback_query;
+  if (cb?.message?.chat?.id) {
+    const reply = replyFromCallback(cb.data);
+    if (!reply) return [];
+    return [{ kind: "text", externalId: String(cb.message.chat.id), text: reply, name: cb.from?.first_name,
+      tap: { id: String(cb.id), messageId: typeof cb.message.message_id === "number" ? cb.message.message_id : null } }];
+  }
   const m = u.message;
   if (!m?.chat?.id || typeof m.text !== "string") return [];
   const externalId = String(m.chat.id);
@@ -275,7 +292,7 @@ function parseWhatsApp(body: any): Inbound[] {
 async function dispatch(channel: ChatChannel, ev: Inbound) {
   if (ev.kind === "start") {
     const reply = await onStart(channel, ev);
-    if (reply) await reply_(channel, ev.externalId, reply.text, reply.sender, reply.clinicId, reply.patientId);
+    if (reply) await reply_(channel, ev.externalId, reply.text, reply.sender, reply.clinicId, reply.patientId, reply.buttons);
     return;
   }
   if (ev.kind === "gone") {
@@ -289,10 +306,10 @@ async function dispatch(channel: ChatChannel, ev: Inbound) {
 
 async function reply_(
   channel: ChatChannel, externalId: string, text: string, sender: string,
-  clinicId: string | null, patientId: string | null,
+  clinicId: string | null, patientId: string | null, buttons?: ChatButton[][],
 ) {
   try {
-    const pid = await sendRaw(channel, externalId, text, sender);
+    const pid = await sendRaw(channel, externalId, text, sender, buttons);
     await logMessage({ clinicId, patientId, channel, direction: "outbound", externalId, body: text, providerMessageId: pid });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -313,7 +330,7 @@ async function clinicInfo(clinicId: string | null): Promise<ClinicInfo> {
 async function onStart(
   channel: ChatChannel,
   ev: Extract<Inbound, { kind: "start" }>,
-): Promise<{ text: string; sender: string; clinicId: string | null; patientId: string | null } | null> {
+): Promise<{ text: string; sender: string; clinicId: string | null; patientId: string | null; buttons?: ChatButton[][] } | null> {
   if (!ev.externalId) return null;
 
   const invite = ev.token ? await findInvite(ev.token) : null;
@@ -325,6 +342,7 @@ async function onStart(
     const clinic = await clinicInfo(existing?.clinic_id ?? null);
     return {
       sender: clinic.name, clinicId: clinic.id, patientId: null,
+      buttons: existing ? BUTTONS.book : undefined,
       text: existing
         ? `Hi! This is ${clinic.name}. Reply BOOK to schedule an appointment, or STOP to stop messages.`
         : "Hi! This chat sends appointment reminders from your clinic. Please open the invite link your clinic sent you to connect." +
@@ -340,7 +358,7 @@ async function onStart(
 
   if (row && row.external_id === ev.externalId && row.opted_in_at && !row.opted_out_at) {
     return {
-      sender: clinic.name, clinicId: clinic.id, patientId: invite.patient_id,
+      sender: clinic.name, clinicId: clinic.id, patientId: invite.patient_id, buttons: BUTTONS.book,
       text: `You're already connected to ${clinic.name}. Reply BOOK to schedule, or STOP to stop messages.`,
     };
   }
@@ -415,7 +433,8 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
 
   const target = isDobReply ? checking[0] : rows[0];
   const clinic = await clinicInfo(target.clinic_id);
-  const say = (text: string) => reply_(channel, ev.externalId, text, clinic.name, clinic.id, target.patient_id);
+  const say = (text: string, buttons?: ChatButton[][]) =>
+    reply_(channel, ev.externalId, text, clinic.name, clinic.id, target.patient_id, buttons);
 
   if (STOP.has(kw)) {
     await supabase.from("patient_channels").update({ opted_out_at: now })
@@ -425,7 +444,8 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
   }
 
   if (isDobReply) {
-    await say(await checkBirthday(target, ev.text, clinic));
+    const r = await checkBirthday(target, ev.text, clinic);
+    await say(r.text, r.buttons);
     return;
   }
 
@@ -443,12 +463,19 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
   );
   if (careAnswer) { await say(careAnswer); return; }
 
+  const live = verified.filter((r) => r.opted_in_at && !r.opted_out_at).map((r) => r.patient_id);
+
+  // A pick from the new times offered after "change time".
+  if (live.length) {
+    const picked = await answerOffer(ev.text, live);
+    if (picked) { await say(picked.text, picked.buttons); return; }
+  }
+
   // A reply to an appointment reminder (only when one is waiting for an answer).
   const reminderReply = parseReminderReply(ev.text);
   if (reminderReply) {
-    const live = verified.filter((r) => r.opted_in_at && !r.opted_out_at).map((r) => r.patient_id);
     const answer = live.length ? await answerReminder(reminderReply, live) : null;
-    if (answer) { await say(answer); return; }
+    if (answer) { await say(answer.text, answer.buttons); return; }
   }
 
   if (YES.has(kw)) {
@@ -457,13 +484,13 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
     await supabase.from("patient_channels").update({ opted_in_at: now, opted_out_at: null }).in("id", ids);
     await supabase.from("patients").update({ preferred_channel: channel }).in("id", patientIds);
     await requeueInvited(patientIds);
-    await say(`Thanks! You'll get appointment messages from ${clinic.name} here. Reply BOOK to schedule, or STOP to stop.`);
+    await say(`Thanks! You'll get appointment messages from ${clinic.name} here. Reply BOOK to schedule, or STOP to stop.`, BUTTONS.book);
     return;
   }
 
   const active = verified.filter((r) => r.opted_in_at && !r.opted_out_at);
   if (!active.length) {
-    await say(`To receive messages from ${clinic.name} here, please reply YES. Reply STOP to stop.`);
+    await say(`To receive messages from ${clinic.name} here, please reply YES. Reply STOP to stop.`, BUTTONS.optIn);
     return;
   }
 
@@ -476,6 +503,7 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
   await say(
     `Thanks for your message. This chat handles appointment reminders and booking. ` +
     `Reply BOOK to schedule${callback}. For emergencies, call 911.`,
+    SYMPTOM_CHECK_ON ? BUTTONS.bookOrCheck : BUTTONS.book,
   );
 }
 
@@ -485,10 +513,10 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
  * up a try. The second wrong date locks the link and expires the patient's
  * open invites, so staff must create a new one.
  */
-async function checkBirthday(row: LinkRow, text: string, clinic: ClinicInfo): Promise<string> {
+async function checkBirthday(row: LinkRow, text: string, clinic: ClinicInfo): Promise<Reply> {
   const candidates = dobCandidates(text);
   if (!candidates.length) {
-    return `Please reply with the patient's date of birth, ${DOB_EXAMPLE}.`;
+    return { text: `Please reply with the patient's date of birth, ${DOB_EXAMPLE}.` };
   }
 
   const { data } = await supabase.from("patients").select("date_of_birth").eq("id", row.patient_id).maybeSingle();
@@ -497,14 +525,17 @@ async function checkBirthday(row: LinkRow, text: string, clinic: ClinicInfo): Pr
 
   if (dob && candidates.includes(dob.slice(0, 10))) {
     await supabase.from("patient_channels").update({ verified_at: now }).eq("id", row.id);
-    return `Thank you. Reply YES (or OO) to receive appointment reminders and booking links ` +
-      `from ${clinic.name} in this chat. Reply STOP anytime to stop.`;
+    return {
+      text: `Thank you. Reply YES (or OO) to receive appointment reminders and booking links ` +
+        `from ${clinic.name} in this chat. Reply STOP anytime to stop.`,
+      buttons: BUTTONS.optIn,
+    };
   }
 
   const attempts = row.verify_attempts + 1;
   await supabase.from("patient_channels").update({ verify_attempts: attempts }).eq("id", row.id);
   if (attempts < MAX_DOB_ATTEMPTS) {
-    return `That doesn't match our records. Please check and try again (1 try left), ${DOB_EXAMPLE}.`;
+    return { text: `That doesn't match our records. Please check and try again (1 try left), ${DOB_EXAMPLE}.` };
   }
 
   await supabase.from("channel_invites").update({ expires_at: now })
@@ -514,8 +545,10 @@ async function checkBirthday(row: LinkRow, text: string, clinic: ClinicInfo): Pr
     targetType: "patient", targetId: row.patient_id,
   });
   const callback = clinic.callback ? ` at ${clinic.callback}` : "";
-  return `That doesn't match our records, so this invite has been locked. ` +
-    `Please contact ${clinic.name}${callback} for a new invite.`;
+  return {
+    text: `That doesn't match our records, so this invite has been locked. ` +
+      `Please contact ${clinic.name}${callback} for a new invite.`,
+  };
 }
 
 /**
@@ -595,10 +628,10 @@ async function symptomCheckReply(channel: ChatChannel, clinicId: string | null):
  * the last 30 hours, appointment still upcoming). Returns the reply text, or
  * null when no reminder is waiting (the message is then handled as usual).
  */
-async function answerReminder(reply: ReminderResponse, patientIds: string[]): Promise<string | null> {
+async function answerReminder(reply: ReminderResponse, patientIds: string[]): Promise<Reply | null> {
   const now = new Date();
   const { data } = await supabase.from("appointment_reminders")
-    .select("id, clinic_id, patient_id, appointments!inner(id, starts_at, status, providers(name), " +
+    .select("id, clinic_id, patient_id, appointments!inner(id, starts_at, status, provider_id, providers(name), " +
       "patients(first_name, last_name))")
     .in("patient_id", patientIds)
     .eq("status", "sent").is("response", null)
@@ -608,7 +641,7 @@ async function answerReminder(reply: ReminderResponse, patientIds: string[]): Pr
     .order("created_at", { ascending: false }).limit(1);
   const r = (data ?? [])[0] as unknown as {
     id: string; clinic_id: string; patient_id: string;
-    appointments: { id: string; starts_at: string; status: string; providers: { name: string } | null;
+    appointments: { id: string; starts_at: string; status: string; provider_id: string | null; providers: { name: string } | null;
       patients: { first_name: string; last_name: string } | null };
   } | undefined;
   if (!r) return null;
@@ -628,7 +661,7 @@ async function answerReminder(reply: ReminderResponse, patientIds: string[]): Pr
 
   if (reply === "confirm") {
     await supabase.from("appointments").update({ status: "confirmed" }).eq("id", r.appointments.id);
-    return `Thank you, you're confirmed for ${when}${doctor}. See you!`;
+    return { text: `Thank you, you're confirmed for ${when}${doctor}. See you!` };
   }
 
   if (reply === "cancel") {
@@ -639,7 +672,22 @@ async function answerReminder(reply: ReminderResponse, patientIds: string[]): Pr
       detail: `${who} cancelled their appointment ${when}${doctor} by replying to the reminder. The time is open again.`,
       route: `/patients/${r.patient_id}`,
     });
-    return `Your appointment ${when} is cancelled. To book again, message ${clinic?.name ?? "the clinic"}${call}.`;
+    return { text: `Your appointment ${when} is cancelled. To book again, message ${clinic?.name ?? "the clinic"}${call}.`,
+      buttons: BUTTONS.book };
+  }
+
+  // Change time: offer open times in the chat when there are any.
+  if (r.appointments.provider_id) {
+    const { data: open } = await supabase.rpc("get_available_slots", {
+      p_provider_id: r.appointments.provider_id, p_days: 10, p_limit: 120, p_tz: tz,
+    });
+    const slots = pickSlots(((open ?? []) as { slot_start: string; slot_end: string }[])
+      .map((x) => ({ start: x.slot_start, end: x.slot_end })), tz);
+    if (slots.length) {
+      await supabase.from("appointment_reminders")
+        .update({ offered_slots: slots, offered_at: now.toISOString(), offer_closed_at: null }).eq("id", r.id);
+      return offerMessage(slots, tz, clinic?.name ?? "the clinic", when);
+    }
   }
 
   await supabase.from("cc_action_items").insert({
@@ -649,8 +697,99 @@ async function answerReminder(reply: ReminderResponse, patientIds: string[]): Pr
       `(reply to the reminder). Contact them to pick a new time, then cancel or move the old one.`,
     route: `/patients/${r.patient_id}`,
   });
-  return `OK, ${clinic?.name ?? "the clinic"} will contact you to pick a new time. ` +
-    `Your appointment ${when} stays booked until then.`;
+  return { text: `OK, ${clinic?.name ?? "the clinic"} will contact you to pick a new time. ` +
+    `Your appointment ${when} stays booked until then.` };
+}
+
+/**
+ * A reply to the new times offered after "change time" (answerReminder):
+ *   A–F    → move the appointment to that time (if still open)
+ *   OTHER  → the clinic is asked to arrange a time (CC action item)
+ *   KEEP   → nothing changes
+ * null when no offer is waiting or the text isn't a pick.
+ */
+async function answerOffer(text: string, patientIds: string[]): Promise<Reply | null> {
+  const now = new Date();
+  const { data } = await supabase.from("appointment_reminders")
+    .select("id, clinic_id, patient_id, offered_slots, appointments!inner(id, starts_at, ends_at, status, provider_id, " +
+      "providers(name), patients(first_name, last_name))")
+    .in("patient_id", patientIds).eq("response", "reschedule")
+    .not("offered_slots", "is", null).is("offer_closed_at", null)
+    .gte("offered_at", new Date(now.getTime() - OFFER_VALID_MS).toISOString())
+    .in("appointments.status", ["booked", "confirmed"])
+    .order("offered_at", { ascending: false }).limit(1);
+  const r = (data ?? [])[0] as unknown as {
+    id: string; clinic_id: string; patient_id: string; offered_slots: Slot[];
+    appointments: { id: string; starts_at: string; ends_at: string; status: string; provider_id: string | null;
+      providers: { name: string } | null; patients: { first_name: string; last_name: string } | null };
+  } | undefined;
+  if (!r) return null;
+  const pick = parsePick(text, r.offered_slots.length);
+  if (!pick) return null;
+
+  const { data: c } = await supabase.from("clinics")
+    .select("name, phone_callback, timezone").eq("id", r.clinic_id).maybeSingle();
+  const clinic = c as { name: string; phone_callback: string | null; timezone: string | null } | null;
+  const tz = clinic?.timezone || "Asia/Manila";
+  const clinicName = clinic?.name ?? "the clinic";
+  const w = whenText(new Date(r.appointments.starts_at), now, tz);
+  const current = `${w.day} at ${w.time}`;
+  const who = `${r.appointments.patients?.first_name ?? ""} ${r.appointments.patients?.last_name ?? ""}`.trim() || "A patient";
+  const doctor = r.appointments.providers?.name ? ` with ${r.appointments.providers.name}` : "";
+  const close = () => supabase.from("appointment_reminders").update({ offer_closed_at: now.toISOString() }).eq("id", r.id);
+
+  if (pick.kind === "keep") {
+    await close();
+    return { text: `OK, your appointment ${current}${doctor} stays as it is. See you!` };
+  }
+  if (pick.kind === "other") {
+    await close();
+    await supabase.from("cc_action_items").insert({
+      clinic_id: r.clinic_id, source: "reminder", category: "patients", severity: "warning",
+      title: `Wants a new time: ${who}`,
+      detail: `${who} can't make their appointment ${current}${doctor}, and none of the times offered in the chat suit them. ` +
+        `Contact them to pick a new time, then move or cancel the old one.`,
+      route: `/patients/${r.patient_id}`,
+    });
+    return { text: `OK, ${clinicName} will contact you to pick another time. Your appointment ${current} stays booked until then.` };
+  }
+
+  const slot = r.offered_slots[pick.index];
+  // Move the appointment; the database refuses a time someone else just took.
+  const passed = Date.parse(slot.start) <= now.getTime();
+  const { error } = passed ? { error: null } : await supabase.from("appointments")
+    .update({ starts_at: slot.start, ends_at: slot.end, status: "booked", rescheduled_at: now.toISOString() })
+    .eq("id", r.appointments.id).in("status", ["booked", "confirmed"]);
+  if (passed || error?.code === "23P01") {
+    // Offer the remaining times (or hand over to the clinic when none are left).
+    const left = r.offered_slots.filter((s, i) => i !== pick.index && Date.parse(s.start) > now.getTime());
+    await supabase.from("appointment_reminders").update({ offered_slots: left }).eq("id", r.id);
+    const why = passed ? "That time has passed." : "Sorry, that time was just taken.";
+    if (!left.length) {
+      await close();
+      await supabase.from("cc_action_items").insert({
+        clinic_id: r.clinic_id, source: "reminder", category: "patients", severity: "warning",
+        title: `Wants a new time: ${who}`,
+        detail: `${who} wants to change their appointment ${current}${doctor}; the times offered in the chat were taken. ` +
+          `Contact them to pick a new time.`,
+        route: `/patients/${r.patient_id}`,
+      });
+      return { text: `${why} ${clinicName} will contact you to pick a new time; your appointment ${current} stays booked.` };
+    }
+    const offer = offerMessage(left, tz, clinicName, current);
+    return { text: `${why}\n${offer.text}`, buttons: offer.buttons };
+  }
+  if (error) throw error;
+  await supabase.from("appointment_reminders")
+    .update({ offer_closed_at: now.toISOString(), rescheduled_to: slot.start }).eq("id", r.id);
+  const newLabel = slotLabel(slot, tz);
+  await supabase.from("cc_action_items").insert({
+    clinic_id: r.clinic_id, source: "reminder", category: "patients", severity: "info",
+    title: `Moved by patient: ${who}`,
+    detail: `${who} moved their appointment${doctor} from ${current} to ${newLabel} in the chat.`,
+    route: `/patients/${r.patient_id}`,
+  });
+  return { text: `Done! Your appointment is now ${newLabel}${doctor}. You'll get a reminder before it.` };
 }
 
 /**

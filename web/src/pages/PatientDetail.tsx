@@ -22,19 +22,22 @@ type Intake = {
 type ApptRow = {
   id: string; starts_at: string; status: string; source: string | null; intake: Intake | null;
   providers?: { name: string } | null;
-  appointment_reminders?: { kind: string; status: string; response: string | null }[];
+  appointment_reminders?: { kind: string; status: string; response: string | null; rescheduled_to: string | null }[];
 };
 
 const RESPONSE_LABEL: Record<string, string> = {
   confirm: "patient confirmed", reschedule: "patient asked for a new time", cancel: "patient cancelled",
+  moved: "patient moved it in the chat",
 };
 
 /** "Reminded 24h, 2h · patient confirmed" */
 function reminderSummary(rs: ApptRow["appointment_reminders"]): string | null {
   if (!rs?.length) return null;
-  const sent = rs.filter((r) => r.status === "sent").map((r) => r.kind).sort().reverse();
+  const sent = [...new Set(rs.filter((r) => r.status === "sent").map((r) => r.kind))].sort().reverse();
   const failed = rs.some((r) => r.status !== "sent");
-  const answer = rs.find((r) => r.response)?.response;
+  // Moved in the chat (button or letter after "change time") beats the plain answer.
+  const moved = rs.some((r) => r.rescheduled_to);
+  const answer = moved ? "moved" : rs.find((r) => r.response)?.response;
   return [
     sent.length ? `Reminded ${sent.join(", ")}` : null,
     failed ? "a reminder couldn't be sent" : null,
@@ -71,7 +74,7 @@ export default function PatientDetail() {
         .select("id, started_at, result, verified, duration_seconds, summary, campaigns(name)")
         .eq("patient_id", id).order("started_at", { ascending: false }),
       supabase.from("appointments")
-        .select("id, starts_at, status, source, intake, providers(name), appointment_reminders(kind, status, response)")
+        .select("id, starts_at, status, source, intake, providers(name), appointment_reminders(kind, status, response, rescheduled_to)")
         .eq("patient_id", id).order("starts_at", { ascending: false }).limit(20),
     ]);
     setPatient(p as Patient);

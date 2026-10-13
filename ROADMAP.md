@@ -130,7 +130,7 @@ add-on, not for the Recall pilot or the symptom check.
 | Item | Why |
 |---|---|
 | Messenger and WhatsApp utility templates | Reminders outside the 24-hour window |
-| Rich replies (buttons for YES / BOOK / STOP) | Fewer typos, higher opt-in |
+| Rich replies on Viber / Messenger / WhatsApp (keyboards, quick replies) | Telegram buttons **done**; same replies, so other apps only need the send side |
 | Clinic settings toggle: nightly review | Self-booking and chat invites moved to Clinic settings in 1T |
 | Staff inbox over `channel_messages` with replies | Patients write back; today they get an auto-reply |
 | Clinic-wide front-desk QR code | Per-patient QR codes exist (1T); a clinic-wide one needs patient matching |
@@ -231,7 +231,11 @@ ask questions. The same tools serve voice and chat.
   patient's channel, 07:00–21:00 clinic time, per-clinic switch: reply **1** (C)
   to confirm, **2** (R) to ask for a new time (CC action item for staff),
   **3** (X) to cancel (slot freed, action item). Shown on the patient page.
-- Planned: patient picks the new time by chat (hands off to 2a/2b).
+- **Built** (2026-10-13): **change the time by chat**: reply 2 (or tap Change
+  time) offers up to six open times with the same doctor; the patient picks one
+  and the appointment moves (fresh reminders for the new time, CC action item);
+  OTHER asks staff, KEEP changes nothing. **Telegram buttons** on reminders,
+  medicine check-ins, consent requests and chat replies.
 - `appointments.status` confirmed / no_show tracking; no-show rate in CC reports.
 
 **2d. Portal and data**
@@ -409,6 +413,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Telegram buttons (reminders, doses, consent, opt-in, BOOK / check symptoms); change the appointment time by chat, with fresh reminders for the new time |
 | 2026-10-13 | Docs: architecture (`docs/architecture.md`), README features, roadmap status, CC navigation and what's new, About page. Clinical notes, FHIR export, roles and medicine reminders verified live |
 | 2026-10-13 | Fix: clinic admins can save Clinic settings for their own clinic (only platform admins could; the page said "saved" but nothing changed); switching a clinic on or off and the retention period stay with platform admins |
 | 2026-10-13 | Clinical notes demo (M6): dictate, record a consultation with consent, or type; Gemini speech-to-text (audio never stored); CC drafts a SOAP note; doctors sign; addenda; notes in the FHIR export. Records retention: platform default 7 years, per-clinic value, records due for review. Planned: patient data requests (deletion, restriction) |

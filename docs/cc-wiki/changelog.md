@@ -9,6 +9,13 @@ updated: 2026-10-13
 
 ## 2026-10-13
 
+- **Telegram buttons**: reminders, medicine check-ins, consent requests and
+  chat replies now have buttons to tap (Confirm, Change time, Taken, Yes…).
+  Typed replies still work on every app.
+- **Change the time by chat**: when a patient replies 2 to a reminder, the chat
+  offers open times; they pick one and the appointment moves. Staff see it in
+  CC action items.
+
 - **Clinical notes** (nurses and doctors): on a patient's page, dictate, record
   a consultation with the patient's agreement, or type; CC transcribes and
   drafts a SOAP note; the doctor edits and signs with their password. Signed

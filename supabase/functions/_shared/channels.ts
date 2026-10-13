@@ -23,6 +23,7 @@
 //   PORTAL_URL  — base for /connect/<token> invite links
 
 import { supabase, telnyx, generateBookingToken, hashBookingToken } from "./lib.ts";
+import { type ChatButton, telegramKeyboard } from "./buttons.ts";
 
 export type Channel = "sms" | "viber" | "messenger" | "whatsapp" | "telegram";
 export type ChatChannel = Exclude<Channel, "sms">;
@@ -139,6 +140,7 @@ export async function sendRaw(
   externalId: string,
   text: string,
   senderName = "CareCall",
+  buttons?: ChatButton[][],
 ): Promise<string | null> {
   switch (channel) {
     case "sms": {
@@ -175,7 +177,8 @@ export async function sendRaw(
       const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: externalId, text }),
+        // Buttons send the same replies the text asks for (_shared/buttons.ts).
+        body: JSON.stringify({ chat_id: externalId, text, ...(buttons?.length ? { reply_markup: telegramKeyboard(buttons) } : {}) }),
       });
       const j = await res.json().catch(() => ({}));
       if (!j.ok) throw new ChannelError(`telegram ${j.error_code} ${j.description ?? ""}`, j.error_code === 403);
@@ -270,6 +273,8 @@ export async function sendToPatient(opts: {
   clinicName: string;
   campaignId?: string | null;
   text: (channel: Channel) => string;
+  /** Reply buttons (Telegram); the text must still say what to reply. */
+  buttons?: ChatButton[][];
 }): Promise<{ ok: boolean; channel: Channel | null }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const target = await resolveChannel(opts.patient);
@@ -277,7 +282,7 @@ export async function sendToPatient(opts: {
 
     const body = opts.text(target.channel);
     try {
-      const pid = await sendRaw(target.channel, target.externalId, body, opts.clinicName);
+      const pid = await sendRaw(target.channel, target.externalId, body, opts.clinicName, opts.buttons);
       await logMessage({
         clinicId: opts.clinicId, patientId: opts.patient.id, campaignId: opts.campaignId,
         channel: target.channel, direction: "outbound", externalId: target.externalId,
@@ -338,4 +343,21 @@ export async function findInvite(token: string): Promise<{ patient_id: string; c
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
   return (data as { patient_id: string; clinic_id: string | null } | null) ?? null;
+}
+
+/**
+ * After a Telegram button tap: stop the button's loading spinner and remove
+ * the buttons from that message, so a second tap can't answer twice.
+ * Best-effort; a failure only leaves the buttons showing.
+ */
+export async function telegramButtonTapped(callbackId: string, chatId: string, messageId: number | null) {
+  if (!TELEGRAM_TOKEN) return;
+  const call = (method: string, body: unknown) =>
+    fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/${method}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }).catch(() => null);
+  await call("answerCallbackQuery", { callback_query_id: callbackId });
+  if (messageId != null) {
+    await call("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
+  }
 }

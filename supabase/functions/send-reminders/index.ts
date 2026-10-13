@@ -19,6 +19,7 @@ import { json, supabase } from "../_shared/lib.ts";
 import { type PatientLite, sendToPatient } from "../_shared/channels.ts";
 import { dueKind, inMessagingWindow, type ReminderKind, reminderText } from "../_shared/reminders.ts";
 import { doseText, dueDoses, type Med, MISSED_AFTER_MS } from "../_shared/care.ts";
+import { BUTTONS } from "../_shared/buttons.ts";
 
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -57,10 +58,14 @@ Deno.serve(async (req) => {
     const rows = (appts ?? []) as unknown as Appt[];
     if (!rows.length) continue;
 
+    // Reminders already sent for each appointment's CURRENT time (an
+    // appointment moved by chat gets reminders for its new time).
     const { data: prev } = await supabase.from("appointment_reminders")
-      .select("appointment_id, kind").in("appointment_id", rows.map((a) => a.id));
+      .select("appointment_id, kind, for_starts_at").in("appointment_id", rows.map((a) => a.id));
+    const startsAt = new Map(rows.map((a) => [a.id, Date.parse(a.starts_at)]));
     const sent = new Map<string, ReminderKind[]>();
-    for (const r of (prev ?? []) as { appointment_id: string; kind: ReminderKind }[]) {
+    for (const r of (prev ?? []) as { appointment_id: string; kind: ReminderKind; for_starts_at: string | null }[]) {
+      if (r.for_starts_at && Date.parse(r.for_starts_at) !== startsAt.get(r.appointment_id)) continue;
       sent.set(r.appointment_id, [...(sent.get(r.appointment_id) ?? []), r.kind]);
     }
 
@@ -72,7 +77,7 @@ Deno.serve(async (req) => {
 
       // Claim the reminder first; a parallel run hits the unique key and skips.
       const { data: claim, error: claimErr } = await supabase.from("appointment_reminders")
-        .insert({ appointment_id: a.id, clinic_id: c.id, patient_id: p.id, kind, status: "sent" })
+        .insert({ appointment_id: a.id, clinic_id: c.id, patient_id: p.id, kind, status: "sent", for_starts_at: a.starts_at })
         .select("id").single();
       if (claimErr || !claim) continue;
 
@@ -80,7 +85,8 @@ Deno.serve(async (req) => {
         clinic: c.name, firstName: p.first_name, doctor: a.providers?.name ?? null,
         startsAt: new Date(a.starts_at), now, tz, confirmed: a.status === "confirmed",
       });
-      const res = await sendToPatient({ patient: p, clinicId: c.id, clinicName: c.name, text: () => text });
+      const buttons = kind === "24h" && a.status !== "confirmed" ? BUTTONS.reminder24 : BUTTONS.reminder2;
+      const res = await sendToPatient({ patient: p, clinicId: c.id, clinicName: c.name, text: () => text, buttons });
       const status = res.ok ? "sent" : res.channel ? "failed" : "no_channel";
       await supabase.from("appointment_reminders")
         .update({ status, channel: res.channel }).eq("id", (claim as { id: string }).id);
@@ -151,6 +157,7 @@ async function sendMedicineReminders(now: Date) {
       patient: { id: p.id, phone: p.phone, sms_consent: false, preferred_channel: p.preferred_channel as never },
       clinicId: g.row.clinic_id, clinicName: g.row.clinics.name,
       text: () => doseText(mine, g.dueAt, g.tz),
+      buttons: BUTTONS.dose,
     });
     const status = res.ok ? "sent" : res.channel ? "failed" : "no_channel";
     await supabase.from("medication_doses").update({ status, channel: res.channel })
