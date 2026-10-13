@@ -401,6 +401,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Fix: clinic admins can save Clinic settings for their own clinic (only platform admins could; the page said "saved" but nothing changed); switching a clinic on or off and the retention period stay with platform admins |
 | 2026-10-13 | Clinical notes demo (M6): dictate, record a consultation with consent, or type; Gemini speech-to-text (audio never stored); CC drafts a SOAP note; doctors sign; addenda; notes in the FHIR export. Records retention: platform default 7 years, per-clinic value, records due for review. Planned: patient data requests (deletion, restriction) |
 | 2026-10-13 | FHIR-ready records (L, F1): records stay relational, FHIR R4 with PH Core on request; patient middle name, sex, address, PhilHealth PIN; clinic DOH facility code and address; `fhir` export and **Download record (FHIR)**; clinical notes by voice added to Phase M (M6, idea) |
 | 2026-10-13 | Automatic sign-out: when the browser (or every CareCall tab) closes, and after 20 minutes without activity with a 2-minute warning; sidebar scrolls so Sign out is always reachable |

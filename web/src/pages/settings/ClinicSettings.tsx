@@ -117,9 +117,9 @@ export default function ClinicSettings() {
     setMsg(error ? taken ?? `Failed: ${error.message}` : "Clinic settings saved.");
   }
 
-  async function saveClinic(slug: string, phoneCallback: string | null) {
+  async function saveClinic(slug: string, phoneCallback: string | null): Promise<{ error: { code?: string; message: string } | null }> {
     const c = clinic!;
-    return await supabase.from("clinics").update({
+    const { data, error } = await supabase.from("clinics").update({
       name: c.name,
       phone_callback: phoneCallback,
       timezone: c.timezone,
@@ -135,7 +135,11 @@ export default function ClinicSettings() {
       local_emergency_numbers: c.local_emergency_numbers?.trim() || null,
       nhfr_code: c.nhfr_code?.trim() || null,
       ...addressForSave(c),
-    }).eq("id", c.id);
+    }).eq("id", c.id).select("id");
+    if (error) return { error };
+    // No row updated means no permission (RLS reports no error): say so.
+    if (!data?.length) return { error: { message: "you don't have permission to change this clinic's settings" } };
+    return { error: null };
   }
 
   if (!clinic) return <p className="empty">Loading…</p>;
