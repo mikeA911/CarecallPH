@@ -14,13 +14,17 @@
 // grouped per patient and time, chat apps only. Doses unanswered after 2
 // hours become "missed".
 //
+// Vital signs (M3): requests at the monitoring plan's times; missed after 4 h.
+// Alerts (M4, hourly): 3 missed doses in a row or no readings for 3 days file
+// a clinical CC action item, once per streak (care_alerts).
+//
 // Deploy: supabase functions deploy send-reminders --no-verify-jwt
 import { json, supabase } from "../_shared/lib.ts";
 import { type PatientLite, sendToPatient } from "../_shared/channels.ts";
 import { dueKind, inMessagingWindow, type ReminderKind, reminderText } from "../_shared/reminders.ts";
 import { doseText, dueDoses, type Med, MISSED_AFTER_MS } from "../_shared/care.ts";
 import { BUTTONS } from "../_shared/buttons.ts";
-import { consentedPatients } from "../_shared/care_db.ts";
+import { consentedPatients, runCareAlerts } from "../_shared/care_db.ts";
 import { dueVitalRequests, REQUEST_OPEN_MS, requestText, type VitalItem } from "../_shared/vitals.ts";
 
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -97,7 +101,10 @@ Deno.serve(async (req) => {
   }
   const medicines = await sendMedicineReminders(now);
   const vitals = await sendVitalRequests(now);
-  return json({ ok: true, ...totals, medicines, vitals });
+  // Alerts once an hour (the first run after the hour): missed doses, no readings.
+  const alerts = now.getUTCMinutes() < 5 || new URL(req.url).searchParams.has("alerts")
+    ? await runCareAlerts(now) : null;
+  return json({ ok: true, ...totals, medicines, vitals, alerts });
 });
 
 async function sendMedicineReminders(now: Date) {

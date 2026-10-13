@@ -34,7 +34,9 @@ The left sidebar has these items:
 - **Readings to review** (nurses and doctors): vital-sign readings outside the
   doctor's target or critical, not yet reviewed. The badge shows how many.
 - **Call history**: every call with outcome, duration and AI summary.
-- **CC action items**: follow-ups CC has filed for the clinic.
+- **CC action items**: follow-ups for the clinic: filed by CC, by the nightly
+  review, and by reminders (change requests, readings, missed doses, no
+  readings). Items about readings and medicines show to nurses and doctors only.
 
 Under **Manage** (clinic admin and above): **Clinicians** (clinicians, their
 weekly hours and PRC numbers), **Clinic settings** (clinic details, DOH

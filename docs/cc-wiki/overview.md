@@ -52,6 +52,7 @@ About page. CC can:
 - take you to the right screen,
 - walk you through workflows step by step,
 - analyse campaign results with aggregate numbers,
+- report on medicine adherence and vital-sign readings (nurses and doctors),
 - file **action items** for the clinic admin, listed on the CC action items page.
 
 **New chat** starts a fresh conversation and keeps the old one. **History**
@@ -60,9 +61,10 @@ this browser only: it doesn't follow you to another computer, and clearing the
 browser's site data removes it.
 
 Every night at 2:00 AM (Manila time) CC also reviews each clinic's running
-campaigns and Review queue on its own. It files up to 5 action items marked
+campaigns, Review queue and care plans on its own. It files up to 5 action items marked
 "nightly review" and leaves a short summary at the top of the CC action items
-page. Clinics with nothing running are skipped.
+page. Clinics with nothing running are skipped. Missed-dose and no-reading
+alerts are filed every hour on their own (see Care plan reports and alerts).
 
 CC cannot change settings, start or stop campaigns, call or message patients,
 or show individual patients' details. CC does not give medical advice.

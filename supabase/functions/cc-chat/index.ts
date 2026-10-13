@@ -66,11 +66,12 @@ Deno.serve(async (req) => {
     else clinicName = (data as { name: string }).name;
   }
 
-  const ctx: Ctx = { db, userId: caller.userId, role, clinicId, source: "chat", actions: [], itemsCreated: 0 };
+  const clinical = caller.clinicalRole === "nurse" || caller.clinicalRole === "doctor";
+  const ctx: Ctx = { db, userId: caller.userId, role, clinicId, clinical, source: "chat", actions: [], itemsCreated: 0 };
   const system = systemPrompt(role, clinicName, typeof body.route === "string" ? body.route : "/");
 
   try {
-    const result = await runConversation(ctx, system, history, toolsFor("chat"));
+    const result = await runConversation(ctx, system, history, toolsFor("chat", clinical));
     await admin.from("cc_usage").insert({
       user_id: caller.userId, clinic_id: clinicId, model: CC_MODEL,
       input_tokens: result.inputTokens, output_tokens: result.outputTokens,

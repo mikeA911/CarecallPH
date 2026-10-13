@@ -701,7 +701,7 @@ async function answerReminder(reply: ReminderResponse, patientIds: string[]): Pr
       clinic_id: r.clinic_id, source: "reminder", category: "patients", severity: "info",
       title: `Cancelled by patient: ${who}`,
       detail: `${who} cancelled their appointment ${when}${doctor} by replying to the reminder. The time is open again.`,
-      route: `/patients/${r.patient_id}`,
+      route: `/patients/${r.patient_id}`, patient_id: r.patient_id,
     });
     return { text: `Your appointment ${when} is cancelled. To book again, message ${clinic?.name ?? "the clinic"}${call}.`,
       buttons: BUTTONS.book };
@@ -726,7 +726,7 @@ async function answerReminder(reply: ReminderResponse, patientIds: string[]): Pr
     title: `Wants a new time: ${who}`,
     detail: `${who} can't make their appointment ${when}${doctor} and asked to change the time ` +
       `(reply to the reminder). Contact them to pick a new time, then cancel or move the old one.`,
-    route: `/patients/${r.patient_id}`,
+    route: `/patients/${r.patient_id}`, patient_id: r.patient_id,
   });
   return { text: `OK, ${clinic?.name ?? "the clinic"} will contact you to pick a new time. ` +
     `Your appointment ${when} stays booked until then.` };
@@ -780,7 +780,7 @@ async function answerOffer(text: string, patientIds: string[]): Promise<Reply | 
       title: `Wants a new time: ${who}`,
       detail: `${who} can't make their appointment ${current}${doctor}, and none of the times offered in the chat suit them. ` +
         `Contact them to pick a new time, then move or cancel the old one.`,
-      route: `/patients/${r.patient_id}`,
+      route: `/patients/${r.patient_id}`, patient_id: r.patient_id,
     });
     return { text: `OK, ${clinicName} will contact you to pick another time. Your appointment ${current} stays booked until then.` };
   }
@@ -803,7 +803,7 @@ async function answerOffer(text: string, patientIds: string[]): Promise<Reply | 
         title: `Wants a new time: ${who}`,
         detail: `${who} wants to change their appointment ${current}${doctor}; the times offered in the chat were taken. ` +
           `Contact them to pick a new time.`,
-        route: `/patients/${r.patient_id}`,
+        route: `/patients/${r.patient_id}`, patient_id: r.patient_id,
       });
       return { text: `${why} ${clinicName} will contact you to pick a new time; your appointment ${current} stays booked.` };
     }
@@ -818,7 +818,7 @@ async function answerOffer(text: string, patientIds: string[]): Promise<Reply | 
     clinic_id: r.clinic_id, source: "reminder", category: "patients", severity: "info",
     title: `Moved by patient: ${who}`,
     detail: `${who} moved their appointment${doctor} from ${current} to ${newLabel} in the chat.`,
-    route: `/patients/${r.patient_id}`,
+    route: `/patients/${r.patient_id}`, patient_id: r.patient_id,
   });
   return { text: `Done! Your appointment is now ${newLabel}${doctor}. You'll get a reminder before it.` };
 }
@@ -996,7 +996,7 @@ async function readingReply(text: string, livePatientIds: string[]): Promise<str
       detail: `${who} sent ${label} ${formatReading(measure, reading!)} in the chat` +
         (flag === "critical" ? ". They were told to call 911 if they have danger signs, otherwise to contact the clinic today." : ", outside the target in their plan.") +
         " See Readings to review.",
-      route: `/patients/${item.patient_id}`,
+      route: `/patients/${item.patient_id}`, patient_id: item.patient_id, clinical: true,
     });
   }
   return readingText(flag, measure, reading!, item, {

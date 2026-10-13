@@ -9,6 +9,13 @@ updated: 2026-10-13
 
 ## 2026-10-13
 
+- **Care plan alerts and reports**: 3 missed medicine reminders in a row, or
+  no readings for 3 days, files a CC action item for nurses and doctors (once
+  per streak; the patient isn't messaged). Ask CC about adherence, response
+  rate, readings waiting and the blood pressure trend; the nightly review
+  looks at them too. Action items about readings and medicines are now shown
+  to nurses and doctors only.
+
 - **Vital signs by chat** (nurses and doctors): on a patient's page, draft a
   monitoring plan (blood pressure, blood sugar, temperature, weight, oxygen)
   with the doctor's targets, critical limits and what to do if high or low; a

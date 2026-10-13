@@ -10,7 +10,7 @@
 //
 // Runs with the SERVICE ROLE (no user), so RLS is bypassed: every tool in
 // _shared/cc/tools.ts filters by ctx.clinicId explicitly. Tools available here
-// are the chat tools minus navigate. The final model message is saved to
+// are the chat tools minus navigate (care_report included). The final model message is saved to
 // cc_reviews as the summary shown on the CC action items page.
 
 import { supabase as admin, json } from "../_shared/lib.ts";
@@ -40,14 +40,14 @@ Deno.serve(async (req) => {
   // Cheap pre-check: skip clinics with nothing to review (no model call).
   if (!(await hasActivity(clinicId))) {
     await admin.from("cc_reviews").insert({
-      clinic_id: clinicId, status: "skipped", summary: "Nothing to review: no running campaigns and the Review queue is empty.",
+      clinic_id: clinicId, status: "skipped", summary: "Nothing to review: no running campaigns, the Review queue is empty and no care plans are running.",
       wiki_version: WIKI_VERSION,
     });
     return json({ status: "skipped" });
   }
 
   const ctx: Ctx = {
-    db: admin, userId: null, role: "clinic_admin", clinicId,
+    db: admin, userId: null, role: "clinic_admin", clinicId, clinical: true,
     source: "nightly", actions: [], itemsCreated: 0,
   };
 
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
   }
 });
 
-/** Anything worth a model call: running campaigns, or people waiting in the Review queue. */
+/** Anything worth a model call: running campaigns, people waiting in the Review queue, or care plans running. */
 async function hasActivity(clinicId: string): Promise<boolean> {
   const { count: running } = await admin.from("campaigns")
     .select("id", { count: "exact", head: true })
@@ -92,7 +92,12 @@ async function hasActivity(clinicId: string): Promise<boolean> {
     .select("patient_id, campaigns!inner(clinic_id)", { count: "exact", head: true })
     .eq("campaigns.clinic_id", clinicId)
     .in("status", ["needs_human", "verification_failed"]);
-  return (waiting ?? 0) > 0;
+  if ((waiting ?? 0) > 0) return true;
+  // Care plans: patients with reminders or vital signs on.
+  const { count: care } = await admin.from("care_consents")
+    .select("id", { count: "exact", head: true })
+    .eq("clinic_id", clinicId).not("consented_at", "is", null).is("withdrawn_at", null);
+  return (care ?? 0) > 0;
 }
 
 function nightlyPrompt(clinicName: string): string {
@@ -109,12 +114,13 @@ Steps
 1. list_action_items (open) so you know what is already filed.
 2. list_campaigns. Call campaign_report for every campaign that is active, paused or scheduled.
 3. review_queue_summary.
-4. File action items with create_action_item only for issues a person must act on:
+4. care_report (period 7). Missed-dose and no-reading alerts for single patients are filed automatically; don't file those again. Look at the clinic as a whole: readings waiting for review more than 24 hours, a falling response rate or adherence (compared with the previous period), drafts waiting for a doctor, more patients trending up. Items about care plans: clinical true, category patients, route /readings or /cc.
+5. File action items with create_action_item only for issues a person must act on:
    - at most 5 tonight, most important first;
    - never duplicate an open item about the same issue, even if you'd word it differently;
    - include the numbers and how many patients they rest on, one concrete next step, the screen (route) and the campaign_id;
    - don't draw conclusions from fewer than about 10 contacted patients unless something blocks bookings outright (no availability, nothing moving, Review queue waiting more than 24 hours).
-5. Use read_wiki if you need exact screen names or settings.
+6. Use read_wiki if you need exact screen names or settings.
 
 Final message: 2-4 plain sentences. Overall state, what you filed (or that nothing needed filing), and one thing that went well if there is one. No headings, lists or markdown. No patient names (you don't have them).
 
