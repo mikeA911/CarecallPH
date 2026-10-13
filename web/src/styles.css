@@ -833,6 +833,19 @@ a.btn { display: inline-block; text-decoration: none; }
   margin-top: 16px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius);
 }
 .check-clinic p { margin: 4px 0 0; }
+/* Nearby care (D1b) */
+.check-nearby { margin-top: 18px; }
+.check-nearby .book-btn { margin-top: 6px; }
+.book-btn.secondary { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
+.book-btn.secondary:hover { background: #F2F6FE; }
+.check-nearby-place { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.check-nearby-place input { flex: 1; }
+.check-nearby-place .book-link { width: auto; margin: 0; padding: 8px 4px; }
+.check-nearby .book-link { display: inline; width: auto; margin: 0; padding: 0; font-size: inherit; }
+.check-places, .check-emergency .check-places { list-style: none; padding: 0; margin: 6px 0 0; }
+.check-places li { padding: 10px 0; border-top: 1px solid #E5E7EB; }
+.check-place-actions { display: flex; gap: 16px; margin-top: 4px; font-weight: 600; }
+.check-nearby-er { border-top: 1px solid rgba(0,0,0,0.08); padding-top: 4px; }
 .check-emergency h1 { color: #B42318; margin-bottom: 0; }
 .check-fil-lead { color: #B42318; font-weight: 600; margin: 2px 0 14px; }
 .check-call {

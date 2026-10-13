@@ -7,7 +7,11 @@
 //   screen { check_id, emergency }            → { ok }   (emergency questions answered)
 //   search { check_id, q }                    → { symptoms: [{ id, name }] }
 //   next   { check_id, person, answers }      → { question } | { result }
-//   clinics { check_id }                      → participating clinics (one public page)
+//   clinics { check_id, lat?, lng? }          → participating clinics (one public page),
+//                                               nearest first when a location is given
+//   nearby { check_id?, kind, lat+lng | place } → nearby facilities (D1b, Google Places);
+//                                               kind "emergency" works without a check
+//   locate_clinic { address }  (clinic admins) → a clinic's map point from its address
 //   choose_clinic { check_id, clinic_slug }   → { clinic }   (booking.ts)
 //   slots  { check_id, on_date? }             → { days } | { times }   (booking.ts, D1c)
 //   book   { check_id, provider_id, slot_start, first_name, last_name,
@@ -22,11 +26,15 @@
 // monthly engine budget (SYMPTOM_MONTHLY_BUDGET), checks expire after 2 hours.
 //
 // Stored per check (symptom_checks): age band, sex, symptom IDs, urgency,
-// top specialty, outcome. Never names, free text, conditions, location or IP.
+// top specialty, outcome, whether a location was shared. Never names, free
+// text, conditions, the location itself or IP.
 //
 // Secrets: SYMPTOM_ENGINE (demo | infermedica | apimedic; empty = off), SYMPTOM_MONTHLY_BUDGET
-// (default 90), plus the engine's own (see _shared/symptom/apimedic.ts).
-import { json, supabase } from "../_shared/lib.ts";
+// (default 90), plus the engine's own (see _shared/symptom/apimedic.ts);
+// nearby care: GOOGLE_PLACES_API_KEY, PLACES_MONTHLY_BUDGET (_shared/places.ts).
+import { getCaller, json, supabase } from "../_shared/lib.ts";
+import { nearbyCare, places } from "../_shared/nearby.ts";
+import { validPoint } from "../_shared/places.ts";
 import {
   type Answer, ageBand, createEngine, EngineError, engineName, type Person, phLayerOn, type SymptomEngine,
 } from "../_shared/symptom/engine.ts";
@@ -39,6 +47,7 @@ const CHECK_TTL_MS = 2 * 60 * 60 * 1000;
 const START_PER_MIN = 10;
 const REQUESTS_PER_MIN = 90; // searches are per keystroke (debounced)
 const MAX_ANSWERS = 30;
+const NEARBY_PER_MIN = 6; // each lookup is a paid Places call
 
 type CheckRow = BookableCheck & {
   created_at: string;
@@ -68,6 +77,10 @@ Deno.serve(async (req) => {
     if (ip) {
       const { data: count } = await supabase.rpc("bump_symptom_rate", { p_ip: `${strict ? "s" : "r"}:${ip}` });
       if (typeof count === "number" && count > limit) return pub({ error: "rate_limited" }, 429);
+      if (action === "nearby" || action === "locate_clinic") {
+        const { data: n } = await supabase.rpc("bump_symptom_rate", { p_ip: `n:${ip}` });
+        if (typeof n === "number" && n > NEARBY_PER_MIN) return pub({ error: "rate_limited" }, 429);
+      }
     }
 
     switch (action) {
@@ -77,8 +90,10 @@ Deno.serve(async (req) => {
       case "next": return await next(body);
       case "clinics": {
         const check = await loadCheck(body.check_id);
-        return check ? await clinics(check, pub) : pub({ error: "expired" }, 404);
+        return check ? await clinics(check, pub, validPoint(body.lat, body.lng)) : pub({ error: "expired" }, 404);
       }
+      case "nearby": return await nearby(body);
+      case "locate_clinic": return await locateClinic(req, body);
       case "choose_clinic": {
         const check = await loadCheck(body.check_id);
         return check ? await chooseClinic(check, body, pub) : pub({ error: "expired" }, 404);
@@ -194,6 +209,51 @@ async function next(body: Record<string, unknown>) {
 
   // Condition names stay server-side in D1 (design §1, §8).
   return pub({ result: { urgency: a.urgency, specialties: a.specialties, red_flags: a.redFlags } });
+}
+
+// ---------------------------------------------------------------------------
+// Nearby care (D1b). The point goes to Google for the lookup, never stored.
+async function nearby(body: Record<string, unknown>) {
+  const check = body.check_id ? await loadCheck(body.check_id) : null;
+  if (body.check_id && !check) return pub({ error: "expired" }, 404);
+  // Emergency (nearest ERs) works without a check: the emergency screen must
+  // not depend on the rest of the flow. Everything else needs a check result.
+  const kind = body.kind === "emergency" || check?.urgency === "emergency" ? "emergency" : "care";
+  if (kind === "care" && (!check || !check.urgency)) return pub({ error: "no_result" }, 409);
+
+  let origin = validPoint(body.lat, body.lng);
+  let label: string | null = null;
+  if (!origin && typeof body.place === "string") {
+    const found = await places().locate(body.place);
+    if (!found) return pub({ error: "place_not_found" }, 404);
+    origin = found.point; label = found.label;
+  }
+  if (!origin) return pub({ error: "no_location" }, 400);
+
+  const { careCall, places: list } = await nearbyCare(origin, kind);
+  if (check) {
+    await supabase.from("symptom_checks").update({ location_shared: true, updated_at: new Date().toISOString() })
+      .eq("id", check.id);
+  }
+  return pub({
+    kind,
+    origin_label: label,
+    // Booking happens through the clinic picker; these are only "near you" hints.
+    carecall: careCall.map(({ lat: _a, lng: _b, ...c }) => c),
+    places: list?.map(({ lat: _a, lng: _b, ...p }) => p) ?? null,
+    unavailable: list === null,
+  });
+}
+
+/** Clinic settings → Find on map: the clinic admin's address → a point. */
+async function locateClinic(req: Request, body: Record<string, unknown>) {
+  const caller = await getCaller(req);
+  if (!caller || (caller.role !== "admin" && caller.role !== "clinic_admin")) return pub({ error: "forbidden" }, 403);
+  const address = String(body.address ?? "").trim();
+  if (address.length < 3) return pub({ error: "address_required" }, 400);
+  const found = await places().locate(address);
+  if (!found) return pub({ error: "place_not_found" }, 404);
+  return pub({ lat: found.point.lat, lng: found.point.lng, label: found.label });
 }
 
 // ---------------------------------------------------------------------------

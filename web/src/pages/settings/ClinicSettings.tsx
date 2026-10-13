@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import AddressFields, { addressForSave } from "../../components/AddressFields";
+import AddressFields, { addressForSave, addressText } from "../../components/AddressFields";
+import { callFunction } from "../../lib/api";
 import RetentionSection from "../../components/RetentionSection";
 import { supabase } from "../../lib/supabase";
 import { useClinic } from "../../lib/clinic";
@@ -134,6 +135,8 @@ export default function ClinicSettings() {
       public_slug: slug || null,
       local_emergency_numbers: c.local_emergency_numbers?.trim() || null,
       nhfr_code: c.nhfr_code?.trim() || null,
+      lat: c.lat ?? null,
+      lng: c.lng ?? null,
       ...addressForSave(c),
     }).eq("id", c.id).select("id");
     if (error) return { error };
@@ -169,6 +172,7 @@ export default function ClinicSettings() {
         </p>
 
         <AddressFields idPrefix="clinic" value={clinic} onChange={(a) => setClinic({ ...clinic, ...a })} />
+        <ClinicLocation clinic={clinic} onChange={(lat, lng) => setClinic({ ...clinic, lat, lng })} />
 
         <label>Default greeting context</label>
         <textarea rows={2} value={clinic.greeting_default ?? ""}
@@ -365,6 +369,53 @@ function PublicLink({ slug, enabled, onChange }: { slug: string; enabled: boolea
           <div><a href={qr} download={`${slug}-qr.png`}>Download QR code (PNG) to print</a></div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Where the clinic is, so the symptom check can list it "near you" (D1b).
+ * Found from the address with Google Places; saved with the other settings.
+ */
+function ClinicLocation({ clinic, onChange }: { clinic: Clinic; onChange: (lat: number | null, lng: number | null) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const address = addressText(clinic);
+  async function find() {
+    setBusy(true); setNote("");
+    const { data, error } = await callFunction<{ lat: number; lng: number; label: string }>("symptom-check", {
+      action: "locate_clinic", address: [clinic.name, address].filter(Boolean).join(", "),
+    });
+    setBusy(false);
+    if (error || !data) {
+      setNote(error === "place_not_found" ? "Couldn't find that address. Check the city and province." : `Couldn't look it up: ${error}`);
+      return;
+    }
+    onChange(data.lat, data.lng);
+    setNote(`Found: ${data.label}. Check the pin, then Save.`);
+  }
+  const has = clinic.lat != null && clinic.lng != null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <label>Map location</label>
+      <div className="row-actions">
+        <button type="button" className="secondary" disabled={busy || !address} onClick={find}>
+          {busy ? "Looking…" : has ? "Find again from the address" : "Find on map"}
+        </button>
+        {has && (
+          <>
+            <a href={`https://www.google.com/maps?q=${clinic.lat},${clinic.lng}`} target="_blank" rel="noreferrer">View pin</a>
+            <button type="button" className="link" onClick={() => { onChange(null, null); setNote("Location removed. Save to apply."); }}>
+              Remove
+            </button>
+          </>
+        )}
+      </div>
+      <p className="small muted" style={{ marginTop: 4 }}>
+        {note || (has ? "Set. Patients who share their location see this clinic when it's near them."
+          : address ? "Not set. Lets patients who share their location find this clinic."
+          : "Enter the address above first.")}
+      </p>
     </div>
   );
 }

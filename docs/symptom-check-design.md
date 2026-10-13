@@ -1,6 +1,6 @@
 # Symptom check: design sketch (Phase D1)
 
-**Status:** D1a, D1c and D1e built (demo engine; ApiMedic appeared offline); Infermedica adapter built, awaiting a trial; D1b designed. **Roadmap:** Phase D (CareCall Discover), first slice D1.
+**Status:** D1a, D1b, D1c and D1e built (demo engine; ApiMedic appeared offline); Infermedica adapter built, awaiting a trial. **Roadmap:** Phase D (CareCall Discover), first slice D1.
 **Last updated:** 12 October 2026
 
 A patient answers a few questions about their symptoms, gets care-navigation
@@ -108,6 +108,21 @@ barangay health center".
 
 **Privacy:** coordinates go to Google for the lookup and are not stored by us;
 `symptom_checks` keeps only whether a location was shared.
+
+**As built (D1b):** `_shared/places.ts` (Places API (New) `searchNearby` with
+`rankPreference: DISTANCE`, `searchText` for typed places restricted to the
+Philippines; types `hospital` for emergencies, `hospital,doctor` otherwise,
+changeable with `PLACES_CARE_TYPES`; results beyond the radius dropped) and
+`_shared/nearby.ts` (CareCall clinics within 25 km from `clinics.lat/lng`,
+Google results minus those clinics, Telegram text). Actions in
+`symptom-check`: `nearby` (emergency without a check; care needs a result;
+6 lookups a minute per IP) and `locate_clinic` (clinic admins, Clinic settings
+→ Find on map); `clinics` sorts by distance when given a location. Telegram: a
+shared location gets the list (3 a minute per chat). `PLACES_MONTHLY_BUDGET`
+(default 900 calls) is counted in `places_usage`; over it, lists say to call
+911 or the barangay health center. Not built: OpenStreetMap fallback,
+`sendVenue` map pins, specialty text filter. Phone and opening hours put
+Nearby Search in Google's higher-priced tier; check the bill after the pilot.
 
 ### Engine interface (`supabase/functions/_shared/symptom/engine.ts`)
 

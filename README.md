@@ -407,6 +407,14 @@ Pick the engine with the `SYMPTOM_ENGINE` secret (empty = feature off):
 6. The one public page: open `/check` (no clinic). After the result, **Find a
    clinic and book** lists every clinic with the symptom check turned on.
 
+7. **Nearby care** (optional): enable **Places API (New)** in a Google Cloud
+   project with billing, create a key restricted to it, then
+   `supabase secrets set "GOOGLE_PLACES_API_KEY=<key>"` (optional
+   `PLACES_MONTHLY_BUDGET`, default 900 calls a month). Run `supabase db push`,
+   redeploy `symptom-check` and `channel-webhook`, and set each clinic's map
+   location in Clinic settings → **Find on map**. Without a key, the lists say
+   to call 911 or the barangay health center.
+
 Engine, PH layer and PH case tests: `deno test supabase/functions/_shared/symptom/`.
 The PH cases live in `ph_layer_test.ts` for a doctor to review and extend.
 

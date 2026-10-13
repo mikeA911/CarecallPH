@@ -49,7 +49,7 @@ by country before any Southeast Asian expansion.
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
 | 3 | Localization and compliance hardening | **In progress**: roles, auto sign-out, PH patient fields, retention setting done |
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
-| D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a, c, e, f built; D1b needs a Google key, D1d the Infermedica trial |
+| D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a, b, c, e, f built; D1d needs the Infermedica trial |
 | L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 **done** (export incl. clinical notes; `docs/fhir-design.md`) |
 | M | Care plans and clinical notes: roles, medicine reminders, clinical notes by voice, prescriptions, vital signs | **In progress**: M0 roles, M1 medicine reminders, M6 clinical notes demo **done**; M2 prescriptions next (`docs/care-plan-design.md`) |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
@@ -60,9 +60,8 @@ by country before any Southeast Asian expansion.
    reminders and clinical notes (dictate and record). Ask the clinic's doctor
    to review the PH symptom rules, the consent wording and the note prompts;
    compare speech-to-text services on 10–20 Taglish dictations.
-2. Domain and business email → Infermedica trial (D1d); Google Places API key
-   for nearby care (D1b). Then turn international patient numbers off for the
-   pilot.
+2. Domain and business email → Infermedica trial (D1d). Then turn
+   international patient numbers off for the pilot.
 3. Legal and approvals: confirm e-prescription rules (M2) and the DOH records
    retention circular; processing agreements (Supabase, Anthropic, Google,
    Telnyx, Meta, Viber, Telegram); Meta business verification and a Viber
@@ -310,7 +309,7 @@ into real availability. Design: `docs/symptom-check-design.md`.
 | Slice | Scope | Status |
 |---|---|---|
 | D1a | `SymptomEngine` interface, built-in **demo engine** (made-up rules, DEMO banner), public `symptom-check` function, our own emergency screen (tap-to-call 911, local rescue numbers, no booking), `/check` page up to the result, Telegram `/check` entry, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Built**: runs with `SYMPTOM_ENGINE=demo` (README §10) |
-| D1b | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen; CareCall clinics first, other facilities by distance only, no booking | **Designed**: needs a Places API key |
+| D1b | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen; CareCall clinics first, other facilities by distance only, no booking | **Built**: Places API (New) Nearby and Text Search; CareCall clinics first (Clinic settings → Find on map); Telegram location; monthly budget; location never stored. OpenStreetMap fallback not built |
 | D1c | Book from the result as a new patient (clinic page, non-emergency; urgent = today only); staff see the shared summary under Appointments on the patient page | **Built** |
 | D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Built**, tested against a fake API: needs the Infermedica trial (organization + business email) |
 | D1f | One public page (`/check`) with a clinic picker: participating clinics ordered by matching doctor, then soonest open time; clinic links skip it. Clinic link made automatically (name + random number) with copy and QR code | **Built** (early D2) |
@@ -413,6 +412,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Nearby care (D1b): nearest ERs on the emergency screen, CareCall clinics and other nearby care on the result (browser location or typed town), clinic picker by distance, Telegram location, clinic map location; Places budget |
 | 2026-10-13 | Telegram buttons (reminders, doses, consent, opt-in, BOOK / check symptoms); change the appointment time by chat, with fresh reminders for the new time |
 | 2026-10-13 | Docs: architecture (`docs/architecture.md`), README features, roadmap status, CC navigation and what's new, About page. Clinical notes, FHIR export, roles and medicine reminders verified live |
 | 2026-10-13 | Fix: clinic admins can save Clinic settings for their own clinic (only platform admins could; the page said "saved" but nothing changed); switching a clinic on or off and the retention period stay with platform admins |
