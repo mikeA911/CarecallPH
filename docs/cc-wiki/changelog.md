@@ -9,6 +9,13 @@ updated: 2026-10-13
 
 ## 2026-10-13
 
+- **Patient privacy requests**: log a patient's request to see, correct,
+  restrict or erase their data on their page; clinic admins answer it.
+  Restriction stops all messages and calls and makes the record view-only;
+  erasure also deletes what the clinic needn't keep. Records past the
+  retention period can be disposed of from Clinic settings, with a disposal
+  record kept.
+
 - **Care plan alerts and reports**: 3 missed medicine reminders in a row, or
   no readings for 3 days, files a CC action item for nurses and doctors (once
   per streak; the patient isn't messaged). Ask CC about adherence, response

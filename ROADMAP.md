@@ -47,7 +47,7 @@ by country before any Southeast Asian expansion.
 | 1T | Chat-first pilot: chat campaigns, staff invites, Telegram first | **Built** |
 | 1C | CC assistant, LLM wiki, nightly review | **Built** |
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
-| 3 | Localization and compliance hardening | **In progress**: roles, auto sign-out, PH patient fields, retention setting done |
+| 3 | Localization and compliance hardening | **In progress**: roles, auto sign-out, PH patient fields, retention setting, patient data requests done |
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
 | D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a, b, c, e, f built; D1d needs the Infermedica trial |
 | L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 **done** (export incl. clinical notes; `docs/fhir-design.md`) |
@@ -267,7 +267,7 @@ ask questions. The same tools serve voice and chat.
 | Data Privacy Act package | Privacy notice and consent text for clinics, DPO contact, breach-response runbook, NPC registration check |
 | Records retention | **Done**: 7 years after the last consultation by default, per clinic, review list; nothing deleted automatically |
 | Purge jobs | Messages, call transcripts and recordings deleted on a schedule (symptom checks: 90 days, done) |
-| Patient data requests | Access, correction, erasure with restriction until the retention period ends (roadmap L F5) |
+| Patient data requests | **Built**: log requests (any staff), answer (clinic admins): access via FHIR download, correction, restriction (view-only, no messages or calls, liftable), erasure (deletes what needn't be kept, rest view-only until retention ends), disposal after retention with a disposal record and audit-log redaction (L F5) |
 | Clinical roles and sessions | **Done**: access level + clinical role in the database; sign-out on browser close and after 20 minutes idle |
 | Recording access controls | Signed URLs, role-gated |
 | Processing agreements | Supabase, Telnyx, Anthropic, Google (Gemini), Meta, Viber, Telegram |
@@ -357,7 +357,7 @@ request. Design: `docs/fhir-design.md`.
 | F2 | Symptom-check intake as QuestionnaireResponse; PSGC pickers (barangay, city, province codes); official HL7 validator with PH Core in CI | Planned |
 | F3 | M2 prescriptions with FDA drug codes, M3 readings as Observations (LOINC, UCUM), CarePlan, clinical notes (M6) as Encounter + Composition | With M2/M3/M6 |
 | F4 | Patient-directed import, exchange with PhilHealth or hospitals, SMART on FHIR | Planned |
-| F5 | Patient data requests (Data Privacy Act): access (FHIR download), correction (Edit details, addenda), and erasure: stop all messages and processing at once, delete what the clinic needn't keep (chat links and messages, symptom checks, campaign history), restrict the medical record to view-only until its retention period ends, then dispose with a record of disposal | Planned |
+| F5 | Patient data requests (Data Privacy Act): access (FHIR download), correction (Edit details, addenda), and erasure: stop all messages and processing at once, delete what the clinic needn't keep (chat links and messages, symptom checks, campaign history), restrict the medical record to view-only until its retention period ends, then dispose with a record of disposal | **Built** |
 
 | Item | Notes |
 |---|---|
@@ -412,6 +412,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Patient data requests (Phase 3, L F5): log and answer access, correction, restriction and erasure requests; restricted records view-only with no messages or calls; disposal after the retention period with a disposal record and audit-log redaction |
 | 2026-10-13 | Care plan reports and alerts (M4): missed-dose and no-reading alerts, CC care report, nightly review of care plans; fix: action items about readings were visible to front desk and their patient names reached CC |
 | 2026-10-13 | Vital signs by chat (M3): monitoring plans (draft, doctor signs, versions), vitals consent, reading requests and replies with the doctor's limits, critical-reading 911 message, Readings to review, staff readings, chart, FHIR Observation (LOINC, UCUM) and CarePlan; STOP REMINDERS reply names what stopped |
 | 2026-10-13 | Nearby care: first live test showed personal listings tagged "hospital" at the search point; results now need a phone, website or 3+ reviews (plus-code-only addresses need a phone) |

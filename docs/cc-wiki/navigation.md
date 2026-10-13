@@ -69,6 +69,9 @@ Open a patient from **Patients**. From top to bottom:
   symptom-check booking shows the urgency to everyone and the symptoms to
   nurses and doctors.
 - **Call history**: AI calls to this patient.
+- **Privacy requests**: log a patient's request to see,
+  correct, restrict or erase their data; clinic admins answer it. A
+  **restricted** record is view-only.
 
 **Profile** and **Sign out** are at the bottom of the sidebar (scroll the
 sidebar on a short screen).

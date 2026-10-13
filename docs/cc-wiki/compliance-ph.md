@@ -4,7 +4,7 @@ title: Privacy and consent in the Philippines
 summary: How CareCall handles patient data and consent under the Data Privacy Act (RA 10173); general information only.
 roles: staff
 routes: []
-updated: 2026-10-01
+updated: 2026-10-13
 ---
 
 This is general information, not legal advice. Clinics should confirm their
@@ -21,3 +21,7 @@ obligations with their Data Protection Officer or counsel.
   date of birth before seeing or choosing times.
 - Staff only see their own clinic's data.
 - CC sees only aggregate numbers, not names or phone numbers.
+- Patients can ask to see, correct, restrict or erase their data: log and
+  answer it under **Privacy requests** on their page (see Patient privacy
+  requests). Records are kept for the retention period and disposed of only
+  by a clinic admin.

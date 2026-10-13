@@ -82,6 +82,11 @@ export type Patient = Address & {
   sms_consent: boolean;
   active: boolean;
   created_at: string;
+  /** Privacy request: no messages, calls or changes (view-only record). */
+  restricted_at?: string | null;
+  restriction_kind?: "restriction" | "erasure" | null;
+  /** Erasure: data the clinic needn't keep was deleted. */
+  erased_at?: string | null;
 };
 
 export type Provider = {
