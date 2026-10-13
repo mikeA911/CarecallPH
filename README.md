@@ -1,11 +1,14 @@
 # CareCallPH
 
-AI appointment scheduling for small private clinics in the Philippines (Metro
-Manila and Cebu). Clinic staff run outreach campaigns; an AI voice assistant
-calls patients, verifies who they are, and books real slots in a clinician's
-calendar. Follow-ups go out on the patient's preferred chat app (Viber,
-Messenger, WhatsApp, Telegram) or SMS. **CC**, an assistant inside the portal,
-explains the app, guides setup, and reviews campaign results every night.
+Patient engagement and clinical workflows for small private clinics in the
+Philippines (Metro Manila and Cebu). Clinics reach patients on the chat app
+they already use (Viber, Messenger, WhatsApp, Telegram) or SMS, with booking
+links, appointment and medicine reminders, and a symptom check that ends in a
+booking. Doctors **dictate clinical notes** that CC drafts for them to sign,
+and records can be exported in the national health data format (**FHIR R4,
+PH Core**). An AI voice assistant can call patients, verify who they are and
+book real slots. **CC**, an assistant inside the portal, explains the app,
+guides setup, and reviews results every night.
 
 Forked from CareCall, the earlier build for US clinics. **Where the project
 stands and what's next: [ROADMAP.md](ROADMAP.md).**
@@ -14,11 +17,13 @@ stands and what's next: [ROADMAP.md](ROADMAP.md).**
 Clinic staff ─► React portal ─► Supabase (Postgres + Edge Functions) ⇄ Telnyx AI Voice Assistant ─► Patient (voice)
                     │                     │
                     │                     ├──► Viber · Messenger · WhatsApp · Telegram · SMS ─► Patient (chat)
-                    └── CC assistant ─────┴──► Claude (Anthropic API), CC wiki
+                    │                     ├──► Symptom engine (demo · Infermedica) ◄── Patient (/check)
+                    └── CC assistant ─────┴──► Claude (Anthropic API), Gemini speech-to-text, CC wiki
 ```
 
 Supabase is the single source of truth for patients, availability,
-appointments, campaign outcomes and messages.
+appointments, campaign outcomes, messages, medicines and clinical notes.
+**How it fits together: [docs/architecture.md](docs/architecture.md).**
 
 ---
 
@@ -83,6 +88,35 @@ signed-in user). CC can't change settings, start campaigns or contact patients.
 
 Details: [docs/cc-assistant.md](docs/cc-assistant.md).
 
+### Symptom check and reminders
+
+- **Symptom check** (`/check`, the clinic's own link, or `/check` in Telegram):
+  emergency questions first (911 screen), then a symptom engine inside a
+  **Philippine layer** (dengue, leptospirosis, TB, rabies…); the result says how
+  soon and what kind of doctor, and can book a visit. Setup §10 below;
+  [docs/symptom-check-design.md](docs/symptom-check-design.md).
+- **Appointment reminders** by chat 24 hours and 2 hours before; patients reply
+  1 confirm, 2 change the time, 3 cancel.
+
+### Care plans and clinical notes
+
+- **Clinical roles**: each user has an access level (platform admin, clinic
+  admin, staff) and a clinical role (front desk, nurse / assistant, doctor),
+  enforced in the database.
+- **Medicine reminders** by chat after the patient agrees in the chat; 1 taken /
+  2 skipped; adherence on the patient page.
+- **Clinical notes**: the doctor dictates, records the consultation with the
+  patient's consent, or types; speech-to-text makes a transcript (audio never
+  stored); CC drafts a SOAP note; the doctor signs with their password. Signed
+  notes are final; corrections are signed addenda.
+- **FHIR export**: **Download record (FHIR)** gives the patient's record in FHIR
+  R4 with the Philippine profiles (PH Core).
+- **Records retention**: 7 years after the last consultation by default, with a
+  review list; nothing is deleted automatically.
+
+Details: [docs/care-plan-design.md](docs/care-plan-design.md),
+[docs/fhir-design.md](docs/fhir-design.md).
+
 ---
 
 ## Repository layout
@@ -90,9 +124,13 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
 ```
 ├── ROADMAP.md                       # phases, status, next steps
 ├── docs/
+│   ├── architecture.md              # how the system fits together
 │   ├── cc-wiki/                     # CC's knowledge base (one .md per topic) ← update with every feature
 │   ├── cc-assistant.md              # CC architecture, setup, wiki workflow
 │   ├── messaging-channels.md        # chat channel design + per-platform setup
+│   ├── symptom-check-design.md      # symptom check, engines, Philippine layer
+│   ├── care-plan-design.md          # roles, medicines, prescriptions, vital signs, clinical notes
+│   ├── fhir-design.md               # FHIR-ready records and the PH Core export
 │   ├── self-booking-link-spec.md, precall-sms-implementation-note.md, portal-ui-roles-spec_1.md
 │   └── CHANGES.md                   # historical change notes from the US build
 ├── scripts/
@@ -103,6 +141,9 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
 │       ├── _shared/
 │       │   ├── lib.ts               # supabase + telnyx clients, auth/audit, booking-link helpers
 │       │   ├── channels.ts          # channel resolution + senders (SMS/Viber/Messenger/WhatsApp/Telegram)
+│       │   ├── roles.ts, reminders.ts, care.ts, notes.ts   # pure rules, with tests
+│       │   ├── fhir/                # FHIR R4 mapping + PH Core systems
+│       │   ├── symptom/             # symptom engines + Philippine layer
 │       │   └── cc/                  # CC tools, Claude tool loop, generated wiki bundle
 │       ├── start-campaign/          # cron sweep: pre-call notice, then dial (status/hours/DNC gated)
 │       ├── telnyx-call-events/      # Call Control webhook: AMD, voicemail follow-up, hangup, insights
@@ -112,11 +153,16 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
 │       ├── channel-invite/          # staff "Invite to chat" links (portal)
 │       ├── admin-manage/            # portal users & clinics
 │       ├── cc-chat/                 # CC interactive
-│       └── cc-nightly/              # CC nightly review (one clinic per call)
+│       ├── cc-nightly/              # CC nightly review (one clinic per call)
+│       ├── symptom-check/           # public symptom check + booking from the result
+│       ├── send-reminders/          # appointment and medicine reminders (pg_cron)
+│       ├── care-plan/               # medicine reminder consent
+│       ├── clinical-note/           # speech-to-text, SOAP draft, doctor signature
+│       └── fhir/                    # FHIR R4 export (PH Core)
 ├── telnyx/
 │   ├── assistant-instructions.md    # paste into the Telnyx AI Assistant
 │   └── tools.json                   # webhook tool definitions to register
-├── web/                             # React (Vite + TS) staff portal, /book and /connect public pages
+├── web/                             # React (Vite + TS) staff portal, /book /connect /check public pages
 └── .github/workflows/cc-wiki.yml    # CI: wiki valid and generated bundle current
 ```
 
@@ -197,6 +243,10 @@ supabase secrets set \
   ANTHROPIC_API_KEY=sk-ant-...
 ```
 
+Clinical notes: `GEMINI_API_KEY` (speech-to-text; paid Google AI account;
+without it doctors type or paste). Optional: `NOTES_MODEL` (default
+`claude-opus-5-5`), `GEMINI_STT_MODEL` (default `gemini-2.5-flash`).
+
 Optional: `CC_MODEL` (default `claude-sonnet-5-5`), `SMS_PRECALL_LEAD_SECONDS`
 (default 120), and the chat-channel secrets listed in
 [docs/messaging-channels.md](docs/messaging-channels.md). A channel without
@@ -225,6 +275,8 @@ supabase functions deploy cc-nightly         --no-verify-jwt
 supabase functions deploy symptom-check      --no-verify-jwt
 supabase functions deploy send-reminders     --no-verify-jwt
 supabase functions deploy care-plan
+supabase functions deploy clinical-note
+supabase functions deploy fhir
 ```
 
 `--no-verify-jwt` functions are called by Telnyx, chat platforms, patients'
@@ -393,9 +445,20 @@ its Data Protection Officer or counsel. What the code does:
   personal data on the clinic's behalf; put processing agreements in place
   before using real patient data.
 
+- **Roles**: access level and clinical role per user; front desk never sees
+  clinical notes or intake symptoms; only doctors sign, with their password.
+- **Sessions**: signed out when the browser closes or after 20 minutes idle.
+- **Clinical notes**: consultation recordings only with recorded consent; audio
+  is transcribed and never stored; signed notes can't be changed; the audit log
+  never holds note text.
+- **Retention**: 7 years after the last consultation by default (DOH records
+  schedule, to be confirmed); records past it are listed for review, never
+  deleted automatically.
+
 Hardening still open (tracked in [ROADMAP.md](ROADMAP.md)): Telnyx webhook
 signature verification (`telnyx-signature-ed25519`) in `telnyx-call-events`,
-recording access controls, data-retention jobs, NPC registration and
+recording access controls, purge jobs for messages and transcripts, patient
+data requests (deletion and restriction), NPC registration and
 breach-response procedure.
 
 ---
@@ -405,6 +468,10 @@ breach-response procedure.
 | Doc | What's in it |
 |---|---|
 | [ROADMAP.md](ROADMAP.md) | Phases, status, next steps |
+| [docs/architecture.md](docs/architecture.md) | Parts, data, roles, outside services, main flows |
+| [docs/symptom-check-design.md](docs/symptom-check-design.md) | Symptom check and the Philippine layer |
+| [docs/care-plan-design.md](docs/care-plan-design.md) | Clinical roles, medicines, prescriptions, vital signs, clinical notes |
+| [docs/fhir-design.md](docs/fhir-design.md) | FHIR-ready records and the PH Core export |
 | [docs/messaging-channels.md](docs/messaging-channels.md) | Chat channel design and platform setup |
 | [docs/cc-assistant.md](docs/cc-assistant.md) | CC architecture, nightly review, wiki workflow |
 | [docs/cc-wiki/README.md](docs/cc-wiki/README.md) | How to write CC wiki pages |
