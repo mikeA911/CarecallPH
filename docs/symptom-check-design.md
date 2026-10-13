@@ -112,7 +112,10 @@ barangay health center".
 **As built (D1b):** `_shared/places.ts` (Places API (New) `searchNearby` with
 `rankPreference: DISTANCE`, `searchText` for typed places restricted to the
 Philippines; types `hospital` for emergencies, `hospital,doctor` otherwise,
-changeable with `PLACES_CARE_TYPES`; results beyond the radius dropped) and
+changeable with `PLACES_CARE_TYPES`; results beyond the radius dropped;
+personal listings dropped: a place needs a phone number, a website or at least
+3 reviews, and one whose address is only a plus code needs a phone; 20 results
+asked for, the nearest that pass shown) and
 `_shared/nearby.ts` (CareCall clinics within 25 km from `clinics.lat/lng`,
 Google results minus those clinics, Telegram text). Actions in
 `symptom-check`: `nearby` (emergency without a check; care needs a result;

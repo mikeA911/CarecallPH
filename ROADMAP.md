@@ -412,6 +412,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Nearby care: first live test showed personal listings tagged "hospital" at the search point; results now need a phone, website or 3+ reviews (plus-code-only addresses need a phone) |
 | 2026-10-13 | Nearby care (D1b): nearest ERs on the emergency screen, CareCall clinics and other nearby care on the result (browser location or typed town), clinic picker by distance, Telegram location, clinic map location; Places budget |
 | 2026-10-13 | Telegram buttons (reminders, doses, consent, opt-in, BOOK / check symptoms); change the appointment time by chat, with fresh reminders for the new time |
 | 2026-10-13 | Docs: architecture (`docs/architecture.md`), README features, roadmap status, CC navigation and what's new, About page. Clinical notes, FHIR export, roles and medicine reminders verified live |
