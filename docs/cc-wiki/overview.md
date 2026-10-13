@@ -36,9 +36,9 @@ Clinical role (what they can do with health information):
 - **Front desk**: bookings and messages. Sees the urgency of a symptom-check
   intake but not the symptoms; sees medicines but can't change them.
 - **Nurse / assistant**: sees intake details, adds and stops medicines, asks
-  patients to agree to medicine reminders.
+  patients to agree to reminders, drafts monitoring plans, reviews readings.
 - **Doctor**: everything a nurse can do; linked to their clinician record and
-  PRC number, so later they can sign prescriptions and monitoring plans.
+  PRC number; signs clinical notes and monitoring plans (prescriptions next).
 
 Users only ever see data for their own clinic (platform admins see all).
 

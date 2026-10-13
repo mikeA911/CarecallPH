@@ -16,6 +16,15 @@ export const PROFILE = {
   medicationAdministration: profile("ph-core-medicationadministration"),
 };
 
+/** FHIR R4 core vital-signs profiles (PH Core has none of its own yet). */
+export const VITALS_PROFILE = {
+  bp: "http://hl7.org/fhir/StructureDefinition/bp",
+  heartrate: "http://hl7.org/fhir/StructureDefinition/heartrate",
+  bodytemp: "http://hl7.org/fhir/StructureDefinition/bodytemp",
+  bodyweight: "http://hl7.org/fhir/StructureDefinition/bodyweight",
+  oxygensat: "http://hl7.org/fhir/StructureDefinition/oxygensat",
+};
+
 export const EXT = {
   barangay: `${PH_CORE}/StructureDefinition/barangay`,
   cityMunicipality: `${PH_CORE}/StructureDefinition/city-municipality`,
@@ -36,6 +45,9 @@ export const SYSTEM = {
   loinc: "http://loinc.org",
   consentScope: "http://terminology.hl7.org/CodeSystem/consentscope",
   actCode: "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+  observationCategory: "http://terminology.hl7.org/CodeSystem/observation-category",
+  interpretation: "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+  ucum: "http://unitsofmeasure.org",
   /** CareCall's own ids (UUIDs), for systems that need an identifier. */
   carecallId: "urn:ietf:rfc:3986",
 };

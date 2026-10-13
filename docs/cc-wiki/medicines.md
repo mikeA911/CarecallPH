@@ -39,7 +39,7 @@ typed replies work everywhere.
 - **1** (taken, OO, NAINOM): marked taken.
 - **2** (skip, HINDI): marked skipped; the patient is told to mention problems to the clinic.
 - No answer within 2 hours: **missed**.
-- **STOP REMINDERS** (or TIGIL PAALALA): reminders stop. Staff can also click
+- **STOP REMINDERS** (or TIGIL PAALALA): reminders stop (vital-sign requests too). Staff can also click
   **Stop reminders**. The medicine list and history stay in the record.
 
 ## Adherence
@@ -53,5 +53,5 @@ were taken, e.g. "26 of 30 taken". **Stop** on a medicine ends its reminders.
   connected to a chat app, and the medicine must be active and within its dates.
 - "Can the doctor write the prescription in CareCall?" Coming next (Phase M2):
   the signed prescription will fill in the medicines automatically.
-- "Can patients send blood pressure readings?" Coming in Phase M3, with a
-  monitoring plan the doctor signs.
+- "Can patients send blood pressure readings?" Yes, with a monitoring plan
+  the doctor signs (see Vital signs by chat).

@@ -9,6 +9,14 @@ updated: 2026-10-13
 
 ## 2026-10-13
 
+- **Vital signs by chat** (nurses and doctors): on a patient's page, draft a
+  monitoring plan (blood pressure, blood sugar, temperature, weight, oxygen)
+  with the doctor's targets, critical limits and what to do if high or low; a
+  doctor signs it with their password. After the patient agrees, CareCall asks
+  for readings at the plan's times. Out-of-range and critical readings go to
+  the new **Readings to review** page; critical ones tell the patient to call
+  911 first. Chart per measure; readings in the FHIR record.
+
 - **Nearby care** in the symptom check: nearest emergency rooms on the
   emergency screen; on the result, CareCall clinics near the patient (with
   booking) and other nearby hospitals and doctors. Patients share their

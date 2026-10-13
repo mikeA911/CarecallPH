@@ -20,7 +20,7 @@ healthcare access and continuity platform for Southeast Asia*, Oct 2026).
 | **CareCall Discover** | Free-to-patient symptom-guided navigation and booking with participating clinics at CareCallPH.com | D | **Built** on the demo engine (symptom check, Philippine layer, booking, `/check`); live engine waits on the Infermedica trial |
 | **CareCall Voice** | AI outbound calls for non-responders; later the inbound receptionist | Base, 0b, 2 | Outbound **Done** in US build; PH work deferred until after Discover |
 | **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **In progress**: FHIR R4 export with PH Core profiles **done** (F1) |
-| **CareLink Care** | Clinical workflows in the clinic: roles, medicine reminders, clinical notes by voice, then prescriptions and vital signs | M | **In progress**: roles, medicine reminders and clinical notes (demo) **done** |
+| **CareLink Care** | Clinical workflows in the clinic: roles, medicine reminders, clinical notes by voice, then prescriptions and vital signs | M | **In progress**: roles, medicine reminders, vital signs by chat and clinical notes (demo) **done** |
 | **CareLink RPM Intelligence** | Device readings, trends and a prioritized clinician review queue | R | **Idea** (later clinical pilot) |
 
 **Delivery stages** (indicative, may overlap; each opens only when its gate is met)
@@ -51,7 +51,7 @@ by country before any Southeast Asian expansion.
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
 | D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a, b, c, e, f built; D1d needs the Infermedica trial |
 | L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 **done** (export incl. clinical notes; `docs/fhir-design.md`) |
-| M | Care plans and clinical notes: roles, medicine reminders, clinical notes by voice, prescriptions, vital signs | **In progress**: M0 roles, M1 medicine reminders, M6 clinical notes demo **done**; M2 prescriptions next (`docs/care-plan-design.md`) |
+| M | Care plans and clinical notes: roles, medicine reminders, clinical notes by voice, prescriptions, vital signs | **In progress**: M0 roles, M1 medicine reminders, M3 vital signs, M6 clinical notes demo **done**; M2 prescriptions next (`docs/care-plan-design.md`) |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
 **Next three actions**
@@ -385,7 +385,7 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 | M0 | Clinical roles: front desk / nurse-assistant / doctor per user, separate from access level (platform admin, clinic admin, staff); doctor linked to their clinician record and PRC number; enforced in the database | **Done** |
 | M1 | Consent in chat; medicines added by a nurse or doctor; reminders with 1 taken / 2 skipped, missed doses, adherence; STOP REMINDERS | **Done** |
 | M2 | Prescriptions: draft (assistant/doctor), sign (doctor), PDF and print, send by Telegram, verify page; feeds M1 | **Designed**: confirm e-prescription rules first |
-| M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
+| M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Built**: plan drafted by a nurse or doctor, signed by a doctor (password), versions; vitals consent in chat and plan sent after YES; requests at the plan's times, replies parsed (BP, glucose, temperature, weight, SpO₂, unit conversion), checked against the doctor's limits; out-of-range and critical replies and CC action items; Readings to review; staff readings; chart; FHIR Observation + CarePlan. Before patient use: doctor sign-off on default limits and wording |
 | M4 | Adherence and readings reports in CC; missed-dose and no-reading alerts; FHIR groundwork for Phase R | **Designed** |
 | M5 | **Dictate to CC** (doctors): a microphone button in CC; the doctor says the medicines or the monitoring plan, CC fills in a **draft** prescription or plan for the doctor to check, edit and sign. Never signs or sends by itself | **Idea**: after M2 and M3 |
 | M6 | **Clinical notes** (doctors): the doctor records the consultation note by voice (dictation after the visit first; recording the consultation itself only with the patient's consent); CC transcribes (English, Filipino, Taglish) and drafts a structured note (SOAP: complaint, findings, assessment, plan) for the doctor to edit and sign. Notes visible to nurses and doctors only, never front desk. FHIR: Encounter + Composition | **Demo done**: dictate / record with consent / type, Gemini speech-to-text (typing without a key), CC SOAP draft, doctor signs, addenda, FHIR Encounter + Composition; records retention setting and review list. Before patient use: doctor review of the prompts, speech-to-text comparison, privacy review |
@@ -412,6 +412,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Vital signs by chat (M3): monitoring plans (draft, doctor signs, versions), vitals consent, reading requests and replies with the doctor's limits, critical-reading 911 message, Readings to review, staff readings, chart, FHIR Observation (LOINC, UCUM) and CarePlan; STOP REMINDERS reply names what stopped |
 | 2026-10-13 | Nearby care: first live test showed personal listings tagged "hospital" at the search point; results now need a phone, website or 3+ reviews (plus-code-only addresses need a phone) |
 | 2026-10-13 | Nearby care (D1b): nearest ERs on the emergency screen, CareCall clinics and other nearby care on the result (browser location or typed town), clinic picker by distance, Telegram location, clinic map location; Places budget |
 | 2026-10-13 | Telegram buttons (reminders, doses, consent, opt-in, BOOK / check symptoms); change the appointment time by chat, with fresh reminders for the new time |
