@@ -5,7 +5,7 @@ export type WikiRole = "staff" | "clinic_admin" | "admin";
 export type WikiRoute = { path: string; minRole: WikiRole; label: string };
 export type WikiPage = { id: string; title: string; summary: string; roles: WikiRole; routes: WikiRoute[]; updated: string; body: string };
 
-export const WIKI_VERSION = "35293178775d";
+export const WIKI_VERSION = "d708b3e7def1";
 
 export const WIKI_PAGES: WikiPage[] = [
   {
@@ -143,7 +143,7 @@ export const WIKI_PAGES: WikiPage[] = [
   {
     "id": "navigation",
     "title": "Finding your way around",
-    "summary": "Every screen in the portal, what it is for, and who can see it.",
+    "summary": "Every screen in the portal, what it is for, who can see it, and automatic sign-out (browser closed, 20 minutes inactive).",
     "roles": "staff",
     "routes": [
       {
@@ -207,8 +207,8 @@ export const WIKI_PAGES: WikiPage[] = [
         "label": "Global settings"
       }
     ],
-    "updated": "2026-10-12",
-    "body": "At the top of the left sidebar, the CareCall logo opens CC (this assistant) and\nthe **CareCall** name next to it opens the About page.\n\nThe left sidebar has these items:\n\n- **Dashboard**: today's activity, quick links, appointment slots, recent activity.\n- **Review queue**: patients who need a human (failed identity check, asked for\n  a person, dialing problems). The number badge shows how many are waiting.\n- **Campaigns**: list of campaigns and their progress. Open one for detail.\n- **Patients**: patient list, CSV import, add one patient, assign to a campaign.\n- **Call history**: every call with outcome, duration and AI summary.\n- **CC action items**: follow-ups CC has filed for the clinic.\n\nUnder **Manage** (clinic admin and above): **Clinicians**, **Clinic settings**, **Users**.\n\nUnder **Platform** (admin only): **Clinics**, **Global settings**.\n\n**Profile** and **Sign out** are at the bottom of the sidebar."
+    "updated": "2026-10-13",
+    "body": "At the top of the left sidebar, the CareCall logo opens CC (this assistant) and\nthe **CareCall** name next to it opens the About page.\n\nThe left sidebar has these items:\n\n- **Dashboard**: today's activity, quick links, appointment slots, recent activity.\n- **Review queue**: patients who need a human (failed identity check, asked for\n  a person, dialing problems). The number badge shows how many are waiting.\n- **Campaigns**: list of campaigns and their progress. Open one for detail.\n- **Patients**: patient list, CSV import, add one patient, assign to a campaign.\n- **Call history**: every call with outcome, duration and AI summary.\n- **CC action items**: follow-ups CC has filed for the clinic.\n\nUnder **Manage** (clinic admin and above): **Clinicians**, **Clinic settings**, **Users**.\n\nUnder **Platform** (admin only): **Clinics**, **Global settings**.\n\n**Profile** and **Sign out** are at the bottom of the sidebar (scroll the\nsidebar on a short screen).\n\n## Automatic sign-out\n\nTo protect patient information on shared computers:\n\n- Closing the browser, or every CareCall tab, signs you out. Opening another\n  CareCall tab while one is open keeps you signed in.\n- After **20 minutes** without activity (mouse, keyboard or touch) in any\n  CareCall tab you are signed out. A warning appears 2 minutes before; moving\n  the mouse or clicking **Stay signed in** keeps you in. Anything not saved\n  is lost, so save forms before stepping away."
   },
   {
     "id": "overview",

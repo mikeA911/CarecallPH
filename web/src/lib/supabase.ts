@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { tabSessionStorage } from "./tabSession";
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -14,4 +15,8 @@ if (!url || !anonKey) {
   );
 }
 
-export const supabase = createClient(url, anonKey);
+// Signed out when the browser closes: the session lives only in open tabs
+// (tabSession.ts). Inactivity sign-out is in idle.ts.
+export const supabase = createClient(url, anonKey, {
+  auth: { storage: tabSessionStorage },
+});

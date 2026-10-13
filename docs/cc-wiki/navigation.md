@@ -1,7 +1,7 @@
 ---
 id: navigation
 title: Finding your way around
-summary: Every screen in the portal, what it is for, and who can see it.
+summary: Every screen in the portal, what it is for, who can see it, and automatic sign-out (browser closed, 20 minutes inactive).
 roles: staff
 routes:
   - / | staff | Dashboard
@@ -16,7 +16,7 @@ routes:
   - /settings/users | clinic_admin | Users
   - /admin/clinics | admin | Clinics (platform)
   - /admin/settings | admin | Global settings
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 At the top of the left sidebar, the CareCall logo opens CC (this assistant) and
@@ -36,4 +36,16 @@ Under **Manage** (clinic admin and above): **Clinicians**, **Clinic settings**, 
 
 Under **Platform** (admin only): **Clinics**, **Global settings**.
 
-**Profile** and **Sign out** are at the bottom of the sidebar.
+**Profile** and **Sign out** are at the bottom of the sidebar (scroll the
+sidebar on a short screen).
+
+## Automatic sign-out
+
+To protect patient information on shared computers:
+
+- Closing the browser, or every CareCall tab, signs you out. Opening another
+  CareCall tab while one is open keeps you signed in.
+- After **20 minutes** without activity (mouse, keyboard or touch) in any
+  CareCall tab you are signed out. A warning appears 2 minutes before; moving
+  the mouse or clicking **Stay signed in** keeps you in. Anything not saved
+  is lost, so save forms before stepping away.

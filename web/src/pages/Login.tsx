@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { markActive } from "../lib/idle";
 import { supabase } from "../lib/supabase";
 import { useSession } from "../lib/session";
 import { callFunction } from "../lib/api";
 import About from "./About";
 
 export default function Login() {
-  const { forcePasswordChange, passwordRecovery, clearPasswordRecovery, session, refresh, signOut } = useSession();
+  const { forcePasswordChange, passwordRecovery, clearPasswordRecovery, session, refresh, signOut, signedOutReason } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -30,6 +31,7 @@ export default function Login() {
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     setErr(""); setBusy(true);
+    markActive(); // a new sign-in starts the inactivity clock
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) setErr(error.message);
@@ -158,6 +160,9 @@ export default function Login() {
         ) : (
           <>
             <h1>Sign in</h1>
+            {signedOutReason === "idle" && (
+              <p className="muted" role="status">You were signed out after 20 minutes without activity, to protect patient information.</p>
+            )}
             <form onSubmit={signIn}>
               <label htmlFor="email">Email</label>
               <input id="email" type="email" autoComplete="username" value={email}
