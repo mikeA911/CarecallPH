@@ -86,7 +86,7 @@ flowchart LR
 | `cc-chat` | Portal | Sign-in | CC conversations (runs as the user, RLS applies) |
 | `cc-nightly` | pg_cron 02:00 Manila | Service key | CC's nightly review per clinic |
 | `start-campaign` | pg_cron every minute | Service key | Pre-call message, then dial; respects hours, status, do-not-call |
-| `send-reminders` | pg_cron every 5 minutes | Service key | Appointment reminders (24 h, 2 h), medicine reminders and vital-sign requests; marks missed doses and readings |
+| `send-reminders` | pg_cron every 5 minutes | Service key | Appointment reminders (24 h, 2 h), medicine reminders and vital-sign requests; marks missed doses and readings; hourly missed-dose and no-reading alerts |
 | `telnyx-call-events` | Telnyx | Webhook (signature check planned) | Call events: answering-machine detection, voicemail follow-up, hangup |
 | `assistant-tools` | Telnyx voice AI | Shared secret | `verify_patient`, slots, `create_appointment`, `mark_outcome` |
 | `booking-api` | Patients' browsers | Booking token | Self-booking from `/book/<token>` |
@@ -110,7 +110,7 @@ app, falling back by Philippine reach), `reminders.ts`, `care.ts`, `care_db.ts`,
 | Symptom check | `symptom_checks` (deleted after 90 days), `symptom_rate_limits`, `booking_rate_limits` |
 | Care plans | `care_consents` (scopes: medicine reminders, vital signs), `medications`, `medication_doses`, `monitoring_plans` (draft → signed → replaced / stopped), `vital_plans`, `vital_requests`, `vital_readings` |
 | Clinical notes | `clinical_notes` (draft → signed, addenda) |
-| CC | `cc_usage`, `cc_reviews`, `cc_action_items` |
+| CC | `cc_usage`, `cc_reviews`, `cc_action_items` (clinical items for nurses and doctors only), `care_alerts` |
 | Platform | `platform_settings` (e.g. records retention), `audit_log` |
 
 Scheduled jobs (pg_cron): `carecall_tick` (every minute, campaigns),
@@ -153,7 +153,7 @@ the doctor, stored on the note).
 
 | Service | Used for | What it receives |
 |---|---|---|
-| Claude (Anthropic) | CC chat and nightly review (`CC_MODEL`); drafting clinical notes (`NOTES_MODEL`) | CC: aggregate figures only, never names, phones or birthdates. Notes: the transcript plus age and sex |
+| Claude (Anthropic) | CC chat and nightly review (`CC_MODEL`); drafting clinical notes (`NOTES_MODEL`) | CC: aggregate figures only, never names, phones or birthdates (patient action items reach CC as "(a patient)"). Notes: the transcript plus age and sex |
 | Gemini (Google) | Speech-to-text for clinical notes | The audio, sent once; CareCall never stores it |
 | Telnyx | Voice AI calls, SMS | Call audio, phone numbers |
 | Viber, Meta (Messenger, WhatsApp), Telegram | Patient messages | Phone or chat ID and message text (no diagnoses) |

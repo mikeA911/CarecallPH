@@ -109,6 +109,9 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
   target and critical limits, what to do if high or low); after the patient
   agrees, CareCall asks for readings and checks them against the doctor's
   limits; **Readings to review** for nurses and doctors; chart per measure.
+- **Alerts and reports**: 3 missed doses in a row or no readings for 3 days
+  files a follow-up for nurses and doctors; CC reports adherence, response
+  rate, readings waiting and the blood pressure trend (counts only).
 - **Clinical notes**: the doctor dictates, records the consultation with the
   patient's consent, or types; speech-to-text makes a transcript (audio never
   stored); CC drafts a SOAP note; the doctor signs with their password. Signed

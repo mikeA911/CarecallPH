@@ -1,7 +1,7 @@
 # Care plans: prescriptions, medication reminders and vital signs (Phase M)
 
 **Status:** M1 built (consent, medicines, reminders, adherence); M3 built (monitoring plans, vital signs by chat,
-Readings to review); M6 demo built; M2 and M4 designed. **Roadmap:** Phase M, the first step toward
+Readings to review); M4 built (alerts, CC care report); M6 demo built; M2 designed. **Roadmap:** Phase M, the first step toward
 CareLink RPM (Phase R). **Last updated:** 13 October 2026
 
 The doctor (or an assistant) writes the prescription in CareCall. That one

@@ -6,6 +6,7 @@ CC is a chat assistant inside the signed-in portal (open it with the CareCall lo
 - shows buttons that navigate to the right screen,
 - runs guided setups (`wizard-*` wiki pages) one step at a time,
 - analyses campaigns with aggregate data,
+- reports on medicine adherence and vital-sign readings (care_report, counts only),
 - files **action items** for clinic admins, worked on the **CC action items** page (`/cc`),
 - runs a **nightly review** of every clinic (02:00 Asia/Manila) and posts a summary on `/cc`.
 
@@ -19,6 +20,7 @@ Portal (CCPanel) ──POST /cc-chat (user JWT)──► cc-chat edge function
                                                  │   read_wiki · navigate · list_campaigns
                                                  │   campaign_report · review_queue_summary
                                                  │   list_action_items · create_action_item
+                                                 │   care_report (nurses and doctors)
                                                  └─ data tools use the CALLER's JWT → RLS scopes to clinic
 
 pg_cron 18:00 UTC ─ cc_nightly_review() ─ one POST per clinic ─► cc-nightly (service role)
@@ -36,6 +38,8 @@ Guardrails:
 - **Clinic isolation comes from Postgres RLS**, not from cc-chat code: every data
   query runs as the signed-in user.
 - **Aggregates only**: tools return counts and rates, never names, phones or DOBs.
+  Action items about one patient reach CC as "<kind>: (a patient)" with no detail;
+  clinical items (readings, medicines) only for nurses, doctors and the nightly job.
 - **Read-only, except action items**: CC can't change settings, start campaigns or
   contact patients. Navigation buttons are checked against the routes declared
   in wiki pages for the user's role.

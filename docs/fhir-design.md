@@ -39,8 +39,8 @@ the UHC Act (RA 11223). Health data stays subject to the Data Privacy Act (RA 10
 | `medications` | MedicationRequest | PH Core MedicationRequest | text medicine until M2 adds FDA codes; dosage text + timing (times of day, start/end) |
 | `medication_doses` (taken / skipped) | MedicationAdministration | PH Core MedicationAdministration | patient-reported; `completed` or `not-done`; unanswered and missed are not exported |
 | `care_consents` | Consent | base R4 | scope patient-privacy, category LOINC 59284-0, active / rejected / inactive |
-| vital signs (M3) | Observation | PH Core Observation (vital signs) | LOINC codes, UCUM units |
-| monitoring plan (M3) | CarePlan | base R4 | |
+| `vital_readings` (M3) | Observation | R4 vital-signs profiles (bp, bodytemp, bodyweight, oxygensat, heartrate); PH Core has none yet | LOINC: BP panel 85354-9 with 8480-6 / 8462-4 components, temperature 8310-5, weight 29463-7, SpO₂ 59408-5 + 2708-6, pulse 8867-4 (own Observation, `derivedFrom` the BP), glucometer glucose 41653-7 (category laboratory); UCUM units; interpretation N / A / AA against the doctor's plan; performer Patient (chat) or Organization (clinic); `basedOn` the CarePlan. Built with M3 |
+| `monitoring_plans` + `vital_plans` (M3) | CarePlan | base R4 | signed versions only (active / revoked / completed); one activity per measure with LOINC code, timing (times, days, bounds) and the limits and instructions as text. Built with M3 |
 | `clinical_notes` (signed) | Encounter + Composition | base R4 | one Encounter per note (ambulatory); Composition LOINC 11506-3 with SOAP sections; addenda `relatesTo: appends`. Built with M6 |
 | diagnoses (later) | Condition | PH Core Condition | ICD-10 |
 
@@ -63,7 +63,7 @@ need for them and they raise the privacy risk.
 |---|---|---|
 | **F1** | Fields: patient middle name, sex, address (line, barangay, city/municipality, province, postal code), PhilHealth PIN; clinic DOH facility code and address. Portal: edit patient details, clinic facility code. **FHIR export**: `fhir` function returns Patient, Practitioner, Organization, Appointment, MedicationRequest, MedicationAdministration, Consent, and a patient's whole record as a Bundle (`Patient/{id}/$everything`), with a **Download record (FHIR)** button. Tests check output against the PH Core rules we use | **Built** |
 | F2 | Symptom-check intake as QuestionnaireResponse; PSGC pickers for barangay / city / province (codes, not just names); official HL7 validator with the PH Core package in CI (needs network the build sandbox lacks) | Planned |
-| F3 | M2 prescriptions with FDA drug codes (`PHFDACPRCS`, PH Core DrugsVS) and structured dosage; M3 readings as Observations (LOINC, UCUM); CarePlan | With M2/M3 |
+| F3 | M3 readings as Observations (LOINC, UCUM) and CarePlan (**built**); M2 prescriptions with FDA drug codes (`PHFDACPRCS`, PH Core DrugsVS) and structured dosage | M3 part **built**; M2 part with M2 |
 | F4 | Import (patient-directed, from other FHIR systems) and exchange with PhilHealth or hospitals; SMART on FHIR access for authorized apps | Phase L |
 
 ## The export (F1)
@@ -103,3 +103,18 @@ Also `POST { resource, id, everything? }` for the portal. Responses are
   codes come with the pickers in F2.
 - **Facility code** (`clinics.nhfr_code`): the DOH National Health Facility Registry code, as
   issued. Optional.
+
+## Groundwork for device readings (Phase R)
+
+Readings from connected devices (Phase R) will use the same Observation
+mapping as chat readings, so a patient's record stays one timeline:
+
+- **Source:** chat readings have `performer` = Patient and a "sent in chat"
+  note; device readings will add `device` → a Device resource (maker, model,
+  serial) and keep `performer` = Patient.
+- **Codes and units** stay the same (LOINC, UCUM), so trends mix sources.
+- **Interpretation** stays relative to the doctor's plan (N / A / AA), not a
+  population range, until clinically validated thresholds exist.
+- **Alerts** (M4: missed doses, no readings) are clinic work items, not
+  clinical records, and are not exported; reviews of readings (who, when,
+  note) may later map to Observation `note` or a Task.

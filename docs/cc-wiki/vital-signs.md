@@ -45,7 +45,9 @@ saved too. If a reply can't be read, they're asked again.
   clinic will look at it during office hours. A warning goes to CC action items.
 - **Critical**: saved; the reply says to call 911 now if they have danger
   signs, otherwise to contact the clinic today. An urgent CC action item is filed.
-- No reply within 4 hours: the request is marked missed.
+- No reply within 4 hours: the request is marked missed. No readings for 3
+  days (after at least 2 requests) files a CC action item for nurses and
+  doctors; the patient isn't messaged about it.
 - **STOP REMINDERS** stops vital-sign requests and medicine reminders. Staff can
   click **Stop** next to "Vital signs by chat".
 
@@ -62,6 +64,9 @@ plan the same way.
 **Readings to review** (sidebar, nurses and doctors) lists every out-of-range
 and critical reading not yet reviewed, critical first. **Mark reviewed** with
 an optional note (e.g. "called patient"). Readings can't be changed.
+
+Ask CC for the clinic's response rate, readings waiting and blood pressure
+trend (see Care plan reports and alerts).
 
 Readings and signed plans are in **Download record (FHIR)** as Observations
 (LOINC codes) and a CarePlan.

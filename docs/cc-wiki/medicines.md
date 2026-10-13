@@ -47,6 +47,10 @@ typed replies work everywhere.
 **Last 30 days** shows, per medicine, how many answered or missed reminders
 were taken, e.g. "26 of 30 taken". **Stop** on a medicine ends its reminders.
 
+Three missed reminders in a row for a medicine file a CC action item for
+nurses and doctors (see Care plan reports and alerts). The patient isn't
+messaged about it. Ask CC for the clinic's adherence.
+
 ## Answers to common questions
 
 - "Why didn't a reminder go out?" The patient must have agreed (YES), be

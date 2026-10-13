@@ -9,6 +9,7 @@
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { WIKI_PAGES, type WikiRole } from "./wiki.generated.ts";
+import { buildCareReport, type CareRows } from "./care_report.ts";
 
 export const RANK: Record<WikiRole, number> = { staff: 0, clinic_admin: 1, admin: 2 };
 
@@ -18,6 +19,8 @@ export type Ctx = {
   userId: string | null;          // null for the nightly job
   role: WikiRole;
   clinicId: string | null;
+  /** Nurse or doctor (or the nightly job): may see care-plan reports and clinical action items. */
+  clinical: boolean;
   source: "chat" | "nightly";
   actions: Action[];
   itemsCreated: number;
@@ -64,6 +67,11 @@ export const TOOLS = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "care_report",
+    description: "Care plans for this clinic (nurses and doctors): medicine reminders (patients with reminders on, doses taken / skipped / missed, adherence now and in the previous period, patients by adherence band, patients with 3 missed in a row) and vital signs (running plans, drafts waiting for a doctor, requests and response rate, readings by measure and check, readings not yet reviewed, blood pressure trend: patients up / down / steady), and open alerts. Counts only.",
+    input_schema: { type: "object", properties: { days: { type: "integer", enum: [7, 30], description: "Period, default 30" } } },
+  },
+  {
     name: "list_action_items",
     description: "CC action items for this clinic.",
     input_schema: { type: "object", properties: { status: { type: "string", enum: ["open", "done", "dismissed"] } } },
@@ -80,15 +88,27 @@ export const TOOLS = [
         severity: { type: "string", enum: ["info", "warning", "urgent"] },
         route: { type: "string", description: "Screen to act on it, e.g. /review" },
         campaign_id: { type: "string" },
+        clinical: { type: "boolean", description: "true for items about medicines, readings or care plans: shown to nurses and doctors only" },
       },
       required: ["title", "detail", "category", "severity"],
     },
   },
 ];
 
-/** Tool set per caller: the nightly job has no UI, so no navigate. */
-export function toolsFor(source: Ctx["source"]) {
-  return source === "chat" ? TOOLS : TOOLS.filter((t) => t.name !== "navigate");
+/** Tool set per caller: the nightly job has no UI, so no navigate; care_report for nurses and doctors. */
+export function toolsFor(source: Ctx["source"], clinical = true) {
+  return TOOLS.filter((t) => !(t.name === "navigate" && source !== "chat") && !(t.name === "care_report" && !clinical));
+}
+
+/**
+ * An action item as CC sees it. Items about one patient have the name after
+ * ": " in the title ("Wants a new time: Ana Cruz") and in the detail; CC gets
+ * the kind of item only, never the name or the detail.
+ */
+export function redactItem<T extends { title: string; detail?: string | null; patient_id?: string | null }>(i: T) {
+  if (!i.patient_id) return i;
+  const kind = i.title.includes(": ") ? i.title.slice(0, i.title.lastIndexOf(": ")) : i.title;
+  return { ...i, title: `${kind}: (a patient)`, detail: null, patient_id: undefined };
 }
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -235,11 +255,42 @@ export async function runTool(ctx: Ctx, name: string, input: any): Promise<unkno
 
     case "list_action_items": {
       if (!ctx.clinicId) return needClinic();
-      const { data, error } = await ctx.db.from("cc_action_items")
-        .select("id, title, detail, category, severity, route, status, campaign_id, created_at")
-        .eq("clinic_id", ctx.clinicId).eq("status", input.status ?? "open")
-        .order("created_at", { ascending: false }).limit(30);
-      return error ? { error: error.message } : data;
+      let q = ctx.db.from("cc_action_items")
+        .select("id, title, detail, category, severity, status, campaign_id, created_at, patient_id, clinical")
+        .eq("clinic_id", ctx.clinicId).eq("status", input.status ?? "open");
+      if (!ctx.clinical) q = q.eq("clinical", false);
+      const { data, error } = await q.order("created_at", { ascending: false }).limit(30);
+      if (error) return { error: error.message };
+      type Row = { title: string; detail: string | null; patient_id: string | null; clinical?: boolean };
+      return ((data ?? []) as Row[]).map((i) => { const { clinical: _c, ...rest } = redactItem(i); return rest; });
+    }
+
+    case "care_report": {
+      if (!ctx.clinicId) return needClinic();
+      if (!ctx.clinical) return { error: "Care plan reports are for nurses and doctors only." };
+      const days = input.days === 7 ? 7 : 30;
+      const now = new Date();
+      // Previous period too (for comparison), and at least 14 days of readings for the BP trend.
+      const since = new Date(now.getTime() - Math.max(2 * days, 14) * 24 * 3600_000).toISOString();
+      const c = ctx.clinicId;
+      const [consents, meds, doses, plans, requests, readings, alerts] = await Promise.all([
+        ctx.db.from("care_consents").select("patient_id, scopes, consented_at, withdrawn_at").eq("clinic_id", c),
+        ctx.db.from("medications").select("id, patient_id, active").eq("clinic_id", c),
+        ctx.db.from("medication_doses").select("medication_id, patient_id, due_at, status").eq("clinic_id", c).gte("due_at", since),
+        ctx.db.from("monitoring_plans").select("patient_id, status").eq("clinic_id", c).in("status", ["signed", "draft"]),
+        ctx.db.from("vital_requests").select("patient_id, due_at, status").eq("clinic_id", c).gte("due_at", since),
+        ctx.db.from("vital_readings").select("patient_id, measure, value1, taken_at, flag, reviewed_at").eq("clinic_id", c).gte("taken_at", since),
+        ctx.db.from("care_alerts").select("kind").eq("clinic_id", c).is("cleared_at", null),
+      ]);
+      const failed = [consents, meds, doses, plans, requests, readings, alerts].find((x) => x.error);
+      if (failed?.error) return { error: failed.error.message };
+      // Older unreviewed readings count too.
+      const { data: oldUnreviewed } = await ctx.db.from("vital_readings").select("patient_id, measure, value1, taken_at, flag, reviewed_at")
+        .eq("clinic_id", c).lt("taken_at", since).neq("flag", "ok").is("reviewed_at", null).limit(500);
+      return buildCareReport(now, days, {
+        consents: consents.data ?? [], medications: meds.data ?? [], doses: doses.data ?? [], plans: plans.data ?? [],
+        requests: requests.data ?? [], readings: [...(oldUnreviewed ?? []), ...(readings.data ?? [])], openAlerts: alerts.data ?? [],
+      } as CareRows);
     }
 
     case "create_action_item": {
@@ -264,6 +315,7 @@ export async function runTool(ctx: Ctx, name: string, input: any): Promise<unkno
         severity: input.severity,
         route,
         source: ctx.source,
+        clinical: ctx.clinical && input.clinical === true,
       }).select("id").single();
       if (error) return { error: error.message };
       ctx.itemsCreated++;
