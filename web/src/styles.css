@@ -558,6 +558,8 @@ a.btn { display: inline-block; text-decoration: none; }
   box-shadow: 0 6px 16px rgba(26,86,219,0.4);
 }
 .loc-pin::after { content: ""; position: absolute; inset: 0; margin: auto; width: 12px; height: 12px; background: #fff; border-radius: 50%; }
+.loc-map.has-map { height: 200px; background: var(--paper); }
+.loc-map iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .loc-map .map-note { position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.8); padding: 2px 8px; border-radius: 99px; }
 .loc-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .loc-row:last-child { border-bottom: none; }

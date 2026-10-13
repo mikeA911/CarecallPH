@@ -310,10 +310,8 @@ export default function Dashboard() {
         {/* 6. Medical center location */}
         <div className="window">
           <div className="window-head"><h2>Medical center</h2></div>
-          <div className="loc-map">
-            <div className="loc-pin" />
-            <span className="map-note">Map view coming soon</span>
-          </div>
+          <ClinicMap lat={activeClinic?.lat ?? null} lng={activeClinic?.lng ?? null}
+                     name={activeClinic?.name ?? "Clinic"} canSet={isClinicAdmin} />
           <div className="loc-row"><span className="loc-label">Center</span><span>{activeClinic?.name ?? "—"}</span></div>
           <div className="loc-row"><span className="loc-label">Timezone</span><span>{activeClinic?.timezone ?? "—"}</span></div>
           <div className="loc-row"><span className="loc-label">Callback</span><span>{activeClinic?.phone_callback ?? "Not set"}</span></div>
@@ -400,5 +398,34 @@ export default function Dashboard() {
 
       <footer className="copyright">&copy; 2026 CareCall</footer>
     </>
+  );
+}
+
+/**
+ * The clinic's pin from Clinic settings → Find on map, on an OpenStreetMap
+ * embed (no API key, nothing to configure). Without a location, a placeholder
+ * that says where to set it.
+ */
+function ClinicMap({ lat, lng, name, canSet }: { lat: number | null; lng: number | null; name: string; canSet: boolean }) {
+  if (lat == null || lng == null) {
+    return (
+      <div className="loc-map">
+        <div className="loc-pin" />
+        <span className="map-note">
+          {canSet ? <Link to="/settings/clinic">Set the clinic's location in Clinic settings</Link> : "Location not set yet"}
+        </span>
+      </div>
+    );
+  }
+  const d = 0.006; // about 650 m each way
+  const bbox = [lng - d, lat - d * 0.6, lng + d, lat + d * 0.6].map((x) => x.toFixed(6)).join(",");
+  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat.toFixed(6)},${lng.toFixed(6)}`;
+  return (
+    <div className="loc-map has-map">
+      <iframe title={`Map: ${name}`} src={src} loading="lazy" referrerPolicy="no-referrer" />
+      <a className="map-note" href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`} target="_blank" rel="noreferrer">
+        Open in Google Maps
+      </a>
+    </div>
   );
 }
