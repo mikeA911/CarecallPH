@@ -4,8 +4,26 @@ title: What's new
 summary: Dated list of user-visible changes; read when asked what's new or whether a feature exists.
 roles: staff
 routes: []
-updated: 2026-10-12
+updated: 2026-10-13
 ---
+
+## 2026-10-13
+
+- **Clinical notes** (nurses and doctors): on a patient's page, dictate, record
+  a consultation with the patient's agreement, or type; CC transcribes and
+  drafts a SOAP note; the doctor edits and signs with their password. Signed
+  notes can't be changed; add an addendum.
+- **Records retention**: records are kept 7 years after the last consultation
+  by default; Clinic settings lists records past the period for review.
+- **Patient details for the national format**: middle name, sex, address and
+  PhilHealth PIN (**Edit details**), the clinic's DOH facility code, and
+  **Download record (FHIR)** for nurses and doctors.
+- **Clinical roles** on Users: front desk, nurse / assistant, doctor (linked to
+  their clinician record and PRC number). **Platform admin** can be given to
+  others by a platform admin.
+- **Automatic sign-out** when the browser closes or after 20 minutes without
+  activity, with a warning 2 minutes before.
+- Fixed: clinic admins can now save **Clinic settings**.
 
 ## 2026-10-12
 

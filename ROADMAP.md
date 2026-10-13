@@ -1,6 +1,6 @@
 # CareCall + CareLink roadmap
 
-**Last updated:** 12 October 2026
+**Last updated:** 13 October 2026
 
 **Status key:** **Done** = built and verified live. **Built** = code complete,
 type-checked and building, not yet run against live Supabase / Telnyx / chat
@@ -9,7 +9,7 @@ platforms. **Planned** = designed, not started. **Idea** = worth doing, not yet 
 ## Product progression
 
 CareCall starts as patient engagement for small Philippine clinics and grows
-into CareLink, a records and remote-monitoring layer. Five services on one
+into CareLink, a records, clinical-workflow and remote-monitoring layer. Six services on one
 platform, in this order. Business case, pricing hypotheses and indicative
 economics are in the concept paper (*CareCall + CareLink: a connected
 healthcare access and continuity platform for Southeast Asia*, Oct 2026).
@@ -17,9 +17,10 @@ healthcare access and continuity platform for Southeast Asia*, Oct 2026).
 | Service | What it does | Engineering phases | Status |
 |---|---|---|---|
 | **CareCall Recall** | Re-engage existing patients by chat; due follow-ups and missed visits become booked appointments | 1, 1T, 1C | **Built**; first commercial MVP |
-| **CareCall Discover** | Free-to-patient symptom-guided navigation and booking with participating clinics at CareCallPH.com | D | **Designed**: D1 symptom check next (`docs/symptom-check-design.md`) |
+| **CareCall Discover** | Free-to-patient symptom-guided navigation and booking with participating clinics at CareCallPH.com | D | **Built** on the demo engine (symptom check, Philippine layer, booking, `/check`); live engine waits on the Infermedica trial |
 | **CareCall Voice** | AI outbound calls for non-responders; later the inbound receptionist | Base, 0b, 2 | Outbound **Done** in US build; PH work deferred until after Discover |
-| **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **In progress**: F1 FHIR-ready fields and export |
+| **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **In progress**: FHIR R4 export with PH Core profiles **done** (F1) |
+| **CareLink Care** | Clinical workflows in the clinic: roles, medicine reminders, clinical notes by voice, then prescriptions and vital signs | M | **In progress**: roles, medicine reminders and clinical notes (demo) **done** |
 | **CareLink RPM Intelligence** | Device readings, trends and a prioritized clinician review queue | R | **Idea** (later clinical pilot) |
 
 **Delivery stages** (indicative, may overlap; each opens only when its gate is met)
@@ -46,22 +47,26 @@ by country before any Southeast Asian expansion.
 | 1T | Chat-first pilot: chat campaigns, staff invites, Telegram first | **Built** |
 | 1C | CC assistant, LLM wiki, nightly review | **Built** |
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
-| 3 | Localization and compliance hardening | **Planned** |
+| 3 | Localization and compliance hardening | **In progress**: roles, auto sign-out, PH patient fields, retention setting done |
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
-| D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a built |
-| L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 built (`docs/fhir-design.md`) |
-| M | Care plans: prescriptions written in CareCall, medicine reminders and vital signs by chat, with consent | **In progress**: M1 medicine reminders built (`docs/care-plan-design.md`) |
+| D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a, c, e, f built; D1b needs a Google key, D1d the Infermedica trial |
+| L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 **done** (export incl. clinical notes; `docs/fhir-design.md`) |
+| M | Care plans and clinical notes: roles, medicine reminders, clinical notes by voice, prescriptions, vital signs | **In progress**: M0 roles, M1 medicine reminders, M6 clinical notes demo **done**; M2 prescriptions next (`docs/care-plan-design.md`) |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
 **Next three actions**
 
-1. Finish the README chat-only pilot (§9) with the test group, then turn
-   international patient numbers back off.
-2. Symptom check D1a on ApiMedic's free sandbox; set up a domain and business
-   email and apply for the Infermedica trial (D1d); Google Places API key for
-   nearby care (D1b).
-3. Apply now for the slow approvals: Meta business verification and app review
-   (Messenger, WhatsApp) and a Viber commercial agreement (€100/month per bot).
+1. **Pilot clinic demo**: chat booking and reminders, symptom check, medicine
+   reminders and clinical notes (dictate and record). Ask the clinic's doctor
+   to review the PH symptom rules, the consent wording and the note prompts;
+   compare speech-to-text services on 10–20 Taglish dictations.
+2. Domain and business email → Infermedica trial (D1d); Google Places API key
+   for nearby care (D1b). Then turn international patient numbers off for the
+   pilot.
+3. Legal and approvals: confirm e-prescription rules (M2) and the DOH records
+   retention circular; processing agreements (Supabase, Anthropic, Google,
+   Telnyx, Meta, Viber, Telegram); Meta business verification and a Viber
+   commercial agreement.
 
 ---
 
@@ -253,13 +258,16 @@ ask questions. The same tools serve voice and chat.
 | Item | Notes |
 |---|---|
 | Voice prompts in Filipino / Taglish and Cebuano; per-patient language | Choose STT/TTS voices by measured accuracy |
-| PhilHealth PIN (partial), HMO, barangay / city / province fields | Optional per clinic |
+| PhilHealth PIN, barangay / city / province fields | **Done** (F1); PSGC pickers and HMO planned |
 | Philippine public holidays in slot generation | Regular and special non-working days |
 | Telnyx webhook signature verification | `telnyx-signature-ed25519` in `telnyx-call-events` |
 | Data Privacy Act package | Privacy notice and consent text for clinics, DPO contact, breach-response runbook, NPC registration check |
-| Data retention jobs | Transcripts, recordings and messages purged on a schedule |
+| Records retention | **Done**: 7 years after the last consultation by default, per clinic, review list; nothing deleted automatically |
+| Purge jobs | Messages, call transcripts and recordings deleted on a schedule (symptom checks: 90 days, done) |
+| Patient data requests | Access, correction, erasure with restriction until the retention period ends (roadmap L F5) |
+| Clinical roles and sessions | **Done**: access level + clinical role in the database; sign-out on browser close and after 20 minutes idle |
 | Recording access controls | Signed URLs, role-gated |
-| Processing agreements | Supabase, Telnyx, Anthropic, Meta, Viber, Telegram |
+| Processing agreements | Supabase, Telnyx, Anthropic, Google (Gemini), Meta, Viber, Telegram |
 
 ## Phase 4: Pilot and commercial
 
@@ -342,7 +350,7 @@ request. Design: `docs/fhir-design.md`.
 
 | Slice | Scope | Status |
 |---|---|---|
-| F1 | Patient middle name, sex, address, PhilHealth PIN; clinic DOH facility code and address; `fhir` export (Patient, Practitioner, Organization, Appointment, MedicationRequest, MedicationAdministration, Consent; `Patient/$everything` Bundle), **Download record (FHIR)** for nurses and doctors, audited | **Built** |
+| F1 | Patient middle name, sex, address, PhilHealth PIN; clinic DOH facility code and address; `fhir` export (Patient, Practitioner, Organization, Appointment, MedicationRequest, MedicationAdministration, Consent; `Patient/$everything` Bundle), **Download record (FHIR)** for nurses and doctors, audited | **Done** |
 | F2 | Symptom-check intake as QuestionnaireResponse; PSGC pickers (barangay, city, province codes); official HL7 validator with PH Core in CI | Planned |
 | F3 | M2 prescriptions with FDA drug codes, M3 readings as Observations (LOINC, UCUM), CarePlan, clinical notes (M6) as Encounter + Composition | With M2/M3/M6 |
 | F4 | Patient-directed import, exchange with PhilHealth or hospitals, SMART on FHIR | Planned |
@@ -371,13 +379,13 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 
 | Slice | Scope | Status |
 |---|---|---|
-| M0 | Clinical roles: front desk / nurse-assistant / doctor per user, separate from access level (platform admin, clinic admin, staff); doctor linked to their clinician record and PRC number; enforced in the database | **Built** |
-| M1 | Consent in chat; medicines added by a nurse or doctor; reminders with 1 taken / 2 skipped, missed doses, adherence; STOP REMINDERS | **Built** |
+| M0 | Clinical roles: front desk / nurse-assistant / doctor per user, separate from access level (platform admin, clinic admin, staff); doctor linked to their clinician record and PRC number; enforced in the database | **Done** |
+| M1 | Consent in chat; medicines added by a nurse or doctor; reminders with 1 taken / 2 skipped, missed doses, adherence; STOP REMINDERS | **Done** |
 | M2 | Prescriptions: draft (assistant/doctor), sign (doctor), PDF and print, send by Telegram, verify page; feeds M1 | **Designed**: confirm e-prescription rules first |
 | M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
 | M4 | Adherence and readings reports in CC; missed-dose and no-reading alerts; FHIR groundwork for Phase R | **Designed** |
 | M5 | **Dictate to CC** (doctors): a microphone button in CC; the doctor says the medicines or the monitoring plan, CC fills in a **draft** prescription or plan for the doctor to check, edit and sign. Never signs or sends by itself | **Idea**: after M2 and M3 |
-| M6 | **Clinical notes** (doctors): the doctor records the consultation note by voice (dictation after the visit first; recording the consultation itself only with the patient's consent); CC transcribes (English, Filipino, Taglish) and drafts a structured note (SOAP: complaint, findings, assessment, plan) for the doctor to edit and sign. Notes visible to nurses and doctors only, never front desk. FHIR: Encounter + Composition | **Demo built**: dictate / record with consent / type, Gemini speech-to-text (typing without a key), CC SOAP draft, doctor signs, addenda, FHIR Encounter + Composition; records retention setting and review list. Before patient use: doctor review of the prompts, speech-to-text comparison, privacy review |
+| M6 | **Clinical notes** (doctors): the doctor records the consultation note by voice (dictation after the visit first; recording the consultation itself only with the patient's consent); CC transcribes (English, Filipino, Taglish) and drafts a structured note (SOAP: complaint, findings, assessment, plan) for the doctor to edit and sign. Notes visible to nurses and doctors only, never front desk. FHIR: Encounter + Composition | **Demo done**: dictate / record with consent / type, Gemini speech-to-text (typing without a key), CC SOAP draft, doctor signs, addenda, FHIR Encounter + Composition; records retention setting and review list. Before patient use: doctor review of the prompts, speech-to-text comparison, privacy review |
 
 **Gate:** doctor sign-off on default limits, wording and escalation; agreed
 review times at the pilot clinic; e-prescription rules confirmed. Dangerous
@@ -401,6 +409,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Docs: architecture (`docs/architecture.md`), README features, roadmap status, CC navigation and what's new, About page. Clinical notes, FHIR export, roles and medicine reminders verified live |
 | 2026-10-13 | Fix: clinic admins can save Clinic settings for their own clinic (only platform admins could; the page said "saved" but nothing changed); switching a clinic on or off and the retention period stay with platform admins |
 | 2026-10-13 | Clinical notes demo (M6): dictate, record a consultation with consent, or type; Gemini speech-to-text (audio never stored); CC drafts a SOAP note; doctors sign; addenda; notes in the FHIR export. Records retention: platform default 7 years, per-clinic value, records due for review. Planned: patient data requests (deletion, restriction) |
 | 2026-10-13 | FHIR-ready records (L, F1): records stay relational, FHIR R4 with PH Core on request; patient middle name, sex, address, PhilHealth PIN; clinic DOH facility code and address; `fhir` export and **Download record (FHIR)**; clinical notes by voice added to Phase M (M6, idea) |

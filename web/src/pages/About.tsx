@@ -1,6 +1,6 @@
-// About panel shown on the login screen. Combines the product workflow
-// infographic (docs/AI_Patient_Scheduling_Automation_Workflow.png) with the
-// roles & compliance model from docs/portal-ui-roles-spec.md.
+// About panel shown on the login screen and at /about: what CareCall does,
+// the AI call workflow (docs/AI_Patient_Scheduling_Automation_Workflow.png),
+// roles and safeguards. Keep in step with docs/cc-wiki/overview.md.
 
 const WORKFLOW_STEPS = [
   {
@@ -37,28 +37,37 @@ const AI_TOOLS = [
 
 const ROLES = [
   {
-    name: "Admin",
-    scope: "Platform · all clinics",
-    body: "Manages clinics, all users, and global settings. Can enter any clinic context.",
+    name: "Platform admin",
+    scope: "All clinics",
+    body: "Manages clinics, all users and global settings, including records retention. Can make other platform admins.",
   },
   {
-    name: "Provider",
+    name: "Clinic admin",
     scope: "One clinic",
-    body: "Runs the clinic's outreach: patients, clinicians, campaigns, settings, and Staff users.",
+    body: "Runs the clinic: patients, clinicians, campaigns, clinic settings and users.",
   },
   {
     name: "Staff",
     scope: "One clinic",
-    body: "Runs, schedules, and pauses campaigns, watches live activity, and works the review queue.",
+    body: "Runs campaigns, works the review queue, books and messages patients.",
   },
 ];
 
+const CLINICAL_ROLES = [
+  { name: "Front desk", body: "Bookings and messages; sees the urgency of an intake, not the symptoms." },
+  { name: "Nurse / assistant", body: "Medicines and reminders, intake details, drafts clinical notes." },
+  { name: "Doctor", body: "Everything a nurse can do; signs clinical notes with their password, linked to their PRC number." },
+];
+
 const SAFEGUARDS = [
-  "Permissions enforced server-side (row-level security), never by hiding buttons alone",
-  "Answering-machine detection so the AI never speaks to voicemail",
-  "Server-side identity verification before any scheduling action",
-  "Do-not-call flags and per-clinic calling-hours windows (TCPA-aware)",
-  "Audit log of user and record changes for HIPAA-conscious operations",
+  "Permissions enforced in the database (row-level security), never by hiding buttons alone",
+  "Each user has an access level and a clinical role; front desk never sees clinical notes",
+  "Consent recorded for every chat app, medicine reminders and consultation recordings",
+  "Server-side identity verification before any scheduling action on a call",
+  "Recordings for clinical notes are transcribed and never stored; signed notes can't be changed",
+  "Automatic sign-out when the browser closes or after 20 minutes without activity",
+  "Audit log of record changes, exports and signatures; Data Privacy Act (RA 10173) aware",
+  "Records in the national health data format (FHIR R4, PH Core) on request",
 ];
 
 import { useNavigate } from "react-router-dom";
@@ -76,7 +85,7 @@ export default function About({ onClose }: { onClose?: () => void }) {
       <div className="about-head">
         <div>
           <h1>About CareCall</h1>
-          <p className="muted">Automating patient scheduling with AI</p>
+          <p className="muted">Patient engagement and clinical workflows for Philippine clinics</p>
         </div>
         <button type="button" className="link" onClick={handleClose}>
           {onClose ? "Back to sign in" : "Back"}
@@ -84,11 +93,13 @@ export default function About({ onClose }: { onClose?: () => void }) {
       </div>
 
       <p className="about-lede">
-        CareCall is a web platform that automates outbound medical appointment
-        scheduling using AI voice assistants. Built on Telnyx for
-        telecommunications and Supabase for data, it lets clinic staff launch
-        targeted campaigns while the AI handles live conversations, verifies
-        patient identities, and books real-time slots.
+        CareCall helps small private clinics in the Philippines reach patients on
+        the chat apps they already use (Viber, Messenger, WhatsApp, Telegram),
+        book visits, send appointment and medicine reminders, and guide patients
+        with a symptom check. Doctors dictate clinical notes that CC, the built-in
+        assistant, turns into a draft for them to sign. Records can be exported in
+        the national health data format (FHIR, PH Core). AI voice calls are an
+        optional add-on.
       </p>
 
       <figure className="about-figure">
@@ -104,7 +115,7 @@ export default function About({ onClose }: { onClose?: () => void }) {
       </figure>
 
       <section className="about-section">
-        <h2>How it works</h2>
+        <h2>How an AI call campaign works</h2>
         <ol className="about-steps">
           {WORKFLOW_STEPS.map((s, i) => (
             <li key={s.title}>
@@ -144,6 +155,18 @@ export default function About({ onClose }: { onClose?: () => void }) {
       </section>
 
       <section className="about-section">
+        <h2>Clinical roles</h2>
+        <div className="about-roles">
+          {CLINICAL_ROLES.map((r) => (
+            <div key={r.name} className="about-role">
+              <strong>{r.name}</strong>
+              <p className="muted small">{r.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="about-section">
         <h2>Security &amp; compliance</h2>
         <ul className="about-safeguards">
           {SAFEGUARDS.map((s) => (
@@ -153,8 +176,8 @@ export default function About({ onClose }: { onClose?: () => void }) {
       </section>
 
       <p className="muted small about-foot">
-        Beyond scheduling, CareCall is a versatile campaign engine ready for
-        future outreach such as medication reminders and intake surveys.
+        Coming next: prescriptions signed in CareCall, vital signs by chat with the
+        doctor's limits, and CareCallPH.com for patients to find care.
       </p>
 
       <footer className="copyright">&copy; 2026 CareCall</footer>

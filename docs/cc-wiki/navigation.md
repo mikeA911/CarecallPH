@@ -1,7 +1,7 @@
 ---
 id: navigation
 title: Finding your way around
-summary: Every screen in the portal, what it is for, who can see it, and automatic sign-out (browser closed, 20 minutes inactive).
+summary: Every screen and patient-page section, what it is for, who can see it (access and clinical role), and automatic sign-out.
 roles: staff
 routes:
   - / | staff | Dashboard
@@ -32,9 +32,35 @@ The left sidebar has these items:
 - **Call history**: every call with outcome, duration and AI summary.
 - **CC action items**: follow-ups CC has filed for the clinic.
 
-Under **Manage** (clinic admin and above): **Clinicians**, **Clinic settings**, **Users**.
+Under **Manage** (clinic admin and above): **Clinicians** (clinicians, their
+weekly hours and PRC numbers), **Clinic settings** (clinic details, DOH
+facility code and address, reminders, symptom check link, calling hours,
+records retention), **Users** (invite users, access and clinical role, make a
+doctor).
 
-Under **Platform** (admin only): **Clinics**, **Global settings**.
+Under **Platform** (platform admins only): **Clinics**, **Global settings**
+(including the default records retention period).
+
+The sidebar depends on the user's access (staff, clinic admin, platform
+admin). Their clinical role (front desk, nurse / assistant, doctor) doesn't
+change the sidebar; it changes what they see on a patient's page.
+
+## A patient's page
+
+Open a patient from **Patients**. From top to bottom:
+
+- **Details**: phone, birthday, sex, email, address, PhilHealth PIN, consent
+  flags. **Edit details** (clinic admins); **Download record (FHIR)** (nurses
+  and doctors) saves the record in the national health data format.
+- **Chat apps** and **Messages**: invite to a chat app, and the last messages.
+- **Medicines**: medicine reminders by chat and adherence. Everyone sees the
+  list; nurses and doctors add or stop medicines and ask for consent.
+- **Clinical notes** (nurses and doctors only): dictate, record a consultation
+  with consent, or type; CC drafts the note; doctors sign with their password.
+- **Appointments**: visits, how they were booked and reminder answers. A
+  symptom-check booking shows the urgency to everyone and the symptoms to
+  nurses and doctors.
+- **Call history**: AI calls to this patient.
 
 **Profile** and **Sign out** are at the bottom of the sidebar (scroll the
 sidebar on a short screen).
