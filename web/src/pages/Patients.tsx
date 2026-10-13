@@ -107,10 +107,15 @@ export default function Patients() {
 
   async function assign() {
     if (!targetCampaign || !selected.size) return;
-    const rows = [...selected].map((patient_id) => ({ campaign_id: targetCampaign, patient_id }));
-    const { error } = await supabase.from("campaign_patients")
-      .upsert(rows, { onConflict: "campaign_id,patient_id", ignoreDuplicates: true });
-    setMsg(error ? `Failed: ${error.message}` : `Added ${rows.length} patients to the campaign queue.`);
+    // Restricted records (privacy requests) can't join campaigns.
+    const restricted = new Set(patients.filter((p) => p.restricted_at).map((p) => p.id));
+    const rows = [...selected].filter((id) => !restricted.has(id)).map((patient_id) => ({ campaign_id: targetCampaign, patient_id }));
+    const left = selected.size - rows.length;
+    const { error } = rows.length
+      ? await supabase.from("campaign_patients").upsert(rows, { onConflict: "campaign_id,patient_id", ignoreDuplicates: true })
+      : { error: null };
+    setMsg(error ? `Failed: ${error.message}` : `Added ${rows.length} patients to the campaign queue.` +
+      (left ? ` ${left} restricted record${left === 1 ? " was" : "s were"} left out.` : ""));
     setSelected(new Set());
     load();
   }
@@ -204,6 +209,7 @@ export default function Patients() {
               <td>
                 {p.do_not_call && <span className="badge wrong_number">do not call</span>}
                 {!p.active && <span className="badge declined">inactive</span>}
+                {p.restricted_at && <span className="badge verification_failed">restricted</span>}
                 {p.sms_consent && <span className="badge notified">SMS ok</span>}
               </td>
             </tr>

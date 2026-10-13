@@ -9,6 +9,7 @@ import ChatSection from "../components/ChatSection";
 import MedicinesSection from "../components/MedicinesSection";
 import ClinicalNotesSection from "../components/ClinicalNotesSection";
 import VitalSignsSection from "../components/VitalSignsSection";
+import PrivacySection from "../components/PrivacySection";
 import type { Address, Patient } from "../lib/types";
 
 type CallRow = {
@@ -117,11 +118,21 @@ export default function PatientDetail() {
         <div>
           {patient.do_not_call && <span className="badge wrong_number">do not call</span>}
           {!patient.active && <span className="badge declined">inactive</span>}
+          {patient.restricted_at && <span className="badge verification_failed">restricted</span>}
           {patient.sms_consent && <span className="badge notified">SMS consent</span>}
         </div>
       </div>
       <p className="muted"><Link to="/patients">← All patients</Link></p>
       {msg && <p role="status">{msg}</p>}
+      {patient.restricted_at && (
+        <div className="idle-warning" role="note" style={{ position: "static", marginBottom: 12 }}>
+          <span>
+            <strong>Restricted record</strong> ({patient.restriction_kind === "erasure" ? "erasure requested" : "restriction requested"}
+            {" "}on {new Date(patient.restricted_at).toLocaleDateString()}): view-only. No messages, calls, reminders or changes.
+            {patient.restriction_kind === "erasure" && " Data the clinic needn't keep was deleted; the rest is kept until its retention period ends."}
+          </span>
+        </div>
+      )}
 
       <div className="form-card">
         {patient.middle_name && <div className="kv"><span>Middle name</span><strong>{patient.middle_name}</strong></div>}
@@ -136,7 +147,7 @@ export default function PatientDetail() {
 
         {(canManage || clinical) && (
           <div className="row-actions" style={{ marginTop: 14 }}>
-            {canManage && <button className="secondary" disabled={busy} onClick={() => setEditing(true)}>Edit details</button>}
+            {canManage && !patient.restricted_at && <button className="secondary" disabled={busy} onClick={() => setEditing(true)}>Edit details</button>}
             {clinical && (
               <button className="secondary" disabled={busy} onClick={downloadFhir}
                       title="The patient's record in the national health data format (FHIR R4, PH Core)">
@@ -150,7 +161,7 @@ export default function PatientDetail() {
             onSave={async (fields) => { await patch(fields, "Details saved."); setEditing(false); }} />
         )}
 
-        {canManage && (
+        {canManage && !patient.restricted_at && (
           <div className="row-actions" style={{ marginTop: 14 }}>
             <button className={patient.do_not_call ? "secondary" : "danger"} disabled={busy}
                     onClick={() => patch({ do_not_call: !patient.do_not_call }, patient.do_not_call ? "Do-not-call cleared." : "Marked do-not-call.")}>
@@ -220,6 +231,8 @@ export default function PatientDetail() {
           {!calls.length && <tr><td colSpan={5} className="empty">No calls yet for this patient.</td></tr>}
         </tbody>
       </table>
+
+      <PrivacySection patient={patient} onChange={load} />
     </>
   );
 }

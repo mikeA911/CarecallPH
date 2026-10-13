@@ -53,4 +53,5 @@ Patient records are kept for a number of years after the last consultation:
 7 by default (the DOH records schedule appears to set 7 years for outpatient
 records). Platform admins set the default (Global settings) and can set a
 different period per clinic. **Clinic settings → Records retention** lists
-patients past the period for review; nothing is deleted automatically.
+patients past the period for review, where a clinic admin can dispose of a
+record (see Patient privacy requests); nothing is deleted automatically.

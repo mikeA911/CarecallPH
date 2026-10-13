@@ -111,6 +111,7 @@ app, falling back by Philippine reach), `reminders.ts`, `care.ts`, `care_db.ts`,
 | Care plans | `care_consents` (scopes: medicine reminders, vital signs), `medications`, `medication_doses`, `monitoring_plans` (draft → signed → replaced / stopped), `vital_plans`, `vital_requests`, `vital_readings` |
 | Clinical notes | `clinical_notes` (draft → signed, addenda) |
 | CC | `cc_usage`, `cc_reviews`, `cc_action_items` (clinical items for nurses and doctors only), `care_alerts` |
+| Privacy | `data_requests` (access, correction, restriction, erasure), `record_disposals` (no personal data); `patients.restricted_at` |
 | Platform | `platform_settings` (e.g. records retention), `audit_log` |
 
 Scheduled jobs (pg_cron): `carecall_tick` (every minute, campaigns),
@@ -205,6 +206,17 @@ Records stay in CareCall's tables; FHIR is produced on request
 **Records retention**: platform default 7 years after the last consultation
 (Global settings), optional per clinic; `records_due_for_review()` lists
 patients past the period in Clinic settings. Nothing is deleted automatically.
+
+**Privacy requests**: any staff member logs a patient's request on the patient
+page (a CC action item goes to the clinic admins) → a clinic admin answers it
+through database functions, one transaction each: `data_request_complete`
+(access via the FHIR download, correction), `data_request_restrict` (no
+messages, calls or changes: triggers make the record view-only and
+`sendToPatient` refuses), `data_request_erase` (restriction plus deleting chat
+links and messages, booking links, campaign and call history, reminders and
+symptom checks; the medical record stays until retention ends), and
+`dispose_patient_record` after the retention period (deletes the record,
+keeps `record_disposals`, blanks the patient's data in `audit_log`).
 
 ## 8. Design docs
 

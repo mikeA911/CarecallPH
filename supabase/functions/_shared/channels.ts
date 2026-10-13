@@ -266,6 +266,7 @@ async function markOptedOut(rowId: string) {
  * `text` is a function of the channel so callers can vary copy (e.g. "from
  * this number" only makes sense on SMS). If a chat send fails because the user
  * blocked the bot, the row is opted out and we retry once on the next channel.
+ * Never to a patient whose record is restricted by a privacy request.
  */
 export async function sendToPatient(opts: {
   patient: PatientLite;
@@ -276,6 +277,9 @@ export async function sendToPatient(opts: {
   /** Reply buttons (Telegram); the text must still say what to reply. */
   buttons?: ChatButton[][];
 }): Promise<{ ok: boolean; channel: Channel | null }> {
+  const { data: restricted } = await supabase.from("patients").select("id")
+    .eq("id", opts.patient.id).not("restricted_at", "is", null).maybeSingle();
+  if (restricted) return { ok: false, channel: null };
   for (let attempt = 0; attempt < 2; attempt++) {
     const target = await resolveChannel(opts.patient);
     if (!target) return { ok: false, channel: null };

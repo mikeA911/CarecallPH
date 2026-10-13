@@ -120,6 +120,10 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
   R4 with the Philippine profiles (PH Core).
 - **Records retention**: 7 years after the last consultation by default, with a
   review list; nothing is deleted automatically.
+- **Privacy requests**: patients' requests to see, correct, restrict or erase
+  their data are logged and answered on the patient page; restricted records
+  are view-only with no messages or calls; disposal after the retention period
+  keeps a disposal record without personal data.
 
 Details: [docs/care-plan-design.md](docs/care-plan-design.md),
 [docs/fhir-design.md](docs/fhir-design.md).
