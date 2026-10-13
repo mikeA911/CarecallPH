@@ -109,6 +109,7 @@ add-on, not for the Recall pilot or the symptom check.
 |---|---|
 | AI voice instructions for the Philippines: Filipino/Taglish, "po/opo", PH date and time phrasing, 911 for emergencies, no reminder promise | **Built** |
 | Telnyx account: number, Call Control app, AI Assistant, Messaging Profile | Planned |
+| Telnyx webhook secrets (with the PH account): `supabase secrets set TELNYX_PUBLIC_KEY=<portal → Account → Public Key>` and `TELNYX_WEBHOOK_TOKEN=<long random string>`, redeploy `telnyx-call-events`, point the AI Assistant insights webhook at `.../telnyx-call-events?token=<token>`. Until then the function refuses every call event (401) | **To do**: not set yet (13 Oct 2026) |
 | Carrier test: call and SMS to Globe, Smart, DITO; check caller ID display | Planned |
 | Call-detection tuning: ringback tunes and "subscriber cannot be reached" announcements (from real test-call recordings) | Planned |
 | Full smoke test (README §8) passes on PH accounts | Planned |
