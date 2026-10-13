@@ -5,7 +5,7 @@ summary: Display name, callback number, timezone, calling hours, greeting, booki
 roles: clinic_admin
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 - **Display name**: how the clinic is named in calls and messages.
@@ -15,6 +15,9 @@ updated: 2026-10-12
   Cebu). It is saved in international format (`+639171234567`, `+63281234567`)
   and read out in voicemails the local way ("0 9 1 7, 1 2 3, 4 5 6 7"). An
   invalid number blocks **Save** with a message explaining the accepted formats.
+- **DOH facility code** and **address**: the clinic's code in the DOH National
+  Health Facility Registry and its address. Optional; included when a patient
+  record is downloaded in FHIR format.
 - **Timezone (IANA)**: `Asia/Manila` for Philippine clinics (the default for
   new clinics). All calling hours and slot times use it, and booking links say
   "All times Philippine Time (PHT)".

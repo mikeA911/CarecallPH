@@ -206,6 +206,8 @@ vital_readings        patient, clinic, measure, values (e.g. {sys, dia, pulse}),
 | **M2** | Prescriptions: draft by assistant or doctor, sign by the doctor, printable/PDF with PRC and PTR numbers, send to the patient on Telegram, verify page; signed items feed M1 reminders |
 | **M3** | Vital signs: monitoring plan (what, when, how, why, targets, what to do if high or low) drafted and signed like a prescription, sent as a document; chat requests from the plan, reading parser, Readings to review, critical-reading message, chart on the patient page |
 | **M4** | Reports: adherence and readings in CC (aggregate), missed-dose and no-reading alerts; FHIR mapping groundwork for Phase R |
+| **M5** | Dictate to CC: prescriptions and monitoring plans by voice (below) |
+| **M6** | Clinical notes by voice (idea, below) |
 
 ### Later: dictate to CC (M5)
 
@@ -225,6 +227,39 @@ for 30 days, and blood pressure every morning for two weeks, target below
 
 Privacy: the audio isn't stored; the transcript is kept only in the draft.
 Needs M2 and M3 first.
+
+### Later: clinical notes by voice (M6, idea)
+
+Doctors record the consultation note by voice; CC transcribes it and drafts a
+structured note for the doctor to check, edit and sign. Same pattern as M5,
+for notes instead of orders.
+
+1. **Two ways to record**, in this order:
+   - *Dictation* after (or during) the visit: the doctor speaks the note. No
+     patient voice is recorded, so no extra consent is needed.
+   - *Recording the consultation* (an "ambient scribe"): only after the
+     patient agrees, asked and recorded each time; a visible indicator while
+     recording; can be stopped any time.
+2. **Transcription**: English, Filipino and Taglish. Claude does not take
+   audio, so this needs a speech-to-text service; choose one with Filipino
+   support and a data processing agreement (health data, Data Privacy Act).
+   The audio is deleted once transcribed; the transcript is kept with the
+   draft until signed, then only the signed note.
+3. **Draft**: CC turns the transcript into a SOAP note (complaint and history,
+   findings, assessment, plan), flags anything unclear, and never adds a
+   finding or diagnosis that wasn't said. Medicines or readings mentioned in
+   the plan become M2/M3 drafts, not orders.
+4. **Sign**: only a doctor (`is_doctor()`) signs; a signed note can't be
+   edited, only amended with a new signed addendum.
+5. **Who sees notes**: nurses and doctors of the clinic. Front desk never.
+   Every view and export is audited.
+6. **FHIR** (`docs/fhir-design.md`): one Encounter per visit, the note as a
+   Composition (LOINC 11488-4 *Consult note* or 11506-3 *Progress note*)
+   authored by the Practitioner; diagnoses later as Condition (ICD-10).
+
+Open questions: which speech-to-text service and its cost per minute; does the
+pilot clinic want dictation or recording; how long notes must be kept (DOH
+record retention).
 
 **Before building:** confirm the e-prescription rules (§2) and who reviews
 readings at the pilot clinic and how quickly.

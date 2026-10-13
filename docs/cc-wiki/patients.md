@@ -1,12 +1,12 @@
 ---
 id: patients
 title: Patients
-summary: Importing patients by CSV, required fields, phone format, consent flags, do-not-call, chat invites and message history.
+summary: Importing by CSV, phone format, editing details (middle name, sex, address, PhilHealth PIN), consent, do-not-call, chat invites, messages, downloading the record (FHIR).
 roles: staff
 routes:
   - /patients | staff | Patients
   - /patients/:id | staff | Patient detail
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 ## Importing
@@ -57,6 +57,18 @@ the clinic's phone. It isn't available for inactive or do-not-call patients.
 See the messaging-channels page.
 
 ## Patient detail
+
+**Edit details** (clinic admins): first, middle and last name, sex, email,
+PhilHealth PIN (12 digits, `nn-nnnnnnnnn-n`) and address (house/street,
+barangay, city or municipality, province, postal code). All optional except
+the names. These are the details the national health data standard expects.
+
+**Download record (FHIR)** (nurses and doctors): saves the patient's record as a
+file in FHIR R4, the format of the Philippine health data standard (PH Core):
+details, clinic, clinicians, appointments, medicines, the doses they reported
+taking or skipping, and consents. Use it to send a record to another clinic or
+hospital system. Every download is recorded in the audit log. Treat the file
+like a paper chart: share it only with the patient's permission.
 
 Shows the patient's details, **Medicines** (medicine reminders by chat, with
 consent and adherence; see the medicine reminders page), **Chat apps** (each app, when they connected, when

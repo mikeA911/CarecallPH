@@ -19,7 +19,7 @@ healthcare access and continuity platform for Southeast Asia*, Oct 2026).
 | **CareCall Recall** | Re-engage existing patients by chat; due follow-ups and missed visits become booked appointments | 1, 1T, 1C | **Built**; first commercial MVP |
 | **CareCall Discover** | Free-to-patient symptom-guided navigation and booking with participating clinics at CareCallPH.com | D | **Designed**: D1 symptom check next (`docs/symptom-check-design.md`) |
 | **CareCall Voice** | AI outbound calls for non-responders; later the inbound receptionist | Base, 0b, 2 | Outbound **Done** in US build; PH work deferred until after Discover |
-| **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **Planned** |
+| **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **In progress**: F1 FHIR-ready fields and export |
 | **CareLink RPM Intelligence** | Device readings, trends and a prioritized clinician review queue | R | **Idea** (later clinical pilot) |
 
 **Delivery stages** (indicative, may overlap; each opens only when its gate is met)
@@ -49,7 +49,7 @@ by country before any Southeast Asian expansion.
 | 3 | Localization and compliance hardening | **Planned** |
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
 | D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a built |
-| L | CareLink Records: FHIR timeline and authorized EHR access | **Planned** |
+| L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 built (`docs/fhir-design.md`) |
 | M | Care plans: prescriptions written in CareCall, medicine reminders and vital signs by chat, with consent | **In progress**: M1 medicine reminders built (`docs/care-plan-design.md`) |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
@@ -336,9 +336,20 @@ review of paid referral / fee-splitting restrictions.
 
 ## Phase L: CareLink Records
 
+Records stay in CareCall's tables, shaped so each maps to a FHIR R4 resource
+with the Philippine profiles (PH Core, draft v0.2.0); CareCall produces FHIR on
+request. Design: `docs/fhir-design.md`.
+
+| Slice | Scope | Status |
+|---|---|---|
+| F1 | Patient middle name, sex, address, PhilHealth PIN; clinic DOH facility code and address; `fhir` export (Patient, Practitioner, Organization, Appointment, MedicationRequest, MedicationAdministration, Consent; `Patient/$everything` Bundle), **Download record (FHIR)** for nurses and doctors, audited | **Built** |
+| F2 | Symptom-check intake as QuestionnaireResponse; PSGC pickers (barangay, city, province codes); official HL7 validator with PH Core in CI | Planned |
+| F3 | M2 prescriptions with FDA drug codes, M3 readings as Observations (LOINC, UCUM), CarePlan, clinical notes (M6) as Encounter + Composition | With M2/M3/M6 |
+| F4 | Patient-directed import, exchange with PhilHealth or hospitals, SMART on FHIR | Planned |
+
 | Item | Notes |
 |---|---|
-| FHIR R4 store | Patient, Observation, Encounter, Appointment; aligned with the draft PH Core guide |
+| FHIR R4 export | Built (F1); a FHIR store is not planned: tables stay the system of record |
 | Patient timeline | For clinics without a suitable system, and for patient-held records |
 | Patient-directed import from US EHRs | US patient-access FHIR APIs; first users could be Filipinos retiring home |
 | Authorized EHR integration | University of the Philippines-associated EHR is a lead to identify and verify, not an established interface |
@@ -365,6 +376,7 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 | M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
 | M4 | Adherence and readings reports in CC; missed-dose and no-reading alerts; FHIR groundwork for Phase R | **Designed** |
 | M5 | **Dictate to CC** (doctors): a microphone button in CC; the doctor says the medicines or the monitoring plan, CC fills in a **draft** prescription or plan for the doctor to check, edit and sign. Never signs or sends by itself | **Idea**: after M2 and M3 |
+| M6 | **Clinical notes** (doctors): the doctor records the consultation note by voice (dictation after the visit first; recording the consultation itself only with the patient's consent); CC transcribes (English, Filipino, Taglish) and drafts a structured note (SOAP: complaint, findings, assessment, plan) for the doctor to edit and sign. Notes visible to nurses and doctors only, never front desk. FHIR: Encounter + Composition | **Idea**: design next; needs a speech-to-text service with Filipino support and a privacy review (audio is health data) |
 
 **Gate:** doctor sign-off on default limits, wording and escalation; agreed
 review times at the pilot clinic; e-prescription rules confirmed. Dangerous
@@ -388,6 +400,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | FHIR-ready records (L, F1): records stay relational, FHIR R4 with PH Core on request; patient middle name, sex, address, PhilHealth PIN; clinic DOH facility code and address; `fhir` export and **Download record (FHIR)**; clinical notes by voice added to Phase M (M6, idea) |
 | 2026-10-13 | Automatic sign-out: when the browser (or every CareCall tab) closes, and after 20 minutes without activity with a 2-minute warning; sidebar scrolls so Sign out is always reachable |
 | 2026-10-13 | Clinical roles (M0): front desk / nurse-assistant / doctor on the Users page; medicines and reminder consent limited to nurses and doctors in the database; front desk sees intake urgency only; doctor login linked to a clinician with PRC number; platform admins shown and assignable by platform admins |
 | 2026-10-12 | Care plans M1: medicine reminders by chat with recorded consent, 1 taken / 2 skipped, missed doses, adherence on the patient page |
