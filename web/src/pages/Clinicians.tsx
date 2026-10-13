@@ -70,17 +70,21 @@ export default function Clinicians() {
         <div>
           <h2>Clinicians</h2>
           <table>
-            <thead><tr><th>Name</th><th>Specialty</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Specialty</th><th>PRC no.</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {providers.map((p) => (
                 <tr key={p.id} className={selected === p.id ? "row-selected" : ""}>
                   <td><button className="link" onClick={() => setSelected(p.id)}>{p.name}</button></td>
                   <td>{p.specialty ?? "—"}</td>
+                  <td>
+                    {p.prc_number ?? "—"}
+                    {p.user_id && <div className="small muted">doctor login linked</div>}
+                  </td>
                   <td>{p.active ? "active" : "inactive"}</td>
                   <td><button className="secondary" onClick={() => toggleActive(p)}>{p.active ? "Deactivate" : "Activate"}</button></td>
                 </tr>
               ))}
-              {!providers.length && <tr><td colSpan={4} className="empty">No clinicians yet.</td></tr>}
+              {!providers.length && <tr><td colSpan={5} className="empty">No clinicians yet.</td></tr>}
             </tbody>
           </table>
 
@@ -89,6 +93,10 @@ export default function Clinicians() {
             <input placeholder="Name (e.g. Dr. Jones)" value={newName} onChange={(e) => setNewName(e.target.value)} />
             <input placeholder="Specialty (optional)" value={newSpecialty} onChange={(e) => setNewSpecialty(e.target.value)} style={{ marginTop: 8 }} />
             <div style={{ marginTop: 10 }}><button onClick={addProvider} disabled={!newName.trim()}>Add clinician</button></div>
+            <p className="small muted" style={{ marginBottom: 0 }}>
+              To let a doctor sign in as themselves, invite them on Settings → Users, then choose Doctor and link this
+              record with their PRC number.
+            </p>
           </div>
         </div>
 

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { callFunction } from "../lib/api";
+import { canManageCare, useSession } from "../lib/session";
 
 type Consent = {
   requested_at: string; consented_at: string | null; declined_at: string | null; withdrawn_at: string | null;
@@ -38,6 +39,8 @@ const label12 = (t: string) => {
 export default function MedicinesSection({ patientId, clinicId, canMessage }: {
   patientId: string; clinicId: string; canMessage: boolean;
 }) {
+  // Front desk sees medicines but can't change them (the database enforces it too).
+  const canEdit = canManageCare(useSession().clinicalRole);
   const [consent, setConsent] = useState<Consent | null>(null);
   const [meds, setMeds] = useState<Medication[]>([]);
   const [doses, setDoses] = useState<Dose[]>([]);
@@ -129,7 +132,7 @@ export default function MedicinesSection({ patientId, clinicId, canMessage }: {
           <div className="row-actions">
             {state.key === "active" ? (
               <button className="secondary" disabled={busy} onClick={stopReminders}>Stop reminders</button>
-            ) : canMessage ? (
+            ) : canMessage && canEdit ? (
               <button className="secondary" disabled={busy} onClick={askConsent}>
                 {state.key === "pending" ? "Ask again" : "Ask patient to agree"}
               </button>
@@ -161,14 +164,16 @@ export default function MedicinesSection({ patientId, clinicId, canMessage }: {
                 {m.end_date ? ` to ${new Date(`${m.end_date}T00:00`).toLocaleDateString()}` : ", ongoing"}
               </td>
               <td>{adherence(m.id)}</td>
-              <td>{m.active ? <button className="link" onClick={() => stopMedicine(m)}>Stop</button> : "Stopped"}</td>
+              <td>{!m.active ? "Stopped" : canEdit ? <button className="link" onClick={() => stopMedicine(m)}>Stop</button> : ""}</td>
             </tr>
           ))}
           {!meds.length && <tr><td colSpan={5} className="empty">No medicines yet.</td></tr>}
         </tbody>
       </table>
 
-      {!adding ? (
+      {!canEdit ? (
+        <p className="small muted" style={{ marginTop: 10 }}>A nurse or doctor adds and stops medicines.</p>
+      ) : !adding ? (
         <div className="row-actions" style={{ marginTop: 10 }}>
           <button className="secondary" onClick={() => setAdding(true)}>Add medicine</button>
         </div>

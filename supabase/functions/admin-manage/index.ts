@@ -9,7 +9,14 @@
 // Actions (POST { action, ...args }):
 //   create_user       — role + clinic_id. Clinic Admin may only create Staff in
 //                        their own clinic; Admin may create any role/clinic.
-//   set_role          — Admin only.
+//   set_role          — Platform admin only. Role "admin" makes the user a
+//                        platform admin (all clinics); only a platform admin
+//                        can grant or remove it.
+//   set_clinical_role — doctor | nurse | front_desk (what the user may do with
+//                        clinical information, separate from the role above).
+//                        Clinic admins set it for users in their own clinic;
+//                        platform admins for anyone. Doctor needs a linked
+//                        clinician (provider_id) with a PRC number.
 //   reset_password    — set a temporary password + force-change flag.
 //   clear_force_password_change — caller clears their OWN force-change flag
 //                        after choosing a new password (app_metadata is not
@@ -26,6 +33,7 @@
 
 import { supabase, json, getCaller, audit, corsHeaders } from "../_shared/lib.ts";
 import { normalizePhPhone } from "../_shared/phone.ts";
+import { clinicalRoleOf, isClinicalRole } from "../_shared/roles.ts";
 
 const FORCE_CHANGE_KEY = "force_password_change";
 
@@ -43,6 +51,7 @@ Deno.serve(async (req) => {
       case "list_users":      return await listUsers(caller);
       case "create_user":     return await createUser(caller, body);
       case "set_role":        return await setRole(caller, body);
+      case "set_clinical_role": return await setClinicalRole(caller, body);
       case "reset_password":  return await resetPassword(caller, body);
       case "clear_force_password_change": return await clearForcePasswordChange(caller);
       case "deactivate_user": return await setBanned(caller, body, true);
@@ -93,14 +102,21 @@ async function listUsers(caller: Caller) {
   if (!isClinicAdmin(caller)) return json({ error: "forbidden" }, 403, corsHeaders());
   const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (error) return json({ error: error.message }, 400, corsHeaders());
+  const { data: linked } = await supabase.from("providers")
+    .select("id, name, user_id").not("user_id", "is", null);
+  const providerOf = new Map(((linked ?? []) as { id: string; name: string; user_id: string }[])
+    .map((p) => [p.user_id, { id: p.id, name: p.name }]));
   const users = data.users
     .map((u) => {
       const meta = (u.app_metadata ?? {}) as Record<string, unknown>;
+      const role = (meta.role as string) ?? "";
       return {
         id: u.id,
         email: u.email,
-        role: (meta.role as string) ?? "",
+        role,
         clinic_id: (meta.clinic_id as string) ?? null,
+        clinical_role: clinicalRoleOf(role as Caller["role"], meta.clinical_role),
+        provider: providerOf.get(u.id) ?? null,
         deactivated: !!(u as unknown as { banned_until?: string }).banned_until,
         last_sign_in_at: u.last_sign_in_at ?? null,
         created_at: u.created_at,
@@ -130,20 +146,26 @@ async function createUser(caller: Caller, body: Record<string, unknown>) {
   }
   if (role !== "admin" && !clinicId)
     return json({ error: "clinic_id required for non-admin users" }, 400, corsHeaders());
+  // Doctor is set afterwards (set_clinical_role), once linked to a clinician.
+  const clinicalRole = body.clinical_role == null ? clinicalRoleOf(role, null) : String(body.clinical_role);
+  if (clinicalRole !== "nurse" && clinicalRole !== "front_desk")
+    return json({ error: "clinical_role must be nurse or front_desk (link a clinician to make someone a doctor)" }, 400, corsHeaders());
 
   const password = tempPassword();
   const { data, error } = await supabase.auth.admin.createUser({
     email,
     password,
     email_confirm: true, // pre-confirmed; no SMTP dependency (D4)
-    app_metadata: { role, clinic_id: role === "admin" ? null : clinicId, [FORCE_CHANGE_KEY]: true },
+    app_metadata: {
+      role, clinic_id: role === "admin" ? null : clinicId, clinical_role: clinicalRole, [FORCE_CHANGE_KEY]: true,
+    },
   });
   if (error) return json({ error: error.message }, 400, corsHeaders());
 
   await audit({
     clinicId: clinicId ?? null, actorUserId: caller.userId,
     action: "user_created", targetType: "user", targetId: data.user?.id,
-    detail: { email, role, clinic_id: clinicId },
+    detail: { email, role, clinic_id: clinicId, clinical_role: clinicalRole },
   });
 
   return json({ ok: true, user_id: data.user?.id, temporary_password: password }, 200, corsHeaders());
@@ -157,6 +179,8 @@ async function setRole(caller: Caller, body: Record<string, unknown>) {
   const clinicId = (body.clinic_id as string) ?? null;
   if (!userId || !["admin", "clinic_admin", "staff"].includes(role))
     return json({ error: "user_id and valid role required" }, 400, corsHeaders());
+  if (role !== "admin" && !clinicId)
+    return json({ error: "choose a clinic for clinic admins and staff" }, 400, corsHeaders());
 
   // [FIX 2] An admin demoting themselves is allowed only if they are not the
   // last admin (same lockout class as self-deactivation).
@@ -179,6 +203,64 @@ async function setRole(caller: Caller, body: Record<string, unknown>) {
   });
   // Caller-facing note: JWT only refreshes on next login.
   return json({ ok: true, note: "User must sign out and back in for the new role to apply." }, 200, corsHeaders());
+}
+
+// ------------------------------------------------------------------
+async function setClinicalRole(caller: Caller, body: Record<string, unknown>) {
+  if (!isClinicAdmin(caller)) return json({ error: "forbidden" }, 403, corsHeaders());
+  const userId = String(body.user_id ?? "");
+  const clinicalRole = body.clinical_role;
+  if (!userId || !isClinicalRole(clinicalRole))
+    return json({ error: "user_id and clinical_role (doctor, nurse or front_desk) required" }, 400, corsHeaders());
+
+  const { data: existing } = await supabase.auth.admin.getUserById(userId);
+  const target = existing?.user;
+  if (!target) return json({ error: "user not found" }, 404, corsHeaders());
+  const prevMeta = (target.app_metadata ?? {}) as Record<string, unknown>;
+  const targetClinic = (prevMeta.clinic_id as string) ?? null;
+  // Clinic admins: users in their own clinic, not platform admins.
+  if (!isAdmin(caller) && (targetClinic !== caller.clinicId || prevMeta.role === "admin"))
+    return json({ error: "forbidden: user is not in your clinic" }, 403, corsHeaders());
+
+  let providerName: string | null = null;
+  if (clinicalRole === "doctor") {
+    const providerId = String(body.provider_id ?? "");
+    if (!providerId) return json({ error: "choose the clinician this doctor is" }, 400, corsHeaders());
+    const { data: p } = await supabase.from("providers")
+      .select("id, name, clinic_id, user_id, prc_number, active").eq("id", providerId).maybeSingle();
+    const prov = p as { id: string; name: string; clinic_id: string; user_id: string | null;
+      prc_number: string | null; active: boolean } | null;
+    if (!prov || !prov.active) return json({ error: "clinician not found" }, 404, corsHeaders());
+    const clinicOk = targetClinic ? prov.clinic_id === targetClinic
+      : isAdmin(caller); // a platform admin may be a doctor at any clinic
+    if (!clinicOk || (!isAdmin(caller) && prov.clinic_id !== caller.clinicId))
+      return json({ error: "that clinician is in another clinic" }, 403, corsHeaders());
+    if (prov.user_id && prov.user_id !== userId)
+      return json({ error: `${prov.name} is already linked to another login` }, 409, corsHeaders());
+    const prc = String(body.prc_number ?? "").trim() || prov.prc_number || "";
+    if (!/^\d{5,8}$/.test(prc))
+      return json({ error: "enter the doctor's PRC licence number (5 to 8 digits)" }, 400, corsHeaders());
+    // One clinician per login (unique index on providers.user_id).
+    await supabase.from("providers").update({ user_id: null }).eq("user_id", userId).neq("id", prov.id);
+    const { error: linkErr } = await supabase.from("providers")
+      .update({ user_id: userId, prc_number: prc }).eq("id", prov.id);
+    if (linkErr) return json({ error: linkErr.message }, 400, corsHeaders());
+    providerName = prov.name;
+  } else {
+    // No longer a doctor: free the clinician for another login.
+    await supabase.from("providers").update({ user_id: null }).eq("user_id", userId);
+  }
+
+  const { error } = await supabase.auth.admin.updateUserById(userId, {
+    app_metadata: { ...prevMeta, clinical_role: clinicalRole },
+  });
+  if (error) return json({ error: error.message }, 400, corsHeaders());
+
+  await audit({
+    clinicId: targetClinic ?? caller.clinicId, actorUserId: caller.userId, action: "user_clinical_role_changed",
+    targetType: "user", targetId: userId, detail: { clinical_role: clinicalRole, provider: providerName },
+  });
+  return json({ ok: true, note: "User must sign out and back in for the change to apply." }, 200, corsHeaders());
 }
 
 // ------------------------------------------------------------------

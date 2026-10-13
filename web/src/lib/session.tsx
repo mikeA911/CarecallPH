@@ -1,13 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import type { Role } from "./types";
+import type { ClinicalRole, Role } from "./types";
 
 type SessionState = {
   session: Session | null;
   loading: boolean;
   role: Role | null;
   clinicId: string | null;
+  /** doctor | nurse | front_desk; defaults by role when unset (same as the database). */
+  clinicalRole: ClinicalRole | null;
   displayName: string;
   avatarUrl: string | null;
   /** True when the account was created/reset with a temporary password. */
@@ -24,9 +26,11 @@ const Ctx = createContext<SessionState | null>(null);
 function readClaims(session: Session | null) {
   const meta = (session?.user?.app_metadata ?? {}) as Record<string, unknown>;
   const um = (session?.user?.user_metadata ?? {}) as Record<string, unknown>;
+  const role = (meta.role as Role) ?? null;
   return {
-    role: (meta.role as Role) ?? null,
+    role,
     clinicId: (meta.clinic_id as string) ?? null,
+    clinicalRole: clinicalRoleOf(role, meta.clinical_role),
     forcePasswordChange: meta.force_password_change === true,
     displayName: (um.display_name as string) ?? session?.user?.email ?? "",
     avatarUrl: (um.avatar_url as string) ?? null,
@@ -84,14 +88,36 @@ export function roleAtLeast(role: Role | null, min: Role): boolean {
   return rank[role] >= rank[min];
 }
 
+/** Clinical role from the stored claim, or the default for the role when unset. */
+export function clinicalRoleOf(role: Role | null, stored: unknown): ClinicalRole | null {
+  if (stored === "doctor" || stored === "nurse" || stored === "front_desk") return stored;
+  if (role === "staff") return "front_desk";
+  if (role === "admin" || role === "clinic_admin") return "nurse";
+  return null;
+}
+
+/** Nurse or doctor: may add and stop medicines and see intake details. */
+export function canManageCare(c: ClinicalRole | null): boolean {
+  return c === "nurse" || c === "doctor";
+}
+
+export function clinicalRoleLabel(c: string | null): string {
+  switch (c) {
+    case "doctor": return "Doctor";
+    case "nurse": return "Nurse / assistant";
+    case "front_desk": return "Front desk";
+    default: return "—";
+  }
+}
+
 /**
- * UI label for a role (spec v1.2 D6). The internal key `clinic_admin` never
- * changes — only the displayed label is "Provider".
+ * UI label for a role. Internal keys never change: `admin` is the platform
+ * admin (all clinics), `clinic_admin` runs one clinic.
  */
 export function roleLabel(role: string): string {
   switch (role) {
-    case "clinic_admin": return "Provider";
-    case "admin": return "Admin";
+    case "clinic_admin": return "Clinic admin";
+    case "admin": return "Platform admin";
     case "staff": return "Staff";
     default: return role.replace(/_/g, " ");
   }
