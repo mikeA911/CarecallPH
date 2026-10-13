@@ -29,7 +29,16 @@ export function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status.replace(/_/g, " ");
 }
 
-export type Clinic = {
+/** Philippine address, free text (FHIR-ready, docs/fhir-design.md). */
+export type Address = {
+  address_line?: string | null;
+  barangay?: string | null;
+  city_municipality?: string | null;
+  province?: string | null;
+  postal_code?: string | null;
+};
+
+export type Clinic = Address & {
   id: string;
   name: string;
   phone_callback: string | null;
@@ -44,15 +53,21 @@ export type Clinic = {
   reminders_enabled: boolean;
   public_slug: string | null;
   local_emergency_numbers: string | null;
+  /** DOH National Health Facility Registry code. */
+  nhfr_code?: string | null;
   active: boolean;
   created_at: string;
 };
 
-export type Patient = {
+export type Patient = Address & {
   id: string;
   clinic_id: string;
   first_name: string;
+  middle_name?: string | null;
   last_name: string;
+  sex?: "male" | "female" | "other" | "unknown" | null;
+  /** PhilHealth PIN, 12 digits without dashes. */
+  philhealth_id?: string | null;
   phone: string;
   email: string | null;
   date_of_birth: string;

@@ -61,3 +61,6 @@ verify_jwt = true
 # platform's signature or secret header inside the function.
 [functions.channel-webhook]
 verify_jwt = false
+
+[functions.fhir]
+verify_jwt = true

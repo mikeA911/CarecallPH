@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AddressFields, { addressForSave } from "../../components/AddressFields";
 import { supabase } from "../../lib/supabase";
 import { useClinic } from "../../lib/clinic";
 import { normalizePhPhone } from "../../lib/phone";
@@ -131,6 +132,8 @@ export default function ClinicSettings() {
       reminders_enabled: c.reminders_enabled,
       public_slug: slug || null,
       local_emergency_numbers: c.local_emergency_numbers?.trim() || null,
+      nhfr_code: c.nhfr_code?.trim() || null,
+      ...addressForSave(c),
     }).eq("id", c.id);
   }
 
@@ -152,6 +155,15 @@ export default function ClinicSettings() {
         <label>Timezone (IANA)</label>
         <input value={clinic.timezone} placeholder="Asia/Manila"
                onChange={(e) => setClinic({ ...clinic, timezone: e.target.value })} />
+
+        <label htmlFor="nhfr">DOH facility code (optional)</label>
+        <input id="nhfr" value={clinic.nhfr_code ?? ""} placeholder="From the National Health Facility Registry"
+               onChange={(e) => setClinic({ ...clinic, nhfr_code: e.target.value })} />
+        <p className="small muted" style={{ marginTop: 4 }}>
+          Included when patient records are exported in the national format (FHIR).
+        </p>
+
+        <AddressFields idPrefix="clinic" value={clinic} onChange={(a) => setClinic({ ...clinic, ...a })} />
 
         <label>Default greeting context</label>
         <textarea rows={2} value={clinic.greeting_default ?? ""}

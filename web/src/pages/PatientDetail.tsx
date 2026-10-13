@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useSession, roleAtLeast, canManageCare } from "../lib/session";
+import { callFunction } from "../lib/api";
+import AddressFields, { addressForSave, addressText } from "../components/AddressFields";
 import { useClinic } from "../lib/clinic";
 import ChatSection from "../components/ChatSection";
 import MedicinesSection from "../components/MedicinesSection";
-import type { Patient } from "../lib/types";
+import type { Address, Patient } from "../lib/types";
 
 type CallRow = {
   id: string; started_at: string; result: string | null; verified: boolean;
@@ -58,6 +60,7 @@ export default function PatientDetail() {
   const [appts, setAppts] = useState<ApptRow[]>([]);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -76,6 +79,21 @@ export default function PatientDetail() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function downloadFhir() {
+    if (!patient) return;
+    setBusy(true);
+    const { data, error } = await callFunction<object>("fhir", { resource: "Patient", id: patient.id, everything: true });
+    setBusy(false);
+    if (error || !data) { setMsg(`Couldn't export: ${error ?? "no data"}`); return; }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/fhir+json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${patient.last_name}-${patient.first_name}-fhir.json`.replace(/[^A-Za-z0-9.-]+/g, "_");
+    a.click();
+    URL.revokeObjectURL(url);
+    setMsg("Record downloaded (FHIR R4). The download is recorded in the audit log.");
+  }
 
   async function patch(fields: Partial<Patient>, message: string) {
     setBusy(true);
@@ -101,11 +119,31 @@ export default function PatientDetail() {
       {msg && <p role="status">{msg}</p>}
 
       <div className="form-card">
+        {patient.middle_name && <div className="kv"><span>Middle name</span><strong>{patient.middle_name}</strong></div>}
         <div className="kv"><span>Phone</span><strong>{patient.phone}</strong></div>
         <div className="kv"><span>Date of birth</span><strong>{patient.date_of_birth}</strong></div>
+        <div className="kv"><span>Sex</span><strong>{SEX_LABEL[patient.sex ?? ""] ?? "—"}</strong></div>
         <div className="kv"><span>Email</span><strong>{patient.email ?? "—"}</strong></div>
+        <div className="kv"><span>Address</span><strong>{addressText(patient) || "—"}</strong></div>
+        <div className="kv"><span>PhilHealth PIN</span><strong>{patient.philhealth_id ? formatPin(patient.philhealth_id) : "—"}</strong></div>
         <div className="kv"><span>SMS consent</span><strong>{patient.sms_consent ? "Yes" : "No"}</strong></div>
         {patient.notes && <div className="kv"><span>Notes</span><strong>{patient.notes}</strong></div>}
+
+        {(canManage || clinical) && (
+          <div className="row-actions" style={{ marginTop: 14 }}>
+            {canManage && <button className="secondary" disabled={busy} onClick={() => setEditing(true)}>Edit details</button>}
+            {clinical && (
+              <button className="secondary" disabled={busy} onClick={downloadFhir}
+                      title="The patient's record in the national health data format (FHIR R4, PH Core)">
+                Download record (FHIR)
+              </button>
+            )}
+          </div>
+        )}
+        {editing && (
+          <EditDetails patient={patient} onCancel={() => setEditing(false)}
+            onSave={async (fields) => { await patch(fields, "Details saved."); setEditing(false); }} />
+        )}
 
         {canManage && (
           <div className="row-actions" style={{ marginTop: 14 }}>
@@ -173,6 +211,66 @@ export default function PatientDetail() {
         </tbody>
       </table>
     </>
+  );
+}
+
+const SEX_LABEL: Record<string, string> = { male: "Male", female: "Female", other: "Other", unknown: "Unknown" };
+const formatPin = (d: string) => (d.length === 12 ? `${d.slice(0, 2)}-${d.slice(2, 11)}-${d.slice(11)}` : d);
+
+/** Edit name, sex, email, address and PhilHealth PIN (clinic admins). */
+function EditDetails({ patient, onSave, onCancel }: {
+  patient: Patient; onSave: (f: Partial<Patient>) => Promise<void>; onCancel: () => void;
+}) {
+  const [f, setF] = useState({
+    first_name: patient.first_name, middle_name: patient.middle_name ?? "", last_name: patient.last_name,
+    sex: patient.sex ?? "", email: patient.email ?? "",
+    philhealth_id: patient.philhealth_id ? formatPin(patient.philhealth_id) : "",
+  });
+  const [addr, setAddr] = useState<Address>(patient);
+  const [err, setErr] = useState("");
+
+  async function save() {
+    const pin = f.philhealth_id.replace(/\D/g, "");
+    if (pin && pin.length !== 12) { setErr("The PhilHealth PIN has 12 digits (nn-nnnnnnnnn-n)."); return; }
+    if (!f.first_name.trim() || !f.last_name.trim()) { setErr("First and last name are required."); return; }
+    setErr("");
+    await onSave({
+      first_name: f.first_name.trim(), middle_name: f.middle_name.trim() || null, last_name: f.last_name.trim(),
+      sex: (f.sex || null) as Patient["sex"], email: f.email.trim() || null, philhealth_id: pin || null,
+      ...addressForSave(addr),
+    });
+  }
+
+  return (
+    <div style={{ marginTop: 14, borderTop: "1px solid var(--border, #e5e7eb)", paddingTop: 10 }}>
+      <div className="form-grid">
+        <span><label htmlFor="pd-first">First name</label>
+          <input id="pd-first" value={f.first_name} onChange={(e) => setF({ ...f, first_name: e.target.value })} /></span>
+        <span><label htmlFor="pd-middle">Middle name</label>
+          <input id="pd-middle" value={f.middle_name} onChange={(e) => setF({ ...f, middle_name: e.target.value })} /></span>
+        <span><label htmlFor="pd-last">Last name</label>
+          <input id="pd-last" value={f.last_name} onChange={(e) => setF({ ...f, last_name: e.target.value })} /></span>
+        <span><label htmlFor="pd-sex">Sex</label>
+          <select id="pd-sex" value={f.sex} onChange={(e) => setF({ ...f, sex: e.target.value })}>
+            <option value="">Not recorded</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="other">Other</option>
+            <option value="unknown">Unknown</option>
+          </select></span>
+        <span><label htmlFor="pd-email">Email</label>
+          <input id="pd-email" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></span>
+        <span><label htmlFor="pd-pin">PhilHealth PIN</label>
+          <input id="pd-pin" inputMode="numeric" placeholder="nn-nnnnnnnnn-n" value={f.philhealth_id}
+                 onChange={(e) => setF({ ...f, philhealth_id: e.target.value })} /></span>
+      </div>
+      <AddressFields idPrefix="pd" value={addr} onChange={setAddr} />
+      {err && <p role="alert" className="small">{err}</p>}
+      <div className="row-actions" style={{ marginTop: 12 }}>
+        <button onClick={save}>Save details</button>
+        <button className="link" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
   );
 }
 

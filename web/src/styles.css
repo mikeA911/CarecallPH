@@ -393,6 +393,9 @@ a.btn { display: inline-block; text-decoration: none; }
 
 /* Users temp password — Warning Amber caution surface */
 .temp-pw { background: #FCEFDD; border: 1px solid #F0D9B5; border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: var(--sp-2); color: #7A4405; }
+.address-grid, .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.address-grid > span:first-child { grid-column: 1 / -1; }
+@media (max-width: 560px) { .address-grid, .form-grid { grid-template-columns: 1fr; } }
 .idle-warning {
   position: sticky; top: 0; z-index: 20; display: flex; gap: 12px; align-items: center; justify-content: space-between;
   background: #FCEFDD; border: 1px solid #F0D9B5; border-radius: var(--radius-sm); padding: 10px 14px;
