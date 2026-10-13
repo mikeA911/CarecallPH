@@ -87,7 +87,7 @@ flowchart LR
 | `cc-nightly` | pg_cron 02:00 Manila | Service key | CC's nightly review per clinic |
 | `start-campaign` | pg_cron every minute | Service key | Pre-call message, then dial; respects hours, status, do-not-call |
 | `send-reminders` | pg_cron every 5 minutes | Service key | Appointment reminders (24 h, 2 h), medicine reminders and vital-sign requests; marks missed doses and readings; hourly missed-dose and no-reading alerts |
-| `telnyx-call-events` | Telnyx | Webhook (signature check planned) | Call events: answering-machine detection, voicemail follow-up, hangup |
+| `telnyx-call-events` | Telnyx | Ed25519 signature (or secret URL token) | Call events: answering-machine detection, voicemail follow-up, hangup |
 | `assistant-tools` | Telnyx voice AI | Shared secret | `verify_patient`, slots, `create_appointment`, `mark_outcome` |
 | `booking-api` | Patients' browsers | Booking token | Self-booking from `/book/<token>` |
 | `symptom-check` | Patients' browsers, Telegram | Public, rate-limited | Symptom check with the Philippine layer; booking from the result |
@@ -104,7 +104,7 @@ app, falling back by Philippine reach), `reminders.ts`, `care.ts`, `care_db.ts`,
 | Area | Tables |
 |---|---|
 | Clinics and people | `clinics`, `providers` (clinicians, PRC number, optional login), `provider_availability`, `patients` |
-| Scheduling | `appointments` (no double-booking: exclusion constraint), `booking_links`, `appointment_reminders`, `appointment_type_assistants` |
+| Scheduling | `holidays`, `clinic_closures` (no slots on closed days), `appointments` (no double-booking: exclusion constraint), `booking_links`, `appointment_reminders`, `appointment_type_assistants` |
 | Outreach | `campaigns`, `campaign_patients`, `call_logs` |
 | Chat | `patient_channels` (opt-in per app), `channel_invites`, `channel_messages` |
 | Symptom check | `symptom_checks` (deleted after 90 days), `symptom_rate_limits`, `booking_rate_limits` |
@@ -116,7 +116,9 @@ app, falling back by Philippine reach), `reminders.ts`, `care.ts`, `care_db.ts`,
 
 Scheduled jobs (pg_cron): `carecall_tick` (every minute, campaigns),
 `carecall_reminders` (every 5 minutes), `carecall_cc_nightly` (18:00 UTC =
-02:00 Manila), `carecall_symptom_check_retention` (daily, 90-day deletion).
+02:00 Manila), `carecall_symptom_check_retention` (daily, 90-day deletion),
+`carecall_contact_purge` (03:45 Manila: old messages, call transcripts and
+recording links, spent invites and booking links).
 
 ## 5. Who can see what
 

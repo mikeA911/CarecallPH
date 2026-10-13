@@ -21,6 +21,10 @@
 //   3. On call.hangup → finalize the call log and campaign_patient status.
 // Also receives the assistant's post-call Insights webhook on this same URL.
 //
+// Security (2026-10-13): every request must carry a valid Telnyx Ed25519
+// signature (secret TELNYX_PUBLIC_KEY, from the Telnyx portal), or the secret
+// ?token= (TELNYX_WEBHOOK_TOKEN) for webhooks Telnyx doesn't sign. Otherwise 401.
+//
 // CareCall PH Phase 1 (2026-10-01): the voicemail follow-up message now goes
 // through _shared/channels.ts — the patient's opted-in chat app (Viber /
 // Messenger / Telegram) first, SMS with consent otherwise. SMS follow-ups carry
@@ -28,6 +32,7 @@
 
 import { supabase, telnyx, json, createBookingLink } from "../_shared/lib.ts";
 import { phLocalGroups } from "../_shared/phone.ts";
+import { tokenMatches, verifyTelnyxSignature } from "../_shared/telnyx_sig.ts";
 import {
   type Channel,
   type PatientLite,
@@ -74,8 +79,24 @@ async function clinicChatOptin(clinicId: string | null): Promise<boolean> {
   return (data as { chat_optin_enabled?: boolean } | null)?.chat_optin_enabled === true;
 }
 
+const TELNYX_PUBLIC_KEY = Deno.env.get("TELNYX_PUBLIC_KEY") ?? "";
+const WEBHOOK_TOKEN = Deno.env.get("TELNYX_WEBHOOK_TOKEN") ?? "";
+
 Deno.serve(async (req) => {
-  const event = await req.json().catch(() => null);
+  // Only Telnyx: a valid Ed25519 signature (call events), or the secret token
+  // in the URL (?token=…, for webhooks Telnyx doesn't sign, e.g. assistant
+  // insights). Nothing configured → refuse everything.
+  const rawBody = await req.text();
+  const signed = await verifyTelnyxSignature({
+    rawBody, publicKey: TELNYX_PUBLIC_KEY,
+    signature: req.headers.get("telnyx-signature-ed25519"), timestamp: req.headers.get("telnyx-timestamp"),
+  });
+  if (!signed && !tokenMatches(new URL(req.url).searchParams.get("token"), WEBHOOK_TOKEN)) {
+    if (!TELNYX_PUBLIC_KEY && !WEBHOOK_TOKEN) console.error("telnyx-call-events: set TELNYX_PUBLIC_KEY (and TELNYX_WEBHOOK_TOKEN)");
+    return json({ error: "unauthorized" }, 401);
+  }
+  let event;
+  try { event = JSON.parse(rawBody); } catch { event = null; }
   if (!event?.data) return json({ ok: true });
 
   // Insights arrive on this same URL but aren't call-control events

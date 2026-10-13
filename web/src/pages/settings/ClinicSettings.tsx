@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import AddressFields, { addressForSave, addressText } from "../../components/AddressFields";
 import { callFunction } from "../../lib/api";
 import RetentionSection from "../../components/RetentionSection";
+import HolidaysSection from "../../components/HolidaysSection";
+import ContactHistorySection from "../../components/ContactHistorySection";
 import { supabase } from "../../lib/supabase";
 import { useClinic } from "../../lib/clinic";
 import { normalizePhPhone } from "../../lib/phone";
@@ -305,7 +307,13 @@ export default function ClinicSettings() {
         </div>
       </div>
 
+      <HolidaysSection clinicId={clinic.id} mode={clinic.holiday_closures ?? "all"}
+                       onSaved={(m) => setClinic({ ...clinic, holiday_closures: m })} />
+
       <RetentionSection clinicId={clinic.id} clinicYears={clinic.record_retention_years ?? null} />
+
+      <ContactHistorySection clinicId={clinic.id} messageDays={clinic.message_retention_days ?? null}
+                             callDays={clinic.call_record_retention_days ?? null} />
 
       <div className="form-card" style={{ maxWidth: 640, marginTop: 20 }}>
         <h2>Campaign types &amp; Telnyx assistants</h2>

@@ -9,6 +9,11 @@ updated: 2026-10-13
 
 ## 2026-10-13
 
+- **Holidays and closures**: no booking slots on Philippine holidays (choose
+  all holidays, regular only, or none) or on the clinic's own closed days, in
+  Clinic settings. **Message history**: old messages and call transcripts are
+  deleted every night after a set period (365 and 90 days by default).
+
 - **Dictate a monitoring plan**: on a patient's Vital signs, say (or type) the
   plan; CC fills in a draft with only what was said and lists what to check,
   like a missing time or emergency limit. The doctor edits, saves and signs.

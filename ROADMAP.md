@@ -262,11 +262,11 @@ ask questions. The same tools serve voice and chat.
 |---|---|
 | Voice prompts in Filipino / Taglish and Cebuano; per-patient language | Choose STT/TTS voices by measured accuracy |
 | PhilHealth PIN, barangay / city / province fields | **Done** (F1); PSGC pickers and HMO planned |
-| Philippine public holidays in slot generation | Regular and special non-working days |
-| Telnyx webhook signature verification | `telnyx-signature-ed25519` in `telnyx-call-events` |
+| Philippine public holidays in slot generation | **Built**: national list (platform admins; regular / special), per-clinic choice (all, regular only, none) and own closed days; no slots on closed days anywhere |
+| Telnyx webhook signature verification | **Built**: Ed25519 `telnyx-signature-ed25519` over `timestamp|body`, 5-minute window (`TELNYX_PUBLIC_KEY`); `?token=` (`TELNYX_WEBHOOK_TOKEN`) for unsigned webhooks; otherwise 401 |
 | Data Privacy Act package | Privacy notice and consent text for clinics, DPO contact, breach-response runbook, NPC registration check |
 | Records retention | **Done**: 7 years after the last consultation by default, per clinic, review list; nothing deleted automatically |
-| Purge jobs | Messages, call transcripts and recordings deleted on a schedule (symptom checks: 90 days, done) |
+| Purge jobs | **Built**: nightly `purge_contact_history()`: messages after 365 days, call transcripts / summaries / recording links after 90 (platform defaults, per clinic), spent invites and booking links; logged. Telnyx-stored recordings follow Telnyx retention (symptom checks: 90 days) |
 | Patient data requests | **Built**: log requests (any staff), answer (clinic admins): access via FHIR download, correction, restriction (view-only, no messages or calls, liftable), erasure (deletes what needn't be kept, rest view-only until retention ends), disposal after retention with a disposal record and audit-log redaction (L F5) |
 | Clinical roles and sessions | **Done**: access level + clinical role in the database; sign-out on browser close and after 20 minutes idle |
 | Recording access controls | Signed URLs, role-gated |
@@ -412,6 +412,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Pilot hardening: holidays and clinic closures in slot generation; nightly purge of old messages and call records; Telnyx webhook signatures required |
 | 2026-10-13 | Dictate a monitoring plan (M5): speak or type the plan, CC drafts the measures (never invents a limit or time) and lists what to check; the doctor edits and signs. Shared microphone recorder for notes and plans |
 | 2026-10-13 | Patient data requests (Phase 3, L F5): log and answer access, correction, restriction and erasure requests; restricted records view-only with no messages or calls; disposal after the retention period with a disposal record and audit-log redaction |
 | 2026-10-13 | Care plan reports and alerts (M4): missed-dose and no-reading alerts, CC care report, nightly review of care plans; fix: action items about readings were visible to front desk and their patient names reached CC |
