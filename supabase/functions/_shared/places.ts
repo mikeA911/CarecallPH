@@ -27,7 +27,27 @@ const API = "https://places.googleapis.com/v1";
 export const NEARBY_FIELDS = [
   "places.id", "places.displayName", "places.formattedAddress", "places.location", "places.nationalPhoneNumber",
   "places.currentOpeningHours.openNow", "places.googleMapsUri", "places.businessStatus",
+  "places.websiteUri", "places.userRatingCount",
 ].join(",");
+
+/** An address that is only a plus code ("H23F+VQW, Makati City"): no street. */
+const PLUS_CODE_ADDRESS = /^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b/;
+
+/**
+ * Whether a Google result looks like a real, reachable facility. Anyone can
+ * add a place to Google Maps, and personal listings tagged "hospital" turn
+ * up at the searcher's own location. Keep a place only if it has a phone
+ * number, a website or at least 3 reviews; one whose address is only a plus
+ * code also needs a phone number.
+ */
+// deno-lint-ignore no-explicit-any
+export function looksReal(p: any): boolean {
+  const phone = !!p?.nationalPhoneNumber;
+  const site = !!p?.websiteUri;
+  const reviews = typeof p?.userRatingCount === "number" ? p.userRatingCount : 0;
+  if (typeof p?.formattedAddress === "string" && PLUS_CODE_ADDRESS.test(p.formattedAddress) && !phone) return false;
+  return phone || site || reviews >= 3;
+}
 
 /** Emergency: nearest 3 hospitals within 25 km. Care: nearest 5 within 10 km. */
 export const KIND_RULES: Record<NearbyKind, { types: string[]; max: number; radiusM: number }> = {
@@ -79,6 +99,7 @@ export function mapPlaces(raw: any, origin: Point, max: number, maxKm = Number.P
     const name = p?.displayName?.text;
     if (typeof lat !== "number" || typeof lng !== "number" || !name) continue;
     if (p.businessStatus && p.businessStatus !== "OPERATIONAL") continue;
+    if (!looksReal(p)) continue;
     const at = { lat, lng };
     // Beyond the search radius (with some slack) means a bad match: skip it.
     if (haversineKm(origin, at) > maxKm * 1.2) continue;
@@ -138,7 +159,9 @@ export class PlacesClient {
     const types = kind === "care" ? careTypes() : rule.types;
     const j = await this.post("places:searchNearby", NEARBY_FIELDS, {
       includedTypes: types,
-      maxResultCount: Math.min(20, rule.max * 2), // some are filtered (closed, duplicates)
+      // The most Google returns, at the same price: many are filtered out
+      // (closed, personal listings, CareCall clinics already shown).
+      maxResultCount: 20,
       rankPreference: "DISTANCE",
       regionCode: "PH",
       languageCode: "en",
