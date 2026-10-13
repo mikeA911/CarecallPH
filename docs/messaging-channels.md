@@ -124,9 +124,12 @@ presses **Start**, and replies YES. That's why every patient needs an invite.
    curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
      -d "url=$WH?ch=telegram" \
      -d "secret_token=$TELEGRAM_WEBHOOK_SECRET" \
-     -d 'allowed_updates=["message","my_chat_member"]'
+     -d 'allowed_updates=["message","my_chat_member","callback_query"]'
    ```
    It should answer `{"ok":true,"result":true,"description":"Webhook was set"}`.
+   `callback_query` delivers taps on reply buttons (reminders, medicine
+   check-ins, consent, new times); without it the buttons do nothing. Bots set
+   up before 13 October 2026 need this command run again.
    Check it any time with
    `curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"`:
    `last_error_message` shows the latest failure (a 401 means the secret in

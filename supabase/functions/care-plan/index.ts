@@ -16,6 +16,7 @@ import { audit, corsHeaders, getCaller, json, supabase } from "../_shared/lib.ts
 import { canManageCare } from "../_shared/roles.ts";
 import { sendToPatient } from "../_shared/channels.ts";
 import { CONSENT_VERSION, consentText } from "../_shared/care.ts";
+import { BUTTONS } from "../_shared/buttons.ts";
 
 const reply = (data: unknown, status = 200) => json(data, status, corsHeaders());
 
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
   const sent = await sendToPatient({
     // sms_consent false: chat apps only, the answer must come back in the chat.
     patient: { id: patient.id, phone: patient.phone, sms_consent: false, preferred_channel: patient.preferred_channel as never },
-    clinicId: patient.clinic_id, clinicName: clinic, text: () => text,
+    clinicId: patient.clinic_id, clinicName: clinic, text: () => text, buttons: BUTTONS.consent,
   });
   if (!sent.ok) {
     return reply({

@@ -32,7 +32,9 @@ gives medical advice.
 
 At each time: "💊 8:00 AM: time for your medicine. • Amlodipine, 5 mg, 1 tablet.
 Reply 1 when taken, 2 if you skipped it." with a Filipino line. Medicines due
-at the same time come in one message.
+at the same time come in one message. On Telegram the message has **Taken**
+and **Skipped** buttons, and the consent request has **Yes** / **No** buttons;
+typed replies work everywhere.
 
 - **1** (taken, OO, NAINOM): marked taken.
 - **2** (skip, HINDI): marked skipped; the patient is told to mention problems to the clinic.
