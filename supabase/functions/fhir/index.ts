@@ -18,9 +18,9 @@
 import { audit, getCaller, supabase } from "../_shared/lib.ts";
 import { canManageCare } from "../_shared/roles.ts";
 import {
-  bundle, type ConsentRow, type DoseRow, type MedicationRow, type NoteRow, operationOutcome, type Resource,
-  toAppointment, toComposition, toConsent, toEncounter, toMedicationAdministration, toMedicationRequest, toOrganization,
-  toPatient, toPractitioner,
+  bundle, type ConsentRow, type DoseRow, type MedicationRow, type MonitoringPlanRow, type NoteRow, operationOutcome,
+  type ReadingRow, type Resource, type VitalPlanRow, toAppointment, toCarePlan, toComposition, toConsent, toEncounter, toMedicationAdministration, toMedicationRequest, toOrganization,
+  toObservations, toPatient, toPractitioner,
 } from "../_shared/fhir/map.ts";
 import { PH_CORE, PH_CORE_VERSION, PROFILE } from "../_shared/fhir/systems.ts";
 
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     return fhir(toPatient(p));
   }
 
-  const [clinic, appts, meds, doses, consents, notes] = await Promise.all([
+  const [clinic, appts, meds, doses, consents, notes, mplans, readings] = await Promise.all([
     supabase.from("clinics").select("*").eq("id", p.clinic_id).single(),
     supabase.from("appointments").select("id, patient_id, provider_id, starts_at, ends_at, status, created_at, source")
       .eq("patient_id", p.id).order("starts_at"),
@@ -96,12 +96,17 @@ Deno.serve(async (req) => {
     supabase.from("care_consents").select("*").eq("patient_id", p.id).order("requested_at"),
     // Signed clinical notes only; drafts are not part of the record yet.
     supabase.from("clinical_notes").select("*").eq("patient_id", p.id).eq("status", "signed").order("signed_at"),
+    // Signed monitoring plans (running, replaced, stopped) and every reading.
+    supabase.from("monitoring_plans").select("*, vital_plans(*)").eq("patient_id", p.id).neq("status", "draft").order("signed_at"),
+    supabase.from("vital_readings").select("*").eq("patient_id", p.id).order("taken_at"),
   ]);
+  const planRows = (mplans.data ?? []) as (MonitoringPlanRow & { vital_plans: VitalPlanRow[] })[];
+  const planOf = new Map(planRows.flatMap((m) => m.vital_plans.map((v) => [v.id, m.id] as const)));
   const noteRows = (notes.data ?? []) as NoteRow[];
   const apptRows = (appts.data ?? []) as Parameters<typeof toAppointment>[0][];
   const medRows = (meds.data ?? []) as MedicationRow[];
   const providerIds = [...new Set([p.provider_id, ...apptRows.map((a) => a.provider_id),
-    ...noteRows.map((n) => n.signed_provider_id)].filter(Boolean))] as string[];
+    ...noteRows.map((n) => n.signed_provider_id), ...planRows.map((m) => m.signed_provider_id)].filter(Boolean))] as string[];
   const { data: providers } = providerIds.length
     ? await supabase.from("providers").select("id, clinic_id, name, specialty, prc_number, active").in("id", providerIds)
     : { data: [] };
@@ -119,6 +124,8 @@ Deno.serve(async (req) => {
     ...((consents.data ?? []) as ConsentRow[]).map(toConsent),
     ...noteRows.filter((n) => n.kind === "note").map(toEncounter),
     ...noteRows.map(toComposition).filter((r): r is Resource => r !== null),
+    ...planRows.map((m) => toCarePlan(m, m.vital_plans)).filter((r): r is Resource => r !== null),
+    ...((readings.data ?? []) as ReadingRow[]).flatMap((r) => toObservations(r, (id) => planOf.get(id))),
   ];
 
   const counts: Record<string, number> = {};

@@ -5,9 +5,9 @@
 // Run: deno test supabase/functions/_shared/fhir/map_test.ts
 import {
   bundle, clean, formatPhilhealthId, type Resource, toAppointment, toComposition, toConsent, toEncounter,
-  toMedicationAdministration, toMedicationRequest, toOrganization, toPatient, toPractitioner,
+  toCarePlan, toMedicationAdministration, toMedicationRequest, toObservations, toOrganization, toPatient, toPractitioner,
 } from "./map.ts";
-import { PROFILE, SYSTEM } from "./systems.ts";
+import { PROFILE, SYSTEM, VITALS_PROFILE } from "./systems.ts";
 
 function eq(actual: unknown, expected: unknown, msg = "") {
   const a = JSON.stringify(actual), e = JSON.stringify(expected);
@@ -184,4 +184,67 @@ Deno.test("Composition: addendum appends to the signed note", () => {
   eq(a.relatesTo, [{ code: "appends", targetReference: { reference: "Composition/n1" } }]);
   eq(a.section.length, 1);
   eq(a.encounter, undefined);
+});
+
+const reading = {
+  id: "r1", clinic_id: CLINIC, patient_id: "p1", vital_plan_id: "vp1", measure: "bp", value1: "152", value2: "96",
+  pulse: 80, taken_at: "2026-10-13T23:05:00Z", source: "chat", flag: "out_of_range",
+};
+
+Deno.test("Observation: blood pressure panel with components, pulse, plan and interpretation", () => {
+  const [bp, hr] = toObservations(reading, (id) => (id === "vp1" ? "mp1" : undefined));
+  wellFormed(bp); wellFormed(hr);
+  eq([bp.status, bp.code.coding[0].code, bp.meta.profile[0]], ["final", "85354-9", VITALS_PROFILE.bp]);
+  eq(bp.category[0].coding[0].code, "vital-signs");
+  eq(bp.component.map((c: Resource) => [c.code.coding[0].code, c.valueQuantity.value, c.valueQuantity.code]),
+    [["8480-6", 152, "mm[Hg]"], ["8462-4", 96, "mm[Hg]"]]);
+  eq(bp.valueQuantity, undefined, "BP carries values in components only");
+  eq(bp.interpretation[0].coding[0].code, "A");
+  eq(bp.basedOn, [{ reference: "CarePlan/mp1" }]);
+  eq(bp.performer, [{ reference: "Patient/p1" }]);
+  eq([hr.id, hr.code.coding[0].code, hr.valueQuantity.value, hr.valueQuantity.code], ["r1-pulse", "8867-4", 80, "/min"]);
+  ok(/^[A-Za-z0-9\-.]{1,64}$/.test(String(hr.id)), "FHIR id rules");
+});
+
+Deno.test("Observation: other measures, UCUM units, staff readings", () => {
+  const one = (measure: string, value1: number, extra = {}) =>
+    toObservations({ ...reading, measure, value1, value2: null, pulse: null, flag: "ok", ...extra })[0];
+  const t = one("temperature", 38.2);
+  wellFormed(t);
+  eq([t.code.coding[0].code, t.valueQuantity.code, t.valueQuantity.value], ["8310-5", "Cel", 38.2]);
+  const g = one("glucose", 110, { source: "staff" });
+  eq([g.code.coding[0].code, g.valueQuantity.code, g.category[0].coding[0].code], ["41653-7", "mg/dL", "laboratory"]);
+  eq(g.performer, [{ reference: `Organization/${CLINIC}` }]);
+  eq(g.note, undefined);
+  const s = one("spo2", 97);
+  eq(s.code.coding.map((c: Resource) => c.code), ["59408-5", "2708-6"], "oxygensat profile needs 2708-6");
+  eq(one("weight", 68.5).valueQuantity.code, "kg");
+  eq(one("weight", 68.5, { vital_plan_id: null }).interpretation, undefined, "no plan, no interpretation");
+  eq(toObservations({ ...reading, pulse: null }).length, 1);
+  eq(toObservations({ ...reading, measure: "unknown" }), []);
+});
+
+Deno.test("CarePlan: signed monitoring plan, one activity per measure; drafts not exported", () => {
+  const plan = { id: "mp1", clinic_id: CLINIC, patient_id: "p1", version: 2, status: "signed",
+    signed_provider_id: "d1", signed_at: "2026-10-13T03:00:00Z" };
+  const items = [{
+    id: "vp1", plan_id: "mp1", measure: "bp", reason: "Check the new medicine", how_to: "Sit 5 minutes",
+    times_of_day: ["07:00:00", "19:00:00"], days_of_week: [1, 3, 5], start_date: "2026-10-14", until_date: "2026-11-14",
+    target_high: 140, target_high2: 90, critical_high: 180, critical_high2: 120, if_high: "Rest and recheck",
+  }, {
+    id: "vp2", plan_id: "mp1", measure: "weight", times_of_day: ["07:00"], days_of_week: null, start_date: "2026-10-14",
+  }];
+  const c = toCarePlan(plan, items)!;
+  wellFormed(c);
+  eq([c.status, c.intent, c.author], ["active", "plan", { reference: "Practitioner/d1" }]);
+  eq(c.activity.length, 2);
+  const a = c.activity[0].detail;
+  eq([a.kind, a.status, a.code.coding[0].code], ["ServiceRequest", "in-progress", "85354-9"]);
+  eq(a.scheduledTiming.repeat.timeOfDay, ["07:00:00", "19:00:00"]);
+  eq(a.scheduledTiming.repeat.dayOfWeek, ["mon", "wed", "fri"]);
+  ok(a.description.includes("critical at or above 180/120 mmHg") && a.description.includes("If high: Rest and recheck"), "description");
+  eq(c.activity[1].detail.scheduledTiming.repeat.dayOfWeek, undefined);
+  eq(toCarePlan({ ...plan, status: "stopped", stopped_at: "2026-10-20T00:00:00Z" }, items)!.status, "completed");
+  eq(toCarePlan({ ...plan, status: "replaced" }, items)!.activity[0].detail.status, "stopped");
+  eq(toCarePlan({ ...plan, status: "draft", signed_at: null }, items), null);
 });

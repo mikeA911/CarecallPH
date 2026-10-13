@@ -134,6 +134,9 @@ tbody tr:hover td { background: rgba(26,86,219,0.03); }
 .badge.notified { background: #E4EDFC; color: var(--blue); }                  /* Pre-call text sent — Blue  */
 .badge.messaged { background: #E4EDFC; color: var(--blue); }                  /* Chat link sent — Blue      */
 .badge.needs_invite { background: #FCEFDD; color: #B45E05; }              /* Needs chat invite — Amber  */
+.badge.reading-ok { background: #E0F2F0; color: var(--teal-dark); }        /* Vital reading in target — Teal   */
+.badge.reading-out_of_range { background: #FCEFDD; color: #B45E05; }     /* Out of range — Amber             */
+.badge.reading-critical { background: #B42318; color: #fff; }            /* Critical — red, white text       */
 
 /* Primary action — Healthcare Blue solid (guideline §8) */
 button, .btn {

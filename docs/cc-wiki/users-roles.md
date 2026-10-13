@@ -26,9 +26,10 @@ at first login. Share it privately.
     medicines but not change them. They can still stop reminders if a patient
     asks.
   - A nurse or assistant can also see intake symptoms, add and stop
-    medicines, and ask a patient to agree to reminders.
-  - A doctor can do what a nurse can. Prescriptions and monitoring plans
-    (coming next) are signed by a doctor.
+    medicines, ask a patient to agree to reminders, draft monitoring plans,
+    and see and review vital-sign readings. Front desk never sees readings.
+  - A doctor can do what a nurse can, and signs clinical notes and monitoring
+    plans with their password. Prescriptions (coming next) too.
 
 New staff start as Front desk; clinic admins and platform admins start as
 Nurse / assistant. The database enforces these rules, not just the screen.

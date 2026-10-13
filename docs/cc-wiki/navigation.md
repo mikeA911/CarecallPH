@@ -10,6 +10,7 @@ routes:
   - /patients | staff | Patients
   - /history | staff | Call history
   - /cc | staff | CC action items
+  - /readings | staff | Readings to review
   - /settings/profile | staff | Profile
   - /clinicians | clinic_admin | Clinicians
   - /settings/clinic | clinic_admin | Clinic settings
@@ -30,6 +31,8 @@ The left sidebar has these items:
   a person, dialing problems). The number badge shows how many are waiting.
 - **Campaigns**: list of campaigns and their progress. Open one for detail.
 - **Patients**: patient list, CSV import, add one patient, assign to a campaign.
+- **Readings to review** (nurses and doctors): vital-sign readings outside the
+  doctor's target or critical, not yet reviewed. The badge shows how many.
 - **Call history**: every call with outcome, duration and AI summary.
 - **CC action items**: follow-ups CC has filed for the clinic.
 
@@ -56,6 +59,8 @@ Open a patient from **Patients**. From top to bottom:
 - **Chat apps** and **Messages**: invite to a chat app, and the last messages.
 - **Medicines**: medicine reminders by chat and adherence. Everyone sees the
   list; nurses and doctors add or stop medicines and ask for consent.
+- **Vital signs** (nurses and doctors only): the monitoring plan (drafted by a
+  nurse or doctor, signed by a doctor), consent, a chart and the readings.
 - **Clinical notes** (nurses and doctors only): dictate, record a consultation
   with consent, or type; CC drafts the note; doctors sign with their password.
 - **Appointments**: visits, how they were booked and reminder answers. A

@@ -80,22 +80,22 @@ flowchart LR
 |---|---|---|---|
 | `admin-manage` | Portal | Sign-in | Users (access level, clinical role, make doctor), clinics, passwords |
 | `channel-invite` | Portal | Sign-in | "Invite to chat" links and QR codes |
-| `care-plan` | Portal | Sign-in, nurse/doctor | Ask a patient to agree to medicine reminders; stop them |
+| `care-plan` | Portal | Sign-in, nurse/doctor | Ask a patient to agree to medicine reminders or vital signs; stop them; doctor signs a monitoring plan (password) |
 | `clinical-note` | Portal | Sign-in, nurse/doctor | Speech-to-text, CC drafts a SOAP note, doctor signs (password) |
 | `fhir` | Portal (and FHIR clients) | Sign-in, nurse/doctor for records | FHIR R4 export with PH Core profiles |
 | `cc-chat` | Portal | Sign-in | CC conversations (runs as the user, RLS applies) |
 | `cc-nightly` | pg_cron 02:00 Manila | Service key | CC's nightly review per clinic |
 | `start-campaign` | pg_cron every minute | Service key | Pre-call message, then dial; respects hours, status, do-not-call |
-| `send-reminders` | pg_cron every 5 minutes | Service key | Appointment reminders (24 h, 2 h) and medicine reminders; marks missed doses |
+| `send-reminders` | pg_cron every 5 minutes | Service key | Appointment reminders (24 h, 2 h), medicine reminders and vital-sign requests; marks missed doses and readings |
 | `telnyx-call-events` | Telnyx | Webhook (signature check planned) | Call events: answering-machine detection, voicemail follow-up, hangup |
 | `assistant-tools` | Telnyx voice AI | Shared secret | `verify_patient`, slots, `create_appointment`, `mark_outcome` |
 | `booking-api` | Patients' browsers | Booking token | Self-booking from `/book/<token>` |
 | `symptom-check` | Patients' browsers, Telegram | Public, rate-limited | Symptom check with the Philippine layer; booking from the result |
-| `channel-webhook` | Chat platforms | Platform signature / secret | Inbound chat: opt-in YES, STOP, BOOK, reminder and dose replies, `/check` |
+| `channel-webhook` | Chat platforms | Platform signature / secret | Inbound chat: opt-in YES, STOP, BOOK, reminder, dose and reading replies, `/check` |
 
 Shared code in `_shared/`: `lib.ts` (clients, `getCaller`, audit,
 `verifyPassword`), `roles.ts`, `channels.ts` (send by the patient's preferred
-app, falling back by Philippine reach), `reminders.ts`, `care.ts`, `notes.ts`,
+app, falling back by Philippine reach), `reminders.ts`, `care.ts`, `care_db.ts`, `vitals.ts`, `notes.ts`,
 `fhir/` (mapping and PH Core systems), `symptom/` (engines and PH layer), `cc/`
 (CC tools and the generated wiki bundle). Pure modules have Deno tests.
 
@@ -108,7 +108,7 @@ app, falling back by Philippine reach), `reminders.ts`, `care.ts`, `notes.ts`,
 | Outreach | `campaigns`, `campaign_patients`, `call_logs` |
 | Chat | `patient_channels` (opt-in per app), `channel_invites`, `channel_messages` |
 | Symptom check | `symptom_checks` (deleted after 90 days), `symptom_rate_limits`, `booking_rate_limits` |
-| Care plans | `care_consents`, `medications`, `medication_doses` |
+| Care plans | `care_consents` (scopes: medicine reminders, vital signs), `medications`, `medication_doses`, `monitoring_plans` (draft → signed → replaced / stopped), `vital_plans`, `vital_requests`, `vital_readings` |
 | Clinical notes | `clinical_notes` (draft → signed, addenda) |
 | CC | `cc_usage`, `cc_reviews`, `cc_action_items` |
 | Platform | `platform_settings` (e.g. records retention), `audit_log` |
@@ -131,8 +131,8 @@ and written only by `admin-manage`:
 | Clinical role | Can |
 |---|---|
 | Front desk | Bookings and messages; intake urgency only; medicines view-only; no clinical notes |
-| Nurse / assistant | Intake details; add and stop medicines; ask for reminder consent; draft notes; FHIR download |
-| Doctor | As nurse, plus sign clinical notes (password re-entered); linked to a clinician with a PRC number |
+| Nurse / assistant | Intake details; add and stop medicines; ask for reminder consent; draft notes and monitoring plans; see and review readings; FHIR download |
+| Doctor | As nurse, plus sign clinical notes and monitoring plans (password re-entered); linked to a clinician with a PRC number |
 
 Enforced in the database: SQL helpers `jwt_clinic_id()`, `is_admin()`,
 `is_clinic_admin()`, `jwt_clinical_role()`, `can_manage_care()` and
@@ -145,8 +145,8 @@ without their text. Functions also log exports (`fhir_export`), signatures
 (`clinical_note_signed`, failed attempts) and user changes.
 
 **Consent** is recorded, never assumed: SMS consent per patient, chat apps by
-the patient's YES (`patient_channels`), medicine reminders in the chat
-(`care_consents`, versioned wording), and consultation recordings (ticked by
+the patient's YES (`patient_channels`), medicine reminders and vital
+signs in the chat (`care_consents` with scopes, versioned wording), and consultation recordings (ticked by
 the doctor, stored on the note).
 
 ## 6. AI and outside services
@@ -181,6 +181,14 @@ the patient to agree in the chat → YES recorded → `send-reminders` sends eac
 dose time → 1 taken / 2 skipped, or missed after 2 hours → adherence on the
 patient page.
 
+**Vital signs**: a nurse or doctor drafts a monitoring plan (measures, times,
+target and critical limits, what to do if high or low) → a doctor signs it
+with their password → `care-plan` asks the patient to agree → YES sends the
+plan → `send-reminders` asks for readings at the plan's times → replies at
+`channel-webhook` are parsed and checked against the doctor's limits only →
+out-of-range and critical readings go to Readings to review and CC action
+items; critical replies tell the patient to call 911 first.
+
 **Clinical note**: the doctor dictates, records the consultation with consent,
 or types → `clinical-note` transcribes (Gemini) → Claude drafts a SOAP note
 with a check-before-signing list → the doctor edits and signs with their
@@ -189,7 +197,8 @@ password → the note is final; corrections are signed addenda.
 **FHIR export**: a nurse or doctor clicks **Download record (FHIR)** → `fhir`
 checks the clinic and role, maps the rows to FHIR R4 with PH Core profiles
 (Patient, Practitioner, Organization, Appointment, MedicationRequest,
-MedicationAdministration, Consent, Encounter, Composition) and logs the export.
+MedicationAdministration, Consent, Encounter, Composition, Observation,
+CarePlan) and logs the export.
 Records stay in CareCall's tables; FHIR is produced on request
 ([fhir-design.md](fhir-design.md)).
 

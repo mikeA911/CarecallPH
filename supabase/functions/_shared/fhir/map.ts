@@ -1,7 +1,7 @@
 // CareCall rows → FHIR R4 resources with the Philippine profiles (PH Core).
 // Pure functions: the `fhir` edge function loads rows and calls these.
 // Mapping table and rules: docs/fhir-design.md
-import { EXT, PROFILE, SYSTEM } from "./systems.ts";
+import { EXT, PROFILE, SYSTEM, VITALS_PROFILE } from "./systems.ts";
 
 // deno-lint-ignore no-explicit-any
 export type Resource = { resourceType: string; id?: string; [k: string]: any };
@@ -306,5 +306,151 @@ export function toComposition(n: NoteRow): Resource | null {
     custodian: ref("Organization", n.clinic_id),
     relatesTo: addendum && n.amends_note_id ? [{ code: "appends", targetReference: ref("Composition", n.amends_note_id) }] : undefined,
     section: sections,
+  });
+}
+
+// --- Vital signs (M3): Observation + CarePlan --------------------------------
+
+export type ReadingRow = {
+  id: string; clinic_id: string; patient_id: string; vital_plan_id?: string | null; measure: string;
+  value1: number | string; value2?: number | string | null; pulse?: number | string | null; taken_at: string;
+  source: string; flag: string;
+};
+export type MonitoringPlanRow = {
+  id: string; clinic_id: string; patient_id: string; version: number; status: string;
+  signed_provider_id?: string | null; signed_at?: string | null; stopped_at?: string | null; updated_at?: string | null;
+};
+export type VitalPlanRow = {
+  id: string; plan_id: string; measure: string; reason?: string | null; how_to?: string | null;
+  times_of_day: string[]; days_of_week?: number[] | null; start_date: string; until_date?: string | null;
+  if_high?: string | null; if_low?: string | null;
+  target_low?: number | null; target_high?: number | null; target_low2?: number | null; target_high2?: number | null;
+  critical_low?: number | null; critical_high?: number | null; critical_low2?: number | null; critical_high2?: number | null;
+};
+
+/** LOINC code, UCUM unit and profile per measure (BP: panel + systolic/diastolic components). */
+export const VITAL_CODES: Record<string, { code: string; display: string; unit: string; ucum: string; profile?: string;
+  extra?: { code: string; display: string }; category: "vital-signs" | "laboratory" }> = {
+  bp: { code: "85354-9", display: "Blood pressure panel with all children optional", unit: "mmHg", ucum: "mm[Hg]",
+    profile: VITALS_PROFILE.bp, category: "vital-signs" },
+  glucose: { code: "41653-7", display: "Glucose [Mass/volume] in Capillary blood by Glucometer", unit: "mg/dL", ucum: "mg/dL",
+    category: "laboratory" },
+  temperature: { code: "8310-5", display: "Body temperature", unit: "Cel", ucum: "Cel", profile: VITALS_PROFILE.bodytemp,
+    category: "vital-signs" },
+  weight: { code: "29463-7", display: "Body weight", unit: "kg", ucum: "kg", profile: VITALS_PROFILE.bodyweight,
+    category: "vital-signs" },
+  spo2: { code: "59408-5", display: "Oxygen saturation in Arterial blood by Pulse oximetry", unit: "%", ucum: "%",
+    profile: VITALS_PROFILE.oxygensat, extra: { code: "2708-6", display: "Oxygen saturation in Arterial blood" },
+    category: "vital-signs" },
+};
+const SYSTOLIC = { code: "8480-6", display: "Systolic blood pressure" };
+const DIASTOLIC = { code: "8462-4", display: "Diastolic blood pressure" };
+const HEART_RATE = { code: "8867-4", display: "Heart rate" };
+
+const quantity = (value: number | string, unit: string, ucum: string) =>
+  ({ value: Number(value), unit, system: SYSTEM.ucum, code: ucum });
+const loinc = (c: { code: string; display: string }) => ({ system: SYSTEM.loinc, code: c.code, display: c.display });
+const INTERPRETATION: Record<string, { code: string; display: string }> = {
+  ok: { code: "N", display: "Normal" },
+  out_of_range: { code: "A", display: "Abnormal" },
+  critical: { code: "AA", display: "Critical abnormal" },
+};
+
+/**
+ * A reading as Observation(s): the measure, plus a heart-rate Observation when
+ * a pulse came with a blood pressure. "Normal / abnormal" here means against
+ * the doctor's limits in the patient's plan, not a population range.
+ */
+export function toObservations(r: ReadingRow, planIdOf?: (vitalPlanId: string) => string | undefined): Resource[] {
+  const c = VITAL_CODES[r.measure];
+  if (!c) return [];
+  const planId = r.vital_plan_id && planIdOf ? planIdOf(r.vital_plan_id) : undefined;
+  const common = {
+    status: "final",
+    category: [{ coding: [{ system: SYSTEM.observationCategory, code: c.category,
+      display: c.category === "vital-signs" ? "Vital Signs" : "Laboratory" }] }],
+    subject: ref("Patient", r.patient_id),
+    effectiveDateTime: r.taken_at,
+    performer: [r.source === "chat" ? ref("Patient", r.patient_id) : ref("Organization", r.clinic_id)],
+    basedOn: planId ? [ref("CarePlan", planId)] : undefined,
+    note: r.source === "chat" ? [{ text: "Measured at home and sent by the patient in chat" }] : undefined,
+  };
+  const interpretation = r.vital_plan_id
+    ? [{ coding: [{ system: SYSTEM.interpretation, ...INTERPRETATION[r.flag] ?? INTERPRETATION.ok }],
+      text: "Compared with the limits in the doctor's monitoring plan" }]
+    : undefined;
+  const coding = [loinc(c), ...(c.extra ? [loinc(c.extra)] : [])];
+  const main: Resource = r.measure === "bp"
+    ? {
+      resourceType: "Observation", id: r.id, meta: { profile: [c.profile] }, ...common,
+      code: { coding, text: "Blood pressure" }, interpretation,
+      component: [
+        { code: { coding: [loinc(SYSTOLIC)] }, valueQuantity: quantity(r.value1, c.unit, c.ucum) },
+        { code: { coding: [loinc(DIASTOLIC)] }, valueQuantity: quantity(r.value2 ?? 0, c.unit, c.ucum) },
+      ],
+    }
+    : {
+      resourceType: "Observation", id: r.id, meta: c.profile ? { profile: [c.profile] } : undefined, ...common,
+      code: { coding, text: c.display }, valueQuantity: quantity(r.value1, c.unit, c.ucum), interpretation,
+    };
+  const out = [clean(main)];
+  if (r.pulse != null && r.pulse !== "") {
+    out.push(clean({
+      resourceType: "Observation", id: `${r.id}-pulse`, meta: { profile: [VITALS_PROFILE.heartrate] }, ...common,
+      code: { coding: [loinc(HEART_RATE)], text: "Pulse" }, valueQuantity: quantity(r.pulse, "/min", "/min"),
+      derivedFrom: [ref("Observation", r.id)],
+    }));
+  }
+  return out;
+}
+
+const PLAN_STATUS: Record<string, string> = { signed: "active", replaced: "revoked", stopped: "completed" };
+const DAY_CODES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+function limitsDescription(v: VitalPlanRow, unit: string): string {
+  const bp = v.measure === "bp";
+  const pair = (a?: number | null, b?: number | null) => (bp ? `${a ?? "-"}/${b ?? "-"}` : `${a}`);
+  const parts: string[] = [];
+  if (v.target_low != null || (bp && v.target_low2 != null)) parts.push(`target low ${pair(v.target_low, v.target_low2)} ${unit}`);
+  if (v.target_high != null || (bp && v.target_high2 != null)) parts.push(`target high ${pair(v.target_high, v.target_high2)} ${unit}`);
+  if (v.critical_low != null || (bp && v.critical_low2 != null)) parts.push(`critical at or below ${pair(v.critical_low, v.critical_low2)} ${unit}`);
+  if (v.critical_high != null || (bp && v.critical_high2 != null)) parts.push(`critical at or above ${pair(v.critical_high, v.critical_high2)} ${unit}`);
+  return parts.join("; ");
+}
+
+/** A signed monitoring plan as a CarePlan; one activity per measure. Drafts are not exported. */
+export function toCarePlan(m: MonitoringPlanRow, items: VitalPlanRow[]): Resource | null {
+  const status = PLAN_STATUS[m.status];
+  if (!status || !m.signed_at) return null;
+  return clean({
+    resourceType: "CarePlan",
+    id: m.id,
+    status,
+    intent: "plan",
+    title: `Home vital signs monitoring, version ${m.version}`,
+    category: [{ text: "Home vital signs monitoring" }],
+    subject: ref("Patient", m.patient_id),
+    period: { start: m.signed_at, end: m.status === "stopped" ? m.stopped_at ?? undefined : undefined },
+    created: m.signed_at,
+    author: m.signed_provider_id ? ref("Practitioner", m.signed_provider_id) : ref("Organization", m.clinic_id),
+    activity: items.map((v) => {
+      const c = VITAL_CODES[v.measure];
+      const lines = [v.reason, v.how_to && `How: ${v.how_to}`, c && limitsDescription(v, c.unit),
+        v.if_high && `If high: ${v.if_high}`, v.if_low && `If low: ${v.if_low}`].filter(Boolean);
+      return {
+        detail: {
+          kind: "ServiceRequest",
+          code: c ? { coding: [loinc(c)], text: c.display } : { text: v.measure },
+          status: status === "active" ? "in-progress" : "stopped",
+          scheduledTiming: { repeat: {
+            boundsPeriod: { start: v.start_date, end: v.until_date ?? undefined },
+            dayOfWeek: v.days_of_week?.length ? v.days_of_week.map((d) => DAY_CODES[d]) : undefined,
+            timeOfDay: v.times_of_day.map(fhirTime),
+          } },
+          performer: [ref("Patient", m.patient_id)],
+          description: lines.join("\n"),
+        },
+      };
+    }),
   });
 }
