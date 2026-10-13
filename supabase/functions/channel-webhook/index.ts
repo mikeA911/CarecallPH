@@ -36,6 +36,8 @@
 import { supabase, createBookingLink, audit } from "../_shared/lib.ts";
 import { dobCandidates } from "../_shared/dob.ts";
 import { parseReminderReply, type ReminderResponse, whenText } from "../_shared/reminders.ts";
+import { nearbyCare, nearbyText, places } from "../_shared/nearby.ts";
+import { validPoint } from "../_shared/places.ts";
 import { isWithdraw, MISSED_AFTER_MS, parseConsentReply, parseDoseReply } from "../_shared/care.ts";
 import { BUTTONS, type ChatButton, replyFromCallback } from "../_shared/buttons.ts";
 import { OFFER_VALID_MS, offerMessage, parsePick, pickSlots, type Slot, slotLabel } from "../_shared/reschedule.ts";
@@ -68,7 +70,8 @@ const OPEN_STATUSES = ["pending", "notified", "callback_requested", "no_answer",
 type Inbound =
   | { kind: "start"; externalId: string; token: string | null; name?: string }
   | { kind: "text"; externalId: string; text: string; name?: string; tap?: { id: string; messageId: number | null } }
-  | { kind: "gone"; externalId: string };
+  | { kind: "gone"; externalId: string }
+  | { kind: "location"; externalId: string; lat: number; lng: number };
 
 /** A reply with optional buttons (shown on Telegram). */
 type Reply = { text: string; buttons?: ChatButton[][] };
@@ -229,6 +232,10 @@ function parseTelegram(u: any): Inbound[] {
       tap: { id: String(cb.id), messageId: typeof cb.message.message_id === "number" ? cb.message.message_id : null } }];
   }
   const m = u.message;
+  // A shared location (📎 → Location): nearby care. Never stored.
+  if (m?.chat?.id && typeof m.location?.latitude === "number" && typeof m.location?.longitude === "number") {
+    return [{ kind: "location", externalId: String(m.chat.id), lat: m.location.latitude, lng: m.location.longitude }];
+  }
   if (!m?.chat?.id || typeof m.text !== "string") return [];
   const externalId = String(m.chat.id);
   const name = m.from?.first_name;
@@ -293,6 +300,10 @@ async function dispatch(channel: ChatChannel, ev: Inbound) {
   if (ev.kind === "start") {
     const reply = await onStart(channel, ev);
     if (reply) await reply_(channel, ev.externalId, reply.text, reply.sender, reply.clinicId, reply.patientId, reply.buttons);
+    return;
+  }
+  if (ev.kind === "location") {
+    await onLocation(channel, ev);
     return;
   }
   if (ev.kind === "gone") {
@@ -619,6 +630,9 @@ async function symptomCheckReply(channel: ChatChannel, clinicId: string | null):
   return (
     `Symptom check: answer a few questions and we'll tell you how soon to see a doctor and what kind. ` +
     `It's not a diagnosis.\n\n${portal}${path}?src=${channel}\n\n` +
+    (channel === "telegram" && places().configured
+      ? `To see emergency rooms and clinics near you, send your location here (📎 → Location).\n\n`
+      : "") +
     `If someone has chest pain, trouble breathing, signs of a stroke or heavy bleeding, call 911 now.`
   );
 }
@@ -852,4 +866,33 @@ async function careReply(text: string, patientIds: string[], livePatientIds: str
       : `OK, noted as skipped. If you're having trouble with this medicine, tell ${clinicName}.`;
   }
   return null;
+}
+
+/**
+ * A location shared in the chat: nearest emergency rooms, CareCall clinics
+ * with their booking pages, then other nearby options. The location is used
+ * for the lookup only; the message log says "[location shared]".
+ */
+async function onLocation(channel: ChatChannel, ev: Extract<Inbound, { kind: "location" }>) {
+  const { data: rows } = await supabase.from("patient_channels")
+    .select("clinic_id, patient_id").eq("channel", channel).eq("external_id", ev.externalId).is("opted_out_at", null).limit(1);
+  const row = (rows ?? [])[0] as { clinic_id: string | null; patient_id: string } | undefined;
+  await logMessage({ clinicId: row?.clinic_id ?? null, patientId: row?.patient_id ?? null, channel, direction: "inbound",
+    externalId: ev.externalId, body: "[location shared]" });
+  const say = (text: string) => reply_(channel, ev.externalId, text, "CareCall", row?.clinic_id ?? null, row?.patient_id ?? null);
+
+  const origin = validPoint(ev.lat, ev.lng);
+  if (!origin || !SYMPTOM_CHECK_ON) {
+    await say("Thanks. In an emergency, call 911. For a symptom check, send /check.");
+    return;
+  }
+  // Each lookup is a paid Places call: a few a minute per chat at most.
+  const { data: n } = await supabase.rpc("bump_symptom_rate", { p_ip: `t:${ev.externalId}` });
+  if (typeof n === "number" && n > 3) {
+    await say("Please wait a minute before sending your location again. In an emergency, call 911.");
+    return;
+  }
+  const portal = (Deno.env.get("PORTAL_URL") ?? "").replace(/\/$/, "");
+  const [er, care] = await Promise.all([nearbyCare(origin, "emergency"), nearbyCare(origin, "care")]);
+  await say(nearbyText({ er: er.places, careCall: care.careCall, care: care.places, portal }));
 }

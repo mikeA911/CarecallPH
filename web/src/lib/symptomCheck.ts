@@ -50,9 +50,18 @@ export const symptomApi = {
   search: (checkId: string, q: string) => post<{ symptoms: Symptom[] }>({ action: "search", check_id: checkId, q }),
   next: (checkId: string, person: { birthYear: number; sex: Sex }, answers: Answer[]) =>
     post<NextResp>({ action: "next", check_id: checkId, person, answers }),
-  clinics: (checkId: string) => post<{
-    clinics: { slug: string; name: string; phone: string | null; specialty_match: boolean; next_label: string | null }[];
-  }>({ action: "clinics", check_id: checkId }),
+  clinics: (checkId: string, near?: Point | null) => post<{
+    clinics: {
+      slug: string; name: string; phone: string | null; specialty_match: boolean; next_label: string | null;
+      distance_km: number | null;
+    }[];
+  }>({ action: "clinics", check_id: checkId, ...(near ? { lat: near.lat, lng: near.lng } : {}) }),
+  /** Nearby care (D1b). The location is used for the lookup only, never stored. */
+  nearby: (o: { checkId: string | null; kind: "emergency" | "care"; at?: Point; place?: string }) =>
+    post<NearbyResp>({
+      action: "nearby", check_id: o.checkId ?? undefined, kind: o.kind,
+      ...(o.at ? { lat: o.at.lat, lng: o.at.lng } : { place: o.place }),
+    }),
   chooseClinic: (checkId: string, clinicSlug: string) =>
     post<{ clinic: CheckClinic }>({ action: "choose_clinic", check_id: checkId, clinic_slug: clinicSlug }),
   slots: (checkId: string, onDate?: string) =>
@@ -61,6 +70,40 @@ export const symptomApi = {
     provider_id: string; slot_start: string; first_name: string; last_name: string; phone: string; date_of_birth: string;
   }) => post<BookResp>({ action: "book", check_id: checkId, ...details }),
 };
+
+// ---------------------------------------------------------------------------
+// Nearby care (design §3a)
+// ---------------------------------------------------------------------------
+export type Point = { lat: number; lng: number };
+export type NearbyPlace = {
+  name: string; address: string | null; distance_km: number; open_now: boolean | null; phone: string | null; maps_url: string;
+};
+export type NearCareCall = { slug: string; name: string; phone: string | null; distance_km: number };
+export type NearbyResp = {
+  kind: "emergency" | "care"; origin_label: string | null;
+  carecall: NearCareCall[]; places: NearbyPlace[] | null; unavailable: boolean;
+};
+
+/** "350 m", "1.2 km", "14 km" (straight line). */
+export function distanceLabel(km: number): string {
+  if (km < 1) return `${Math.max(50, Math.round((km * 1000) / 50) * 50)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
+/** The browser's location (asks permission). Rejects with a message to show. */
+export function browserLocation(timeoutMs = 10_000): Promise<Point> {
+  return new Promise((resolve, reject) => {
+    if (!("geolocation" in navigator)) { reject(new Error("This browser can't share a location. Type your town instead.")); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (e) => reject(new Error(e.code === e.PERMISSION_DENIED
+        ? "Location is blocked for this page. Type your town or barangay instead."
+        : "Couldn't get your location. Type your town or barangay instead.")),
+      { enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 5 * 60_000 },
+    );
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Emergency screen (design §2 step 2, §4a). Kept in the page, not the server,

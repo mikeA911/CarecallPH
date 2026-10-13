@@ -19,6 +19,7 @@
 // no_double_booking constraint (23P01) catches races. The appointment carries
 // `intake`: the summary the patient agreed to share with the clinic.
 import { speakable, supabase } from "../_shared/lib.ts";
+import { haversineKm } from "../_shared/places.ts";
 import { normalizePhPhone } from "../_shared/phone.ts";
 import { PH_RULE_LABELS } from "../_shared/symptom/ph_layer.ts";
 import type { SymptomEngine } from "../_shared/symptom/engine.ts";
@@ -104,14 +105,17 @@ const MAX_LISTED_CLINICS = 20;
  * the symptom check on. Order: a doctor of the right kind first, then the
  * soonest open time, then name. No sponsored order. Location comes with D1b.
  */
-export async function clinics(c: BookableCheck, pub: Pub) {
+export async function clinics(c: BookableCheck, pub: Pub, near: { lat: number; lng: number } | null = null) {
   const why = noResult(c);
   if (why) return pub({ error: why }, 409);
   const { data } = await supabase.from("clinics")
-    .select("id, name, phone_callback, public_slug, timezone")
+    .select("id, name, phone_callback, public_slug, timezone, lat, lng")
     .eq("symptom_check_enabled", true).eq("active", true).not("public_slug", "is", null)
     .order("name").limit(MAX_LISTED_CLINICS);
-  const rows = (data ?? []) as { id: string; name: string; phone_callback: string | null; public_slug: string; timezone: string | null }[];
+  const rows = (data ?? []) as {
+    id: string; name: string; phone_callback: string | null; public_slug: string; timezone: string | null;
+    lat: number | null; lng: number | null;
+  }[];
 
   const list = await Promise.all(rows.map(async (cl) => {
     const tz = cl.timezone || "Asia/Manila";
@@ -124,10 +128,16 @@ export async function clinics(c: BookableCheck, pub: Pub) {
       specialty_match: matched,
       next_open: first ? first.slot_start : null,
       next_label: first ? nextLabel(first.slot_start, tz) : null,
+      // With the patient's location (never stored): straight-line distance.
+      distance_km: near && cl.lat != null && cl.lng != null
+        ? Math.round(haversineKm(near, { lat: cl.lat, lng: cl.lng }) * 10) / 10 : null,
     };
   }));
+  // Kind of doctor first, then nearest (when known), then soonest time.
+  const far = (d: number | null) => d ?? Number.POSITIVE_INFINITY;
   list.sort((a, b) =>
     Number(b.specialty_match) - Number(a.specialty_match) ||
+    (near ? far(a.distance_km) - far(b.distance_km) : 0) ||
     (a.next_open ?? "9999").localeCompare(b.next_open ?? "9999") ||
     a.name.localeCompare(b.name));
   return pub({ clinics: list.map(({ next_open: _n, ...x }) => x), today_only: c.urgency === "urgent" });

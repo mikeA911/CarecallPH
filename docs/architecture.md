@@ -158,6 +158,7 @@ the doctor, stored on the note).
 | Telnyx | Voice AI calls, SMS | Call audio, phone numbers |
 | Viber, Meta (Messenger, WhatsApp), Telegram | Patient messages | Phone or chat ID and message text (no diagnoses) |
 | Symptom engine (demo, Infermedica) | Symptom check | Age band, sex, answers; no name or contact details |
+| Google Places API (New) | Nearby care: nearest ERs, clinics, a typed town | The patient's location (or typed place) for one lookup; never stored by CareCall |
 
 Each needs a processing agreement before real patient data is used (Data
 Privacy Act). Secrets live only in Supabase (`supabase secrets set`).

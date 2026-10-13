@@ -5,7 +5,7 @@ summary: The public symptom check page (/check/<clinic>), what patients see, eme
 roles: staff
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 ## What it is
@@ -43,6 +43,25 @@ real engine (Infermedica) comes once the clinic platform's trial is approved.
    patient (same mobile and birthday) is matched, never changed.
 
 CareCall never calls 911 for the patient. The patient calls.
+
+## Nearby care
+
+- **Emergency screen**: under the **Call 911** button, **Find the nearest
+  emergency room** lists the 3 nearest hospitals with distance, phone and
+  directions. The 911 button never waits for it.
+- **Result, on the CareCall page** (`/check`): **Near you** asks for the
+  patient's location (**Use my location**, or type a town, city or barangay).
+  CareCall clinics nearby come first with **Book a visit**; then **Other
+  nearby options** from Google (hospitals and doctors within 10 km, nearest
+  first), which we don't book: the patient calls them. **Find a clinic and
+  book** then sorts clinics by distance too.
+- **The clinic's own link** never lists other places, except emergency rooms.
+- **Telegram**: a patient who sends their location in the chat (📎 →
+  Location) gets the nearest emergency rooms, CareCall clinics and other
+  options.
+- The location is used for the search only and is never saved. Lists aren't
+  complete and distances are straight-line. For a clinic to appear as "near
+  you", set its map location (Clinic settings → **Find on map**).
 
 ## One page or the clinic's own link
 
@@ -92,6 +111,10 @@ location or IP address. Checks are deleted after 90 days.
   doctor, symptoms and any Philippine warnings to watch for.
 - "Why no times?" The clinic needs clinicians with availability (Clinicians).
   Urgent results only show today's open times; otherwise up to 10 days ahead.
-- "Does it show nearby clinics?" Not yet: nearby care by location comes next.
+- "Does it show nearby clinics?" Yes, when the patient shares their location
+  or types their town (CareCall page and emergency screen). The clinic needs its
+  map location set (Clinic settings → **Find on map**).
+- "A clinic doesn't show as nearby." It needs the symptom check on, a link, and
+  a map location; it must be within 25 km of the patient.
 - "Is it in Filipino?" The emergency questions and key lines are in English and
   Filipino; symptom names are English for now.

@@ -9,8 +9,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import {
-  type Answer, type CheckClinic, EMERGENCY_QUESTIONS, type NextResp, type Question, type Sex,
-  type Symptom, specialtyLabel, symptomApi,
+  type Answer, browserLocation, type CheckClinic, distanceLabel, EMERGENCY_QUESTIONS, type NearbyResp, type NextResp,
+  type Point, type Question, type Sex, type Symptom, specialtyLabel, symptomApi,
 } from "../lib/symptomCheck";
 import { phLocalGroups } from "../lib/phone";
 
@@ -186,7 +186,7 @@ export default function CheckPage() {
           )}
 
           {step === "emergency" && (
-            <EmergencyScreen clinic={clinic} selfHarm={!!flags.selfharm} onBack={restart} />
+            <EmergencyScreen clinic={clinic} checkId={checkId} selfHarm={!!flags.selfharm} onBack={restart} />
           )}
 
           {step === "about" && (
@@ -267,7 +267,8 @@ export default function CheckPage() {
             </>
           )}
 
-          {step === "result" && result && <Result result={result} clinic={clinic} checkId={checkId} onRestart={restart} onClinicChosen={setClinic} />}
+          {step === "result" && result && <Result result={result} clinic={clinic} checkId={checkId} onRestart={restart}
+            onClinicChosen={setClinic} allowNearby={!slug} />}
 
           {step === "unavailable" && (
             <>
@@ -346,12 +347,21 @@ function SymptomPicker({ checkId, chosen, setChosen, busy, onNext, onUnavailable
   );
 }
 
-function Result({ result, clinic, checkId, onRestart, onClinicChosen }: {
+function Result({ result, clinic, checkId, onRestart, onClinicChosen, allowNearby }: {
   result: NonNullable<NextResp["result"]>; clinic: CheckClinic | null; checkId: string | null; onRestart: () => void;
   onClinicChosen: (c: CheckClinic) => void;
+  /** Not on a clinic's own link: that page never lists other places (design §7a). */
+  allowNearby: boolean;
 }) {
   const [booking, setBooking] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [near, setNear] = useState<Point | null>(null);
+
+  async function bookAt(slug: string) {
+    if (!checkId) return;
+    const { data } = await symptomApi.chooseClinic(checkId, slug);
+    if (data?.clinic) { onClinicChosen(data.clinic); setBooking(true); setPicking(false); }
+  }
   const head = {
     urgent: { en: "See a doctor today", fil: "Magpatingin sa doktor ngayong araw." },
     routine: { en: "See a doctor in the next few days", fil: "Magpatingin sa doktor sa susunod na mga araw." },
@@ -381,7 +391,7 @@ function Result({ result, clinic, checkId, onRestart, onClinicChosen }: {
       {!clinic && checkId && (
         <div className="check-clinic">
           {picking ? (
-            <ClinicPicker checkId={checkId} urgent={result.urgency === "urgent"}
+            <ClinicPicker checkId={checkId} urgent={result.urgency === "urgent"} near={near}
               onChosen={(c) => { onClinicChosen(c); setBooking(true); setPicking(false); }} />
           ) : (
             <>
@@ -415,6 +425,11 @@ function Result({ result, clinic, checkId, onRestart, onClinicChosen }: {
         </div>
       )}
 
+      {allowNearby && checkId && (
+        <NearbyCare checkId={checkId} kind="care" onLocated={setNear}
+          onBook={!clinic ? bookAt : undefined} />
+      )}
+
       <div className="check-note">
         If it gets worse, or any emergency sign appears, call <a href="tel:911">911</a>.
         This is not a diagnosis.
@@ -424,19 +439,22 @@ function Result({ result, clinic, checkId, onRestart, onClinicChosen }: {
   );
 }
 
-type ListedClinic = { slug: string; name: string; phone: string | null; specialty_match: boolean; next_label: string | null };
+type ListedClinic = {
+  slug: string; name: string; phone: string | null; specialty_match: boolean; next_label: string | null;
+  distance_km: number | null;
+};
 
 /** One public page (/check): pick a participating clinic, then book there. */
-function ClinicPicker({ checkId, urgent, onChosen }: {
-  checkId: string; urgent: boolean; onChosen: (c: CheckClinic) => void;
+function ClinicPicker({ checkId, urgent, near, onChosen }: {
+  checkId: string; urgent: boolean; near: Point | null; onChosen: (c: CheckClinic) => void;
 }) {
   const [list, setList] = useState<ListedClinic[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    symptomApi.clinics(checkId).then(({ data }) => setList(data?.clinics ?? []));
-  }, [checkId]);
+    symptomApi.clinics(checkId, near).then(({ data }) => setList(data?.clinics ?? []));
+  }, [checkId, near]);
 
   async function choose(c: ListedClinic) {
     setBusy(true); setErr("");
@@ -459,6 +477,7 @@ function ClinicPicker({ checkId, urgent, onChosen }: {
           <button key={c.slug} className="book-option" disabled={busy} onClick={() => choose(c)}>
             <span className="book-option-main">{c.name}</span>
             <span className="book-option-sub">
+              {c.distance_km != null ? `${distanceLabel(c.distance_km)} away · ` : ""}
               {c.specialty_match ? "Has the kind of doctor you need · " : ""}
               {c.next_label ? `Next open: ${c.next_label}` : urgent ? "No times left today: call the clinic" : "No open times online"}
             </span>
@@ -467,7 +486,7 @@ function ClinicPicker({ checkId, urgent, onChosen }: {
       </div>
       <p className="small muted">
         Clinics that use CareCall, not every clinic near you. Listed by the kind of doctor you need, then
-        the soonest open time.
+        {near ? " the nearest, then" : ""} the soonest open time.
       </p>
     </>
   );
@@ -599,7 +618,9 @@ function BookVisit({ checkId, clinic, urgent }: { checkId: string; clinic: Check
   );
 }
 
-function EmergencyScreen({ clinic, selfHarm, onBack }: { clinic: CheckClinic | null; selfHarm: boolean; onBack: () => void }) {
+function EmergencyScreen({ clinic, checkId, selfHarm, onBack }: {
+  clinic: CheckClinic | null; checkId: string | null; selfHarm: boolean; onBack: () => void;
+}) {
   const local = (clinic?.local_emergency_numbers ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
   return (
     <div className="check-emergency" role="alert">
@@ -607,6 +628,8 @@ function EmergencyScreen({ clinic, selfHarm, onBack }: { clinic: CheckClinic | n
       <p lang="fil" className="check-fil-lead">Tumawag agad sa 911.</p>
       <a className="check-call" href="tel:911">Call 911</a>
       <p className="small">Or go to the nearest hospital emergency room. Don't drive yourself if you can avoid it.</p>
+
+      <NearbyCare checkId={checkId} kind="emergency" />
 
       {selfHarm && (
         <div className="check-note">
@@ -647,4 +670,115 @@ function EmergencyScreen({ clinic, selfHarm, onBack }: { clinic: CheckClinic | n
 
 function EmergencyFooter() {
   return <p className="check-note">In an emergency, call <a href="tel:911">911</a>.</p>;
+}
+
+/**
+ * Nearby care (D1b): the patient shares their location (browser) or types a
+ * town; we list nearby places from Google. "care" also shows CareCall clinics
+ * nearby with booking. The location is used for the lookup only.
+ */
+function NearbyCare({ checkId, kind, onLocated, onBook }: {
+  checkId: string | null; kind: "emergency" | "care";
+  onLocated?: (p: Point) => void; onBook?: (slug: string) => void;
+}) {
+  const [place, setPlace] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [res, setRes] = useState<NearbyResp | null>(null);
+  const emergency = kind === "emergency";
+
+  async function lookup(at?: Point) {
+    setBusy(true); setErr("");
+    const { data, error } = await symptomApi.nearby({ checkId, kind, at, place: at ? undefined : place.trim() });
+    setBusy(false);
+    if (error === "place_not_found") { setErr("We couldn't find that place in the Philippines. Try your city or municipality."); return; }
+    if (error || !data) {
+      setErr(emergency ? "Couldn't look up hospitals right now. Call 911, or go to the nearest hospital."
+        : "Couldn't look up places right now. Please try again later.");
+      return;
+    }
+    setRes(data);
+  }
+  async function useMyLocation() {
+    setErr(""); setBusy(true);
+    try {
+      const at = await browserLocation();
+      onLocated?.(at);
+      await lookup(at);
+    } catch (e) {
+      setBusy(false); setErr((e as Error).message);
+    }
+  }
+
+  return (
+    <div className={`check-nearby${emergency ? " check-nearby-er" : ""}`}>
+      <h2 className="check-h2">{emergency ? "Nearest emergency rooms" : "Near you"}</h2>
+      {!res && (
+        <>
+          <button className={emergency ? "book-btn" : "book-btn secondary"} disabled={busy} onClick={useMyLocation}>
+            {busy ? "Looking…" : emergency ? "Find the nearest emergency room" : "Use my location"}
+          </button>
+          <form className="check-nearby-place" onSubmit={(e) => { e.preventDefault(); if (place.trim().length >= 2) lookup(); }}>
+            <input aria-label="Your town, city or barangay" placeholder="or type your town, city or barangay"
+                   value={place} onChange={(e) => setPlace(e.target.value)} />
+            <button type="submit" className="book-link" disabled={busy || place.trim().length < 2}>Search</button>
+          </form>
+          <p className="small muted">Your location is used only for this search and isn't saved.</p>
+        </>
+      )}
+      {err && <p className="book-err" role="alert">{err}</p>}
+
+      {res && (
+        <>
+          {res.origin_label && <p className="small muted">Near: {res.origin_label}</p>}
+          {!!res.carecall.length && (
+            <>
+              <strong>Clinics you can book with CareCall</strong>
+              <div className="book-list" style={{ marginTop: 6 }}>
+                {res.carecall.map((c) => (
+                  <button key={c.slug} className="book-option" disabled={!onBook} onClick={() => onBook?.(c.slug)}>
+                    <span className="book-option-main">{c.name}</span>
+                    <span className="book-option-sub">{distanceLabel(c.distance_km)} away{onBook ? " · Book a visit" : ""}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {res.unavailable && (
+            <p>{emergency ? "We couldn't look up hospitals right now. Call 911, or go to the nearest hospital."
+              : "We couldn't look up other places right now. Your barangay health center can also help."}</p>
+          )}
+          {!!res.places?.length && (
+            <>
+              {!emergency && <strong>Other nearby options</strong>}
+              {!emergency && <p className="small muted" style={{ margin: "2px 0 6px" }}>We don't book these; call them directly.</p>}
+              <ul className="check-places">
+                {res.places.map((p) => (
+                  <li key={p.maps_url}>
+                    <strong>{p.name}</strong>
+                    <span className="small muted">
+                      {" "}{distanceLabel(p.distance_km)}
+                      {p.open_now === true ? " · open now" : p.open_now === false ? " · closed now" : ""}
+                    </span>
+                    {p.address && <div className="small muted">{p.address}</div>}
+                    <div className="check-place-actions">
+                      {p.phone && <a href={`tel:${p.phone.replace(/[^\d+]/g, "")}`}>Call {p.phone}</a>}
+                      <a href={p.maps_url} target="_blank" rel="noreferrer">Directions</a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {res.places && !res.places.length && !res.carecall.length && (
+            <p>{emergency ? "No hospital found nearby. Call 911." : "Nothing found nearby. Try a different town, or ask your barangay health center."}</p>
+          )}
+          <p className="small muted">
+            Not a complete list. Distances are straight-line and approximate. Place data © Google.
+            {" "}<button className="book-link" onClick={() => setRes(null)}>Search again</button>
+          </p>
+        </>
+      )}
+    </div>
+  );
 }

@@ -9,6 +9,12 @@ updated: 2026-10-13
 
 ## 2026-10-13
 
+- **Nearby care** in the symptom check: nearest emergency rooms on the
+  emergency screen; on the result, CareCall clinics near the patient (with
+  booking) and other nearby hospitals and doctors. Patients share their
+  location or type their town; Telegram users can send their location. Set
+  your clinic's location in Clinic settings → **Find on map**.
+
 - **Telegram buttons**: reminders, medicine check-ins, consent requests and
   chat replies now have buttons to tap (Confirm, Change time, Taken, Yes…).
   Typed replies still work on every app.
