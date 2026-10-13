@@ -105,6 +105,10 @@ Details: [docs/cc-assistant.md](docs/cc-assistant.md).
   enforced in the database.
 - **Medicine reminders** by chat after the patient agrees in the chat; 1 taken /
   2 skipped; adherence on the patient page.
+- **Vital signs by chat**: a monitoring plan the doctor signs (measures, times,
+  target and critical limits, what to do if high or low); after the patient
+  agrees, CareCall asks for readings and checks them against the doctor's
+  limits; **Readings to review** for nurses and doctors; chart per measure.
 - **Clinical notes**: the doctor dictates, records the consultation with the
   patient's consent, or types; speech-to-text makes a transcript (audio never
   stored); CC drafts a SOAP note; the doctor signs with their password. Signed
@@ -156,7 +160,7 @@ Details: [docs/care-plan-design.md](docs/care-plan-design.md),
 │       ├── cc-nightly/              # CC nightly review (one clinic per call)
 │       ├── symptom-check/           # public symptom check + booking from the result
 │       ├── send-reminders/          # appointment and medicine reminders (pg_cron)
-│       ├── care-plan/               # medicine reminder consent
+│       ├── care-plan/               # care consents (medicines, vital signs), sign monitoring plans
 │       ├── clinical-note/           # speech-to-text, SOAP draft, doctor signature
 │       └── fhir/                    # FHIR R4 export (PH Core)
 ├── telnyx/

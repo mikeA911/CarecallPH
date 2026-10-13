@@ -53,7 +53,7 @@ export default function MedicinesSection({ patientId, clinicId, canMessage }: {
     const since = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
     const [{ data: c }, { data: m }, { data: d }] = await Promise.all([
       supabase.from("care_consents").select("requested_at, consented_at, declined_at, withdrawn_at")
-        .eq("patient_id", patientId).order("requested_at", { ascending: false }).limit(1),
+        .eq("patient_id", patientId).contains("scopes", ["medication_reminders"]).order("requested_at", { ascending: false }).limit(1),
       supabase.from("medications")
         .select("id, name, dose, instructions, times_of_day, start_date, end_date, discreet, active")
         .eq("patient_id", patientId).order("active", { ascending: false }).order("created_at", { ascending: false }),
@@ -80,7 +80,7 @@ export default function MedicinesSection({ patientId, clinicId, canMessage }: {
   async function stopReminders() {
     if (!confirm("Stop medicine reminders for this patient? Their medicine list stays.")) return;
     setBusy(true);
-    const { error } = await callFunction("care-plan", { action: "withdraw", patient_id: patientId });
+    const { error } = await callFunction("care-plan", { action: "withdraw", patient_id: patientId, scope: "medication_reminders" });
     setBusy(false);
     setMsg(error ? error : "Medicine reminders stopped.");
     load();

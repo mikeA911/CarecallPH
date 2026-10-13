@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabase";
-import { useSession, roleAtLeast } from "./lib/session";
+import { useSession, roleAtLeast, canManageCare } from "./lib/session";
 import { useClinic } from "./lib/clinic";
 import { MULTI_CLINIC_ENABLED } from "./lib/config";
 import type { Role } from "./lib/types";
@@ -23,6 +23,7 @@ import Profile from "./pages/settings/Profile";
 import AdminClinics from "./pages/admin/Clinics";
 import AdminSettings from "./pages/admin/Settings";
 import CCActions from "./pages/CCActions";
+import Readings from "./pages/Readings";
 import CCPanel from "./components/CCPanel";
 
 function Guard({ min, children }: { min: Role; children: ReactNode }) {
@@ -77,6 +78,27 @@ function useOpenActionCount() {
   return count;
 }
 
+/** Unreviewed out-of-range and critical vital-sign readings (nurses and doctors). */
+function useReadingsCount(enabled: boolean) {
+  const { activeClinicId } = useClinic();
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!activeClinicId || !enabled) return;
+    async function load() {
+      const { count: n } = await supabase.from("vital_readings")
+        .select("id", { count: "exact", head: true })
+        .eq("clinic_id", activeClinicId).neq("flag", "ok").is("reviewed_at", null);
+      setCount(n ?? 0);
+    }
+    load();
+    const ch = supabase.channel("readings-badge")
+      .on("postgres_changes", { event: "*", schema: "public", table: "vital_readings" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeClinicId, enabled]);
+  return count;
+}
+
 function ClinicSwitcher() {
   const { role } = useSession();
   const { clinics, activeClinicId, setActiveClinicId } = useClinic();
@@ -105,8 +127,10 @@ function ClinicSwitcher() {
 }
 
 function Sidebar({ onOpenCC }: { onOpenCC: () => void }) {
-  const { role, signOut, session } = useSession();
+  const { role, clinicalRole, signOut, session } = useSession();
+  const clinical = canManageCare(clinicalRole);
   const reviewCount = useReviewCount();
+  const readingsCount = useReadingsCount(clinical);
   const actionCount = useOpenActionCount();
   const isClinicAdmin = roleAtLeast(role, "clinic_admin");
   const isAdmin = role === "admin";
@@ -132,6 +156,12 @@ function Sidebar({ onOpenCC }: { onOpenCC: () => void }) {
       </NavLink>
       <NavLink to="/campaigns">Campaigns</NavLink>
       <NavLink to="/patients">Patients</NavLink>
+      {clinical && (
+        <NavLink to="/readings">
+          Readings to review
+          {readingsCount > 0 && <span className="nav-badge">{readingsCount}</span>}
+        </NavLink>
+      )}
       <NavLink to="/history">Call history</NavLink>
       <NavLink to="/cc">
         CC action items
@@ -195,6 +225,7 @@ export default function App() {
           <Route path="/patients/:id" element={<PatientDetail />} />
           <Route path="/history" element={<CallHistory />} />
           <Route path="/cc" element={<CCActions />} />
+          <Route path="/readings" element={<Readings />} />
           <Route path="/clinicians" element={<Guard min="clinic_admin"><Clinicians /></Guard>} />
           <Route path="/settings/clinic" element={<Guard min="clinic_admin"><ClinicSettings /></Guard>} />
           <Route path="/settings/users" element={<Guard min="clinic_admin"><Users /></Guard>} />

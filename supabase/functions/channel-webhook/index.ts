@@ -37,6 +37,12 @@ import { supabase, createBookingLink, audit } from "../_shared/lib.ts";
 import { dobCandidates } from "../_shared/dob.ts";
 import { parseReminderReply, type ReminderResponse, whenText } from "../_shared/reminders.ts";
 import { nearbyCare, nearbyText, places } from "../_shared/nearby.ts";
+import { consentedPatients, sendSignedPlan } from "../_shared/care_db.ts";
+import {
+  classify, direction, formatReading, looksLikeReading, MEASURE_INFO, type Measure, notUnderstood, parseReading,
+  readingReply as readingText,
+  REQUEST_OPEN_MS, type VitalItem,
+} from "../_shared/vitals.ts";
 import { validPoint } from "../_shared/places.ts";
 import { isWithdraw, MISSED_AFTER_MS, parseConsentReply, parseDoseReply } from "../_shared/care.ts";
 import { BUTTONS, type ChatButton, replyFromCallback } from "../_shared/buttons.ts";
@@ -472,7 +478,18 @@ async function onText(channel: ChatChannel, ev: Extract<Inbound, { kind: "text" 
     ev.text, verified.map((r) => r.patient_id),
     verified.filter((r) => r.opted_in_at && !r.opted_out_at).map((r) => r.patient_id), clinic.name,
   );
-  if (careAnswer) { await say(careAnswer); return; }
+  if (careAnswer) {
+    if (typeof careAnswer === "string") { await say(careAnswer); return; }
+    await say(careAnswer.text);
+    await careAnswer.after().catch((e) => console.error("care follow-up", e));
+    return;
+  }
+
+  // Vital signs: a reading in reply to a request (or an unmistakable BP).
+  const vitalsAnswer = await readingReply(
+    ev.text, verified.filter((r) => r.opted_in_at && !r.opted_out_at).map((r) => r.patient_id),
+  );
+  if (vitalsAnswer) { await say(vitalsAnswer); return; }
 
   const live = verified.filter((r) => r.opted_in_at && !r.opted_out_at).map((r) => r.patient_id);
 
@@ -808,36 +825,48 @@ async function answerOffer(text: string, patientIds: string[]): Promise<Reply | 
 
 /**
  * Care plan replies (M1), or null when the message isn't one:
- *   STOP REMINDERS                       → withdraw medicine-reminder consent
+ *   STOP REMINDERS                       → withdraw care consents (medicines and vital signs)
  *   YES / NO to a consent request         → record the answer (3-day window)
  *   1 / 2 after a medicine reminder       → taken / skipped (until it's missed);
  *     if an appointment reminder was sent after it, that one gets the reply.
  */
-async function careReply(text: string, patientIds: string[], livePatientIds: string[], clinicName: string): Promise<string | null> {
+async function careReply(text: string, patientIds: string[], livePatientIds: string[], clinicName: string):
+  Promise<string | { text: string; after: () => Promise<unknown> } | null> {
   const now = new Date();
   if (!patientIds.length) return null;
 
   if (isWithdraw(text)) {
     const { data } = await supabase.from("care_consents").update({ withdrawn_at: now.toISOString() })
-      .in("patient_id", patientIds).is("withdrawn_at", null).not("consented_at", "is", null).select("id");
-    return (data ?? []).length
-      ? `Medicine reminders are stopped. Your doctor's instructions don't change: keep taking your medicines ` +
-        `as prescribed unless your doctor says otherwise. To start again, ask ${clinicName}.`
-      : `You don't have medicine reminders on.`;
+      .in("patient_id", patientIds).is("withdrawn_at", null).not("consented_at", "is", null).select("scopes");
+    const scopes = new Set(((data ?? []) as { scopes: string[] }[]).flatMap((c) => c.scopes));
+    if (!scopes.size) return `You don't have reminders on.`;
+    const what = [scopes.has("medication_reminders") && "Medicine reminders", scopes.has("vital_signs") && "requests for your readings"]
+      .filter(Boolean).join(" and ");
+    return `${what[0].toUpperCase()}${what.slice(1)} are stopped. Your doctor's instructions don't change: keep following ` +
+      `them unless your doctor says otherwise. To start again, ask ${clinicName}.`;
   }
 
   const consent = parseConsentReply(text);
   if (consent) {
-    const { data } = await supabase.from("care_consents").select("id")
+    const { data } = await supabase.from("care_consents").select("id, patient_id, scopes")
       .in("patient_id", patientIds)
       .is("consented_at", null).is("declined_at", null).is("withdrawn_at", null)
       .gte("requested_at", new Date(now.getTime() - 3 * 24 * 3600_000).toISOString())
       .order("requested_at", { ascending: false }).limit(1);
-    const pending = (data ?? [])[0] as { id: string } | undefined;
+    const pending = (data ?? [])[0] as { id: string; patient_id: string; scopes: string[] } | undefined;
     if (pending) {
       await supabase.from("care_consents")
         .update(consent === "yes" ? { consented_at: now.toISOString() } : { declined_at: now.toISOString() })
         .eq("id", pending.id);
+      if (pending.scopes.includes("vital_signs")) {
+        if (consent === "no") return `OK, no vital-sign messages. If you change your mind, just tell ${clinicName}.`;
+        // The doctor's plan (their instruction sheet) follows this reply.
+        return {
+          text: `Thank you! Your doctor's monitoring plan comes next, and we'll message you at the times it says. ` +
+            `Reply STOP REMINDERS any time to stop.`,
+          after: () => sendSignedPlan(pending.patient_id),
+        };
+      }
       return consent === "yes"
         ? `Thank you! Your medicine reminders start at the next time your doctor set. ` +
           `Reply STOP REMINDERS any time to stop.`
@@ -895,4 +924,82 @@ async function onLocation(channel: ChatChannel, ev: Extract<Inbound, { kind: "lo
   const portal = (Deno.env.get("PORTAL_URL") ?? "").replace(/\/$/, "");
   const [er, care] = await Promise.all([nearbyCare(origin, "emergency"), nearbyCare(origin, "care")]);
   await say(nearbyText({ er: er.places, careCall: care.careCall, care: care.places, portal }));
+}
+
+/**
+ * A vital-sign reading (M3), or null when the message isn't one:
+ *   an open request (sent in the last 4 hours) → read the reply as its measure;
+ *   no request, but the message is clearly a blood pressure → the BP measure
+ *   of the patient's running plan.
+ * Saved with the flag from the doctor's limits. Out of range → Readings to
+ * review; critical → urgent item for the clinic and 911 first in the reply.
+ */
+async function readingReply(text: string, livePatientIds: string[]): Promise<string | null> {
+  if (!livePatientIds.length || !/\d/.test(text)) return null;
+  const patients = await consentedPatients("vital_signs", livePatientIds);
+  if (!patients.length) return null;
+  const now = new Date();
+
+  type Item = VitalItem & { clinic_id: string; monitoring_plans: { status: string; providers: { name: string } | null } };
+  const { data: open } = await supabase.from("vital_requests")
+    .select("id, patient_id, due_at, vital_plans!inner(*, monitoring_plans!inner(status, providers:signed_provider_id(name)))")
+    .in("patient_id", patients).eq("status", "sent")
+    .gt("due_at", new Date(now.getTime() - REQUEST_OPEN_MS).toISOString())
+    .order("due_at", { ascending: false });
+  const requests = ((open ?? []) as unknown as { id: string; patient_id: string; vital_plans: Item }[])
+    .filter((r) => r.vital_plans.monitoring_plans.status === "signed");
+
+  let match: { item: Item; requestId: string | null; reading: ReturnType<typeof parseReading> } | null = null;
+  for (const r of requests) {
+    const reading = parseReading(r.vital_plans.measure, text);
+    if (reading) { match = { item: r.vital_plans, requestId: r.id, reading }; break; }
+  }
+  if (!match) {
+    const guess = looksLikeReading(text);
+    if (guess) {
+      const { data } = await supabase.from("vital_plans")
+        .select("*, monitoring_plans!inner(status, providers:signed_provider_id(name))")
+        .in("patient_id", patients).eq("measure", guess).eq("monitoring_plans.status", "signed").limit(1);
+      const item = ((data ?? []) as unknown as Item[])[0];
+      const reading = item ? parseReading(guess, text) : null;
+      if (item && reading) match = { item, requestId: null, reading };
+    }
+  }
+  if (!match) {
+    // A request is open and the reply has numbers we can't read: ask again.
+    return requests.length ? notUnderstood(requests[0].vital_plans.measure) : null;
+  }
+
+  const { item, requestId, reading } = match;
+  const measure = item.measure as Measure;
+  const flag = classify(measure, reading!, item);
+  await supabase.from("vital_readings").insert({
+    clinic_id: item.clinic_id, patient_id: item.patient_id, vital_plan_id: item.id, request_id: requestId,
+    measure, value1: reading!.value1, value2: reading!.value2 ?? null, pulse: reading!.pulse ?? null,
+    taken_at: now.toISOString(), source: "chat", flag,
+  });
+  if (requestId) {
+    await supabase.from("vital_requests").update({ status: "answered", answered_at: now.toISOString() }).eq("id", requestId);
+  }
+
+  const { data: c } = await supabase.from("clinics").select("name, phone_callback").eq("id", item.clinic_id).maybeSingle();
+  const clinic = c as { name: string; phone_callback: string | null } | null;
+  if (flag !== "ok") {
+    const { data: pt } = await supabase.from("patients").select("first_name, last_name").eq("id", item.patient_id).maybeSingle();
+    const who = pt ? `${(pt as { first_name: string }).first_name} ${(pt as { last_name: string }).last_name}` : "A patient";
+    const label = MEASURE_INFO[measure].label;
+    await supabase.from("cc_action_items").insert({
+      clinic_id: item.clinic_id, source: "reminder", category: "patients", severity: flag === "critical" ? "urgent" : "warning",
+      title: flag === "critical"
+        ? `Very ${direction(measure, reading!, item)} ${label}: ${who}`
+        : `${label[0].toUpperCase()}${label.slice(1)} out of range: ${who}`,
+      detail: `${who} sent ${label} ${formatReading(measure, reading!)} in the chat` +
+        (flag === "critical" ? ". They were told to call 911 if they have danger signs, otherwise to contact the clinic today." : ", outside the target in their plan.") +
+        " See Readings to review.",
+      route: `/patients/${item.patient_id}`,
+    });
+  }
+  return readingText(flag, measure, reading!, item, {
+    doctor: item.monitoring_plans.providers?.name ?? null, clinic: clinic?.name ?? "the clinic", clinicPhone: clinic?.phone_callback ?? null,
+  });
 }
