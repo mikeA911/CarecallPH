@@ -67,6 +67,8 @@ nav.sidebar {
   padding: var(--sp-2) var(--sp-2);
   display: flex; flex-direction: column; gap: 2px;
   position: sticky; top: 0; align-self: flex-start; height: 100vh;
+  /* Short windows: scroll the menu so Profile and Sign out stay reachable. */
+  overflow-y: auto; overscroll-behavior: contain;
 }
 nav.sidebar .brand {
   font-family: var(--font-display); font-weight: 700; font-size: 20px;
@@ -391,6 +393,11 @@ a.btn { display: inline-block; text-decoration: none; }
 
 /* Users temp password — Warning Amber caution surface */
 .temp-pw { background: #FCEFDD; border: 1px solid #F0D9B5; border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: var(--sp-2); color: #7A4405; }
+.idle-warning {
+  position: sticky; top: 0; z-index: 20; display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: #FCEFDD; border: 1px solid #F0D9B5; border-radius: var(--radius-sm); padding: 10px 14px;
+  margin-bottom: var(--sp-2); color: #7A4405;
+}
 .temp-pw code { font-size: 15px; font-weight: 700; }
 
 /* Transcript viewer — clean, messaging-style surface (guideline §5) */

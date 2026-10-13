@@ -388,6 +388,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Automatic sign-out: when the browser (or every CareCall tab) closes, and after 20 minutes without activity with a 2-minute warning; sidebar scrolls so Sign out is always reachable |
 | 2026-10-13 | Clinical roles (M0): front desk / nurse-assistant / doctor on the Users page; medicines and reminder consent limited to nurses and doctors in the database; front desk sees intake urgency only; doctor login linked to a clinician with PRC number; platform admins shown and assignable by platform admins |
 | 2026-10-12 | Care plans M1: medicine reminders by chat with recorded consent, 1 taken / 2 skipped, missed doses, adherence on the patient page |
 | 2026-10-12 | Phase M designed: prescriptions in CareCall feeding medicine reminders, vital signs by chat with doctor's limits, chat consent |

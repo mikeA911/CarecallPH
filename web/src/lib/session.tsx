@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import type { ClinicalRole, Role } from "./types";
+import { markActive, useIdleSignOut } from "./idle";
 
 type SessionState = {
   session: Session | null;
@@ -17,11 +18,23 @@ type SessionState = {
   /** True after following a "forgot password" email link, until a new password is set. */
   passwordRecovery: boolean;
   clearPasswordRecovery: () => void;
+  /** "idle" after an automatic sign-out for inactivity, shown on the login screen. */
+  signedOutReason: "idle" | null;
+  /** True in the last 2 minutes before an automatic sign-out. */
+  idleWarning: boolean;
+  stayActive: () => void;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const Ctx = createContext<SessionState | null>(null);
+
+// Arriving from an email link (password reset) is a new sign-in: start the
+// inactivity clock before the session loads, so an old activity time from a
+// previous visit doesn't sign the user straight out. The sign-in form does
+// the same (Login.tsx). A session restored from another tab or a reload keeps
+// the shared activity time.
+if (/access_token=|[?&]code=/.test(window.location.hash + window.location.search)) markActive();
 
 function readClaims(session: Session | null) {
   const meta = (session?.user?.app_metadata ?? {}) as Record<string, unknown>;
@@ -41,6 +54,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [signedOutReason, setSignedOutReason] = useState<"idle" | null>(null);
 
   async function refresh() {
     const { data } = await supabase.auth.getSession();
@@ -53,12 +67,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "PASSWORD_RECOVERY") markActive();
+      if (s && event === "SIGNED_IN") setSignedOutReason(null);
       setSession(s);
       // Arriving via a "forgot password" email link: force the set-new-password flow.
       if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  const idle = useIdleSignOut(!!session, () => {
+    setSignedOutReason("idle");
+    setPasswordRecovery(false);
+    // This device only; the user stays signed in on their other devices.
+    supabase.auth.signOut({ scope: "local" });
+  });
 
   const claims = readClaims(session);
 
@@ -68,6 +91,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     ...claims,
     passwordRecovery,
     clearPasswordRecovery: () => setPasswordRecovery(false),
+    signedOutReason,
+    idleWarning: idle.warning,
+    stayActive: idle.stay,
     refresh,
     signOut: async () => { setPasswordRecovery(false); await supabase.auth.signOut(); },
   };

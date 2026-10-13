@@ -165,7 +165,7 @@ function Sidebar({ onOpenCC }: { onOpenCC: () => void }) {
 }
 
 export default function App() {
-  const { session, loading, forcePasswordChange } = useSession();
+  const { session, loading, forcePasswordChange, idleWarning, stayActive } = useSession();
   const location = useLocation();
   const [ccOpen, setCcOpen] = useState(false);
 
@@ -178,6 +178,12 @@ export default function App() {
     <div className="layout">
       <Sidebar onOpenCC={() => setCcOpen(true)} />
       <main className="content">
+        {idleWarning && (
+          <div className="idle-warning" role="alert">
+            <span>No activity for a while. You'll be signed out in 2 minutes to protect patient information.</span>
+            <button onClick={stayActive}>Stay signed in</button>
+          </div>
+        )}
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/about" element={<About />} />
