@@ -201,7 +201,8 @@ vital_readings        patient, clinic, measure, values (e.g. {sys, dia, pulse}),
 
 | Slice | Scope |
 |---|---|
-| **M1** | Consent in chat; medicines added by staff (no prescription yet); reminders, 1/2 replies, missed doses, adherence on the patient page; STOP REMINDERS |
+| **M0** | Clinical roles (built): front desk / nurse-assistant / doctor, separate from access level; doctor linked to a clinician with PRC number; `jwt_clinical_role()`, `can_manage_care()`, `is_doctor()` for RLS (M2 signing will require `is_doctor()`) |
+| **M1** | Consent in chat; medicines added by a nurse or doctor (no prescription yet); reminders, 1/2 replies, missed doses, adherence on the patient page; STOP REMINDERS |
 | **M2** | Prescriptions: draft by assistant or doctor, sign by the doctor, printable/PDF with PRC and PTR numbers, send to the patient on Telegram, verify page; signed items feed M1 reminders |
 | **M3** | Vital signs: monitoring plan (what, when, how, why, targets, what to do if high or low) drafted and signed like a prescription, sent as a document; chat requests from the plan, reading parser, Readings to review, critical-reading message, chart on the patient page |
 | **M4** | Reports: adherence and readings in CC (aggregate), missed-dose and no-reading alerts; FHIR mapping groundwork for Phase R |

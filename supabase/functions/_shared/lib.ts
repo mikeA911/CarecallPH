@@ -1,5 +1,6 @@
 // Shared helpers for CareCall edge functions (Deno / Supabase Edge Runtime)
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { type ClinicalRole, clinicalRoleOf } from "./roles.ts";
 
 export const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -45,12 +46,14 @@ export type Caller = {
   userId: string;
   role: "admin" | "clinic_admin" | "staff" | "";
   clinicId: string | null;
+  /** doctor | nurse | front_desk; defaults by access level when unset (roles.ts). */
+  clinicalRole: ClinicalRole | null;
 };
 
 /**
  * Resolve the calling portal user from the Authorization bearer token.
  * Uses the service-role client to validate the JWT and read app_metadata,
- * which carries role + clinic_id (set only by admin-manage, never client-writable).
+ * which carries role, clinic_id and clinical_role (set only by admin-manage, never client-writable).
  */
 export async function getCaller(req: Request): Promise<Caller | null> {
   const auth = req.headers.get("Authorization") ?? "";
@@ -63,6 +66,7 @@ export async function getCaller(req: Request): Promise<Caller | null> {
     userId: data.user.id,
     role: (meta.role as Caller["role"]) ?? "",
     clinicId: (meta.clinic_id as string) ?? null,
+    clinicalRole: clinicalRoleOf((meta.role as Caller["role"]) ?? "", meta.clinical_role),
   };
 }
 

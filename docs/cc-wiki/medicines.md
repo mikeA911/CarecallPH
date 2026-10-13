@@ -5,10 +5,13 @@ summary: Adding a patient's medicines, asking for consent in the chat, the remin
 roles: staff
 routes:
   - /patients/:id | staff | Patient detail
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 ## Setting it up (patient page → Medicines)
+
+Only a nurse / assistant or doctor can add or stop medicines and ask for
+consent. Front desk sees the list (see Users and roles).
 
 1. The patient must be connected to a chat app (Chat apps → **Invite to chat**).
 2. Click **Ask patient to agree**. The patient gets a message in English and

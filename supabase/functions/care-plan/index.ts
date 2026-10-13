@@ -8,9 +8,12 @@
 //        answer must come back in the chat.
 //   POST { action: "withdraw", patient_id }
 //        Staff stop medicine reminders for the patient (e.g. asked in person).
+//        Anyone in the clinic may stop; only nurses and doctors may ask.
 //
-// Medicines themselves are added and edited by staff in the portal (RLS).
+// Medicines themselves are added and edited by nurses and doctors in the
+// portal (RLS, can_manage_care()).
 import { audit, corsHeaders, getCaller, json, supabase } from "../_shared/lib.ts";
+import { canManageCare } from "../_shared/roles.ts";
 import { sendToPatient } from "../_shared/channels.ts";
 import { CONSENT_VERSION, consentText } from "../_shared/care.ts";
 
@@ -48,6 +51,9 @@ Deno.serve(async (req) => {
   }
 
   if (body.action !== "request_consent") return reply({ error: "unknown action" }, 400);
+  if (!canManageCare(caller.clinicalRole)) {
+    return reply({ error: "Only a nurse or doctor can ask a patient to agree to medicine reminders." }, 403);
+  }
   if (!patient.active || patient.do_not_call) {
     return reply({ error: "This patient is inactive or marked do-not-call." }, 409);
   }

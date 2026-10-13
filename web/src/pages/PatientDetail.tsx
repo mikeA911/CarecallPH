@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { useSession, roleAtLeast } from "../lib/session";
+import { useSession, roleAtLeast, canManageCare } from "../lib/session";
 import { useClinic } from "../lib/clinic";
 import ChatSection from "../components/ChatSection";
 import MedicinesSection from "../components/MedicinesSection";
@@ -48,8 +48,9 @@ const SOURCE_LABEL: Record<string, string> = {
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
-  const { role } = useSession();
+  const { role, clinicalRole } = useSession();
   const canManage = roleAtLeast(role, "clinic_admin");
+  const clinical = canManageCare(clinicalRole);
   const { activeClinic } = useClinic();
 
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -141,7 +142,7 @@ export default function PatientDetail() {
               <td>{a.providers?.name ?? "—"}</td>
               <td>
                 {SOURCE_LABEL[a.source ?? ""] ?? a.source ?? "—"}
-                {a.intake && <IntakeSummary intake={a.intake} />}
+                {a.intake && <IntakeSummary intake={a.intake} full={clinical} />}
               </td>
               <td>
                 <span className={`badge ${a.status}`}>{a.status}</span>
@@ -175,14 +176,17 @@ export default function PatientDetail() {
   );
 }
 
-/** What the patient shared from the symptom check when booking. */
-function IntakeSummary({ intake }: { intake: Intake }) {
+/**
+ * What the patient shared from the symptom check when booking. Front desk
+ * sees the urgency and specialty only; nurses and doctors see the symptoms too.
+ */
+function IntakeSummary({ intake, full }: { intake: Intake; full: boolean }) {
   return (
     <div className="intake small">
       {intake.urgency && <div><strong>{URGENCY_LABEL[intake.urgency] ?? intake.urgency}</strong>
         {intake.specialty ? ` · ${intake.specialty}` : ""}{intake.demo ? " · demo engine" : ""}</div>}
-      {!!intake.symptoms?.length && <div>Symptoms: {intake.symptoms.join(", ")}</div>}
-      {!!intake.ph_warnings?.length && <div>Watch for: {intake.ph_warnings.join("; ")}</div>}
+      {full && !!intake.symptoms?.length && <div>Symptoms: {intake.symptoms.join(", ")}</div>}
+      {full && !!intake.ph_warnings?.length && <div>Watch for: {intake.ph_warnings.join("; ")}</div>}
     </div>
   );
 }

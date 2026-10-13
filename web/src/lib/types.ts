@@ -1,5 +1,8 @@
 export type Role = "admin" | "clinic_admin" | "staff";
 
+/** What a user may do with clinical information, separate from Role. */
+export type ClinicalRole = "doctor" | "nurse" | "front_desk";
+
 export type CampaignStatus = "draft" | "scheduled" | "active" | "paused" | "completed";
 
 export type CampaignPatientStatus =
@@ -68,6 +71,10 @@ export type Provider = {
   specialty: string | null;
   active: boolean;
   created_at: string;
+  /** PRC licence number; set when a doctor login is linked (Settings → Users). */
+  prc_number?: string | null;
+  /** The doctor's portal login, if linked. */
+  user_id?: string | null;
 };
 
 export type Availability = {

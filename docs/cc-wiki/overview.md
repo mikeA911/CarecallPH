@@ -21,12 +21,26 @@ Telegram. Chat apps are opt-in only.
 
 ## Roles
 
+Every user has an **access level** and a **clinical role**.
+
+Access level (what they can manage):
+
 - **Staff**: run campaigns, manage patients, work the Review queue, read call history.
 - **Clinic admin**: everything staff can do, plus create campaigns, manage
   clinicians and availability, clinic settings and users.
-- **Admin** (platform): manages all clinics and global settings.
+- **Platform admin**: manages all clinics and global settings. Only a platform
+  admin can make someone else a platform admin.
 
-Users only ever see data for their own clinic.
+Clinical role (what they can do with health information):
+
+- **Front desk**: bookings and messages. Sees the urgency of a symptom-check
+  intake but not the symptoms; sees medicines but can't change them.
+- **Nurse / assistant**: sees intake details, adds and stops medicines, asks
+  patients to agree to medicine reminders.
+- **Doctor**: everything a nurse can do; linked to their clinician record and
+  PRC number, so later they can sign prescriptions and monitoring plans.
+
+Users only ever see data for their own clinic (platform admins see all).
 
 ## About CC
 

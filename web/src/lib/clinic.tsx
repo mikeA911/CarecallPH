@@ -28,7 +28,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     supabase.from("clinics").select("*").order("name").then(({ data }) => {
       const list = (data as Clinic[]) ?? [];
       setClinics(list);
-      // Single-clinic build: every role (Admin, Provider, Staff) is pinned to the
+      // Single-clinic build: every role (platform admin, clinic admin, staff) is pinned to the
       // one clinic so the dashboard heading always shows the clinic name.
       // (When MULTI_CLINIC is enabled, restore JWT clinic_id pinning for non-admins
       // and the switcher default for admins.)
