@@ -4,10 +4,11 @@
 // transcript; CC drafts a SOAP note; the doctor edits and signs. Audio is
 // never stored. Signed notes can't be changed, only amended by an addendum.
 // Design: docs/care-plan-design.md (M6)
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { callFunction } from "../lib/api";
 import { useSession } from "../lib/session";
+import { mmss, useRecorder } from "../lib/recorder";
 
 type Note = {
   id: string; patient_id: string; kind: "note" | "addendum"; amends_note_id: string | null; encounter_date: string;
@@ -20,7 +21,6 @@ type Mode = Note["mode"];
 type Soap = Pick<Note, "subjective" | "objective" | "assessment" | "plan">;
 type Med = { name: string; dose: string; how_often: string; duration: string };
 
-const MAX_RECORD_SECONDS = 10 * 60;
 const SOAP_FIELDS: { key: keyof Soap; label: string }[] = [
   { key: "subjective", label: "Subjective (complaint, history)" },
   { key: "objective", label: "Objective (findings, vital signs)" },
@@ -35,16 +35,7 @@ const SAMPLE =
   "low salt diet, bawas sa bagoong at patis. Follow up in two weeks with BP log.";
 
 const fmtDate = (iso: string) => new Date(iso.length === 10 ? `${iso}T00:00` : iso).toLocaleDateString();
-const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-function blobToBase64(b: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(b);
-  });
-}
 
 export default function ClinicalNotesSection({ patientId, clinicId }: { patientId: string; clinicId: string }) {
   const { clinicalRole } = useSession();
@@ -183,46 +174,8 @@ function NoteEditor({ patientId, clinicId, stt, isDoctor, existing, onClose }: {
   const [err, setErr] = useState("");
 
   // Recorder
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const rec = useRef<MediaRecorder | null>(null);
-  const chunks = useRef<Blob[]>([]);
-  const timer = useRef<number | null>(null);
-  useEffect(() => () => { if (timer.current) clearInterval(timer.current); rec.current?.stream.getTracks().forEach((t) => t.stop()); }, []);
-
-  const audioMode = mode !== "typed";
-  const canRecord = audioMode && !!stt && (mode === "dictation" || consent);
-
-  async function start() {
-    setErr("");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const type = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported(t));
-      const r = new MediaRecorder(stream, { mimeType: type, audioBitsPerSecond: 32000 });
-      chunks.current = [];
-      r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data); };
-      r.onstop = () => { stream.getTracks().forEach((t) => t.stop()); finish(r.mimeType); };
-      rec.current = r;
-      r.start(1000);
-      setRecording(true); setSeconds(0);
-      timer.current = window.setInterval(() => setSeconds((s) => {
-        if (s + 1 >= MAX_RECORD_SECONDS) stop();
-        return s + 1;
-      }), 1000);
-    } catch {
-      setErr("Couldn't use the microphone. Allow microphone access in the browser, or type the note.");
-    }
-  }
-  function stop() {
-    if (timer.current) { clearInterval(timer.current); timer.current = null; }
-    if (rec.current?.state === "recording") rec.current.stop();
-    setRecording(false);
-  }
-  async function finish(mime: string) {
-    const blob = new Blob(chunks.current, { type: mime });
-    chunks.current = [];
+  async function finish(audio_base64: string, mime: string) {
     setBusy("Transcribing…");
-    const audio_base64 = await blobToBase64(blob);
     const { data, error } = await callFunction<{ transcript: string; engine: string }>("clinical-note", {
       action: "transcribe", patient_id: patientId, mode, recording_consent: consent, audio_base64, mime,
     });
@@ -231,6 +184,11 @@ function NoteEditor({ patientId, clinicId, stt, isDoctor, existing, onClose }: {
     setEngine(data?.engine ?? null);
     setTranscript((t) => (t ? `${t}\n${data?.transcript ?? ""}` : data?.transcript ?? ""));
   }
+  const { recording, seconds, error: micError, start, stop } = useRecorder(finish);
+  useEffect(() => { if (micError) setErr(micError); }, [micError]);
+
+  const audioMode = mode !== "typed";
+  const canRecord = audioMode && !!stt && (mode === "dictation" || consent);
 
   async function draft() {
     setErr(""); setBusy("CC is drafting the note…");

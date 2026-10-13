@@ -9,6 +9,10 @@ updated: 2026-10-13
 
 ## 2026-10-13
 
+- **Dictate a monitoring plan**: on a patient's Vital signs, say (or type) the
+  plan; CC fills in a draft with only what was said and lists what to check,
+  like a missing time or emergency limit. The doctor edits, saves and signs.
+
 - **Patient privacy requests**: log a patient's request to see, correct,
   restrict or erase their data on their page; clinic admins answer it.
   Restriction stops all messages and calls and makes the record view-only;

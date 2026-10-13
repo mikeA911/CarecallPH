@@ -168,7 +168,7 @@ Details: [docs/care-plan-design.md](docs/care-plan-design.md),
 │       ├── symptom-check/           # public symptom check + booking from the result
 │       ├── send-reminders/          # appointment and medicine reminders (pg_cron)
 │       ├── care-plan/               # care consents (medicines, vital signs), sign monitoring plans
-│       ├── clinical-note/           # speech-to-text, SOAP draft, doctor signature
+│       ├── clinical-note/           # speech-to-text, SOAP and monitoring-plan drafts, doctor signature
 │       └── fhir/                    # FHIR R4 export (PH Core)
 ├── telnyx/
 │   ├── assistant-instructions.md    # paste into the Telnyx AI Assistant
