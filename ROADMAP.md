@@ -19,8 +19,8 @@ healthcare access and continuity platform for Southeast Asia*, Oct 2026).
 | **CareCall Recall** | Re-engage existing patients by chat; due follow-ups and missed visits become booked appointments | 1, 1T, 1C | **Built**; first commercial MVP |
 | **CareCall Discover** | Free-to-patient symptom-guided navigation and booking with participating clinics at CareCallPH.com | D | **Built** on the demo engine (symptom check, Philippine layer, booking, `/check`); live engine waits on the Infermedica trial |
 | **CareCall Voice** | AI outbound calls for non-responders; later the inbound receptionist | Base, 0b, 2 | Outbound **Done** in US build; PH work deferred until after Discover |
-| **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **In progress**: FHIR R4 export with PH Core profiles **done** (F1) |
-| **CareLink Care** | Clinical workflows in the clinic: roles, medicine reminders, clinical notes by voice, then prescriptions and vital signs | M | **In progress**: roles, medicine reminders, vital signs by chat and clinical notes (demo) **done** |
+| **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **In progress**: FHIR R4 export with PH Core profiles **done** (F1); readings and monitoring plans in the export **built**; patient data requests **built** |
+| **CareLink Care** | Clinical workflows in the clinic: roles, medicine reminders, clinical notes by voice, then prescriptions and vital signs | M | **In progress**: roles, medicine reminders and clinical notes (demo) **done**; vital signs by chat, alerts and reports, plan dictation **built** (to verify live); prescriptions wait on the e-prescription rules |
 | **CareLink RPM Intelligence** | Device readings, trends and a prioritized clinician review queue | R | **Idea** (later clinical pilot) |
 
 **Delivery stages** (indicative, may overlap; each opens only when its gate is met)
@@ -42,24 +42,30 @@ by country before any Southeast Asian expansion.
 |---|---|---|
 | Base | Outbound AI scheduling (inherited from CareCall US) | **Done** in the US build; needs re-verifying on PH accounts |
 | 0a | PH accounts for the Recall pilot: Supabase, Vercel, Telegram | **In progress**: accounts done; README §9 pilot test under way |
-| 0b | PH telephony for Voice: Telnyx, carrier test, call-detection tuning | **Deferred**: Voice moved after Discover |
+| 0b | PH telephony for Voice: Telnyx, carrier test, call-detection tuning | **Deferred**: Voice moved after Discover. Telnyx webhook secrets still to set with the PH account |
 | 1 | Chat channels: Viber, Messenger, WhatsApp, Telegram | **Built** |
 | 1T | Chat-first pilot: chat campaigns, staff invites, Telegram first | **Built** |
 | 1C | CC assistant, LLM wiki, nightly review | **Built** |
 | 2 | Inbound: AI receptionist, appointment requests and changes | **Planned** |
-| 3 | Localization and compliance hardening | **In progress**: roles, auto sign-out, PH patient fields, retention setting, patient data requests done |
+| 3 | Localization and compliance hardening | **In progress**: roles, auto sign-out, PH patient fields, retention setting **done**; patient data requests, holidays in booking, contact-history purge, Telnyx webhook signatures **built** (to verify live); DPA package, recording access, processing agreements to do |
 | 4 | Pilot and commercial launch | **Planned**: founding-clinic Recall pilots first |
 | D | CareCall Discover: symptom check with nearby care (D1), then CareCallPH.com (D2) | **In progress**: D1a, b, c, e, f built; D1d needs the Infermedica trial |
-| L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 **done** (export incl. clinical notes; `docs/fhir-design.md`) |
-| M | Care plans and clinical notes: roles, medicine reminders, clinical notes by voice, prescriptions, vital signs | **In progress**: M0 roles, M1 medicine reminders, M3 vital signs, M4 reports and alerts, M5 plan dictation, M6 clinical notes demo **done**; M2 prescriptions next (`docs/care-plan-design.md`) |
+| L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 **done** (export incl. clinical notes; `docs/fhir-design.md`); F3 M3 part (Observation, CarePlan) and F5 (patient data requests) **built** |
+| M | Care plans and clinical notes: roles, medicine reminders, clinical notes by voice, prescriptions, vital signs | **In progress**: M0 roles, M1 medicine reminders, M6 clinical notes demo **done**; M3 vital signs, M4 reports and alerts, M5 plan dictation **built** (to verify live); M2 prescriptions waits on the e-prescription rules (`docs/care-plan-design.md`) |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
 
 **Next three actions**
 
-1. **Pilot clinic demo**: chat booking and reminders, symptom check, medicine
-   reminders and clinical notes (dictate and record). Ask the clinic's doctor
-   to review the PH symptom rules, the consent wording and the note prompts;
-   compare speech-to-text services on 10–20 Taglish dictations.
+1. **Live rehearsal, then pilot clinic demo**: on the live project with a
+   test patient on Telegram, run booking and reminders (check a holiday has
+   no slots), a signed blood-pressure plan (typed and dictated) with a high
+   reading, Readings to review and CC's care report, a clinical note, and a
+   privacy request; fix what breaks, then mark the "built" items done. Then
+   demo to the pilot clinic. Ask its doctor to review the PH symptom rules,
+   consent wording, note prompts and the default vital-sign limits, and its
+   DPO the privacy-request defaults and message-history periods; compare
+   speech-to-text on 10–20 Taglish dictations; check the holiday list against
+   the proclamation.
 2. Domain and business email → Infermedica trial (D1d). Then turn
    international patient numbers off for the pilot.
 3. Legal and approvals: confirm e-prescription rules (M2) and the DOH records
@@ -109,6 +115,7 @@ add-on, not for the Recall pilot or the symptom check.
 |---|---|
 | AI voice instructions for the Philippines: Filipino/Taglish, "po/opo", PH date and time phrasing, 911 for emergencies, no reminder promise | **Built** |
 | Telnyx account: number, Call Control app, AI Assistant, Messaging Profile | Planned |
+| Telnyx webhook secrets (with the PH account): `supabase secrets set TELNYX_PUBLIC_KEY=<portal → Account → Public Key>` and `TELNYX_WEBHOOK_TOKEN=<long random string>`, redeploy `telnyx-call-events`, point the AI Assistant insights webhook at `.../telnyx-call-events?token=<token>`. Until then the function refuses every call event (401) | **To do**: not set yet (13 Oct 2026) |
 | Carrier test: call and SMS to Globe, Smart, DITO; check caller ID display | Planned |
 | Call-detection tuning: ringback tunes and "subscriber cannot be reached" announcements (from real test-call recordings) | Planned |
 | Full smoke test (README §8) passes on PH accounts | Planned |

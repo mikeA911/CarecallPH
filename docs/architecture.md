@@ -127,9 +127,9 @@ and written only by `admin-manage`:
 
 | Access level | Scope |
 |---|---|
-| Platform admin (`admin`) | All clinics; global settings; can make other platform admins |
-| Clinic admin | One clinic: patients, clinicians, campaigns, clinic settings, users |
-| Staff | One clinic: campaigns, review queue, booking and messaging |
+| Platform admin (`admin`) | All clinics; global settings (records retention, message-history defaults, holiday list); can make other platform admins |
+| Clinic admin | One clinic: patients, clinicians, campaigns, clinic settings (holidays and closures, message history), users; answers privacy requests and disposes of records past retention |
+| Staff | One clinic: campaigns, review queue, booking and messaging; logs patients' privacy requests |
 
 | Clinical role | Can |
 |---|---|
@@ -142,10 +142,14 @@ Enforced in the database: SQL helpers `jwt_clinic_id()`, `is_admin()`,
 `is_doctor()` are used by RLS policies on every table, and Edge Functions check
 the same rules. Hiding a button is never the only control.
 
-**Audit**: changes to patients, campaigns, clinics, medicines, consents and
-settings are written to `audit_log` by triggers; clinical notes are audited
-without their text. Functions also log exports (`fhir_export`), signatures
-(`clinical_note_signed`, failed attempts) and user changes.
+**Audit**: changes to patients, campaigns, clinics, medicines, consents,
+monitoring plans, readings, privacy requests, holidays and settings are written
+to `audit_log` by triggers; clinical notes are audited without their text.
+Functions also log exports (`fhir_export`), signatures (`clinical_note_signed`,
+`monitoring_plan_signed`, failed attempts), dictation, privacy actions
+(`data_request_*`, `record_disposed`), the nightly purge
+(`contact_history_purged`) and user changes. Disposal blanks the patient's data
+in older audit rows and keeps who did what and when.
 
 **Consent** is recorded, never assumed: SMS consent per patient, chat apps by
 the patient's YES (`patient_channels`), medicine reminders and vital
@@ -156,9 +160,9 @@ the doctor, stored on the note).
 
 | Service | Used for | What it receives |
 |---|---|---|
-| Claude (Anthropic) | CC chat and nightly review (`CC_MODEL`); drafting clinical notes (`NOTES_MODEL`) | CC: aggregate figures only, never names, phones or birthdates (patient action items reach CC as "(a patient)"). Notes: the transcript plus age and sex |
-| Gemini (Google) | Speech-to-text for clinical notes | The audio, sent once; CareCall never stores it |
-| Telnyx | Voice AI calls, SMS | Call audio, phone numbers |
+| Claude (Anthropic) | CC chat and nightly review (`CC_MODEL`); drafting clinical notes and dictated monitoring plans (`NOTES_MODEL`) | CC: aggregate figures only, never names, phones or birthdates (patient action items reach CC as "(a patient)"). Notes: the transcript plus age and sex. Plans: the dictation only |
+| Gemini (Google) | Speech-to-text for clinical notes and dictated plans | The audio, sent once; CareCall never stores it |
+| Telnyx | Voice AI calls, SMS | Call audio, phone numbers. Webhooks must be signed (`TELNYX_PUBLIC_KEY`, not set until the PH account exists) |
 | Viber, Meta (Messenger, WhatsApp), Telegram | Patient messages | Phone or chat ID and message text (no diagnoses) |
 | Symptom engine (demo, Infermedica) | Symptom check | Age band, sex, answers; no name or contact details |
 | Google Places API (New) | Nearby care: nearest ERs, clinics, a typed town | The patient's location (or typed place) for one lookup; never stored by CareCall |
@@ -170,7 +174,8 @@ Privacy Act). Secrets live only in Supabase (`supabase secrets set`).
 
 **Chat campaign to booking**: staff create a chat campaign → `start-campaign`
 sends each patient a booking link on their chat app → the patient picks a slot
-on `/book/<token>` → `booking-api` books it (double-booking impossible) →
+on `/book/<token>` (no slots on holidays or clinic closures) → `booking-api`
+books it (double-booking impossible) →
 `send-reminders` reminds 24 h and 2 h before → replies (1 confirm, 2 change,
 3 cancel) arrive at `channel-webhook`.
 
@@ -185,12 +190,17 @@ dose time → 1 taken / 2 skipped, or missed after 2 hours → adherence on the
 patient page.
 
 **Vital signs**: a nurse or doctor drafts a monitoring plan (measures, times,
-target and critical limits, what to do if high or low) → a doctor signs it
+target and critical limits, what to do if high or low), typed or dictated
+(`clinical-note` `plan_draft`: CC fills in only what was said and lists what
+to check) → a doctor signs it
 with their password → `care-plan` asks the patient to agree → YES sends the
 plan → `send-reminders` asks for readings at the plan's times → replies at
 `channel-webhook` are parsed and checked against the doctor's limits only →
 out-of-range and critical readings go to Readings to review and CC action
-items; critical replies tell the patient to call 911 first.
+items; critical replies tell the patient to call 911 first. Hourly,
+`send-reminders` files an alert for 3 missed doses in a row or no readings for
+3 days (once per streak, `care_alerts`); CC's `care_report` gives the clinic's
+adherence, response rate and BP trend as counts.
 
 **Clinical note**: the doctor dictates, records the consultation with consent,
 or types → `clinical-note` transcribes (Gemini) → Claude drafts a SOAP note
@@ -207,7 +217,10 @@ Records stay in CareCall's tables; FHIR is produced on request
 
 **Records retention**: platform default 7 years after the last consultation
 (Global settings), optional per clinic; `records_due_for_review()` lists
-patients past the period in Clinic settings. Nothing is deleted automatically.
+patients past the period in Clinic settings. Medical records are never
+deleted automatically. Contact history is: `purge_contact_history()` nightly
+deletes messages after 365 days and blanks call transcripts and recording links
+after 90 (platform defaults, per clinic).
 
 **Privacy requests**: any staff member logs a patient's request on the patient
 page (a CC action item goes to the clinic admins) → a clinic admin answers it
