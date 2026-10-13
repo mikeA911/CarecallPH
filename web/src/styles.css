@@ -396,6 +396,19 @@ a.btn { display: inline-block; text-decoration: none; }
 .address-grid, .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 .address-grid > span:first-child { grid-column: 1 / -1; }
 @media (max-width: 560px) { .address-grid, .form-grid { grid-template-columns: 1fr; } }
+.note-card { max-width: 760px; margin-top: 10px; }
+.note-field { margin-top: 8px; }
+.note-field > span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted, #6b7280); }
+.note-field > p, .note-addendum > p { margin: 2px 0 0; white-space: pre-wrap; }
+.note-addendum { margin-top: 10px; padding-left: 10px; border-left: 3px solid var(--border, #e5e7eb); }
+.note-editor { max-width: 760px; margin-bottom: 12px; }
+.note-check { background: #FCEFDD; border: 1px solid #F0D9B5; border-radius: var(--radius-sm); padding: 8px 12px; margin: 10px 0; color: #7A4405; }
+.note-check ul { margin: 4px 0 0; padding-left: 18px; }
+.sign-box { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border, #e5e7eb); border-radius: var(--radius-sm); }
+.rec-dot { display: inline-flex; align-items: center; gap: 6px; color: #B91C1C; font-weight: 600; }
+.rec-dot::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #DC2626; animation: rec-pulse 1s ease-in-out infinite; }
+@keyframes rec-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .rec-dot::before { animation: none; } }
 .idle-warning {
   position: sticky; top: 0; z-index: 20; display: flex; gap: 12px; align-items: center; justify-content: space-between;
   background: #FCEFDD; border: 1px solid #F0D9B5; border-radius: var(--radius-sm); padding: 10px 14px;

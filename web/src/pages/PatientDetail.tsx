@@ -7,6 +7,7 @@ import AddressFields, { addressForSave, addressText } from "../components/Addres
 import { useClinic } from "../lib/clinic";
 import ChatSection from "../components/ChatSection";
 import MedicinesSection from "../components/MedicinesSection";
+import ClinicalNotesSection from "../components/ClinicalNotesSection";
 import type { Address, Patient } from "../lib/types";
 
 type CallRow = {
@@ -169,6 +170,8 @@ export default function PatientDetail() {
 
       <MedicinesSection patientId={patient.id} clinicId={patient.clinic_id}
                         canMessage={patient.active && !patient.do_not_call} />
+
+      {clinical && <ClinicalNotesSection patientId={patient.id} clinicId={patient.clinic_id} />}
 
       <h2>Appointments</h2>
       <table>

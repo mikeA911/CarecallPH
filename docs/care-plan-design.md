@@ -207,7 +207,7 @@ vital_readings        patient, clinic, measure, values (e.g. {sys, dia, pulse}),
 | **M3** | Vital signs: monitoring plan (what, when, how, why, targets, what to do if high or low) drafted and signed like a prescription, sent as a document; chat requests from the plan, reading parser, Readings to review, critical-reading message, chart on the patient page |
 | **M4** | Reports: adherence and readings in CC (aggregate), missed-dose and no-reading alerts; FHIR mapping groundwork for Phase R |
 | **M5** | Dictate to CC: prescriptions and monitoring plans by voice (below) |
-| **M6** | Clinical notes by voice (idea, below) |
+| **M6** | Clinical notes by voice (demo built, below) |
 
 ### Later: dictate to CC (M5)
 
@@ -228,7 +228,20 @@ for 30 days, and blood pressure every morning for two weeks, target below
 Privacy: the audio isn't stored; the transcript is kept only in the draft.
 Needs M2 and M3 first.
 
-### Later: clinical notes by voice (M6, idea)
+### Clinical notes by voice (M6, demo built)
+
+Built for the pilot demo: `clinical_notes` (draft → signed, addenda, signed
+notes immutable, notes never copied into the audit log), the `clinical-note`
+function (Gemini speech-to-text, `GEMINI_API_KEY`; Claude drafts the SOAP note
+with structured output, `NOTES_MODEL`, default `claude-opus-5-5`; doctors
+sign by re-entering their password, checked server-side, audited; M2
+prescriptions will use the same signature), the **Clinical notes** section on the patient page, and Encounter +
+Composition in the FHIR export. Without a speech-to-text key the doctor types
+or pastes (sample dictation for demos). Records retention: `platform_settings`
+`record_retention_years` (default 7), `clinics.record_retention_years`,
+`records_due_for_review()`.
+
+The design as agreed:
 
 Doctors record the consultation note by voice; CC transcribes it and drafts a
 structured note for the doctor to check, edit and sign. Same pattern as M5,

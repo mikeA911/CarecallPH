@@ -64,3 +64,6 @@ verify_jwt = false
 
 [functions.fhir]
 verify_jwt = true
+
+[functions.clinical-note]
+verify_jwt = true

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AddressFields, { addressForSave } from "../../components/AddressFields";
+import RetentionSection from "../../components/RetentionSection";
 import { supabase } from "../../lib/supabase";
 import { useClinic } from "../../lib/clinic";
 import { normalizePhPhone } from "../../lib/phone";
@@ -295,6 +296,8 @@ export default function ClinicSettings() {
           <button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save settings"}</button>
         </div>
       </div>
+
+      <RetentionSection clinicId={clinic.id} clinicYears={clinic.record_retention_years ?? null} />
 
       <div className="form-card" style={{ maxWidth: 640, marginTop: 20 }}>
         <h2>Campaign types &amp; Telnyx assistants</h2>

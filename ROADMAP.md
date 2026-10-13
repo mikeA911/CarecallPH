@@ -346,6 +346,7 @@ request. Design: `docs/fhir-design.md`.
 | F2 | Symptom-check intake as QuestionnaireResponse; PSGC pickers (barangay, city, province codes); official HL7 validator with PH Core in CI | Planned |
 | F3 | M2 prescriptions with FDA drug codes, M3 readings as Observations (LOINC, UCUM), CarePlan, clinical notes (M6) as Encounter + Composition | With M2/M3/M6 |
 | F4 | Patient-directed import, exchange with PhilHealth or hospitals, SMART on FHIR | Planned |
+| F5 | Patient data requests (Data Privacy Act): access (FHIR download), correction (Edit details, addenda), and erasure: stop all messages and processing at once, delete what the clinic needn't keep (chat links and messages, symptom checks, campaign history), restrict the medical record to view-only until its retention period ends, then dispose with a record of disposal | Planned |
 
 | Item | Notes |
 |---|---|
@@ -376,7 +377,7 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 | M3 | Vital signs: a monitoring plan the doctor signs like a prescription (what, when, how, why, targets, what to do if high or low), sent to the patient; chat requests, reading parser, Readings to review, critical-reading message, chart | **Designed** |
 | M4 | Adherence and readings reports in CC; missed-dose and no-reading alerts; FHIR groundwork for Phase R | **Designed** |
 | M5 | **Dictate to CC** (doctors): a microphone button in CC; the doctor says the medicines or the monitoring plan, CC fills in a **draft** prescription or plan for the doctor to check, edit and sign. Never signs or sends by itself | **Idea**: after M2 and M3 |
-| M6 | **Clinical notes** (doctors): the doctor records the consultation note by voice (dictation after the visit first; recording the consultation itself only with the patient's consent); CC transcribes (English, Filipino, Taglish) and drafts a structured note (SOAP: complaint, findings, assessment, plan) for the doctor to edit and sign. Notes visible to nurses and doctors only, never front desk. FHIR: Encounter + Composition | **Idea**: design next; needs a speech-to-text service with Filipino support and a privacy review (audio is health data) |
+| M6 | **Clinical notes** (doctors): the doctor records the consultation note by voice (dictation after the visit first; recording the consultation itself only with the patient's consent); CC transcribes (English, Filipino, Taglish) and drafts a structured note (SOAP: complaint, findings, assessment, plan) for the doctor to edit and sign. Notes visible to nurses and doctors only, never front desk. FHIR: Encounter + Composition | **Demo built**: dictate / record with consent / type, Gemini speech-to-text (typing without a key), CC SOAP draft, doctor signs, addenda, FHIR Encounter + Composition; records retention setting and review list. Before patient use: doctor review of the prompts, speech-to-text comparison, privacy review |
 
 **Gate:** doctor sign-off on default limits, wording and escalation; agreed
 review times at the pilot clinic; e-prescription rules confirmed. Dangerous
@@ -400,6 +401,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-13 | Clinical notes demo (M6): dictate, record a consultation with consent, or type; Gemini speech-to-text (audio never stored); CC drafts a SOAP note; doctors sign; addenda; notes in the FHIR export. Records retention: platform default 7 years, per-clinic value, records due for review. Planned: patient data requests (deletion, restriction) |
 | 2026-10-13 | FHIR-ready records (L, F1): records stay relational, FHIR R4 with PH Core on request; patient middle name, sex, address, PhilHealth PIN; clinic DOH facility code and address; `fhir` export and **Download record (FHIR)**; clinical notes by voice added to Phase M (M6, idea) |
 | 2026-10-13 | Automatic sign-out: when the browser (or every CareCall tab) closes, and after 20 minutes without activity with a 2-minute warning; sidebar scrolls so Sign out is always reachable |
 | 2026-10-13 | Clinical roles (M0): front desk / nurse-assistant / doctor on the Users page; medicines and reminder consent limited to nurses and doctors in the database; front desk sees intake urgency only; doctor login linked to a clinician with PRC number; platform admins shown and assignable by platform admins |

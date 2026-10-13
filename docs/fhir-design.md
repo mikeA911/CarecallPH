@@ -41,6 +41,7 @@ the UHC Act (RA 11223). Health data stays subject to the Data Privacy Act (RA 10
 | `care_consents` | Consent | base R4 | scope patient-privacy, category LOINC 59284-0, active / rejected / inactive |
 | vital signs (M3) | Observation | PH Core Observation (vital signs) | LOINC codes, UCUM units |
 | monitoring plan (M3) | CarePlan | base R4 | |
+| `clinical_notes` (signed) | Encounter + Composition | base R4 | one Encounter per note (ambulatory); Composition LOINC 11506-3 with SOAP sections; addenda `relatesTo: appends`. Built with M6 |
 | diagnoses (later) | Condition | PH Core Condition | ICD-10 |
 
 Identifiers: resource ids are CareCall's own UUIDs. National identifiers use the PH Core
