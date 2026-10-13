@@ -5,7 +5,7 @@ export type WikiRole = "staff" | "clinic_admin" | "admin";
 export type WikiRoute = { path: string; minRole: WikiRole; label: string };
 export type WikiPage = { id: string; title: string; summary: string; roles: WikiRole; routes: WikiRoute[]; updated: string; body: string };
 
-export const WIKI_VERSION = "f36da5df1dde";
+export const WIKI_VERSION = "f5e9ac8c4ed9";
 
 export const WIKI_PAGES: WikiPage[] = [
   {
@@ -91,6 +91,21 @@ export const WIKI_PAGES: WikiPage[] = [
     ],
     "updated": "2026-10-13",
     "body": "- **Display name**: how the clinic is named in calls and messages.\n- **Callback phone number**: given to patients in voicemails and messages.\n  Optional. Accepts a Philippine mobile (`0917 123 4567`, `+63 917 123 4567`)\n  or a landline with its area code (`02 8123 4567` Metro Manila, `032 123 4567`\n  Cebu). It is saved in international format (`+639171234567`, `+63281234567`)\n  and read out in voicemails the local way (\"0 9 1 7, 1 2 3, 4 5 6 7\"). An\n  invalid number blocks **Save** with a message explaining the accepted formats.\n- **DOH facility code** and **address**: the clinic's code in the DOH National\n  Health Facility Registry and its address. Optional; included when a patient\n  record is downloaded in FHIR format.\n- **Timezone (IANA)**: `Asia/Manila` for Philippine clinics (the default for\n  new clinics). All calling hours and slot times use it, and booking links say\n  \"All times Philippine Time (PHT)\".\n- **Calling hours (clinic-local)**: per weekday start and end. Outside these\n  hours no calls or campaign messages go out. Closed days have no hours.\n  New clinics start with Mon–Fri 08:00–18:00, Sat 08:00–12:00, Sunday closed.\n  Opening a closed day fills in 08:00–18:00. One window per day (no lunch break).\n- **Default greeting context**: default \"reason\" for new campaigns.\n- **Self-booking links in call campaigns**: adds a booking link to pre-call texts\n  and lets patients reply BOOK in a chat app. Chat campaigns always send links.\n- **Chat app invites in text messages**: adds a link to connect a chat app to\n  texts CareCall sends. **Invite to chat** on a patient's page works either way.\n- **Appointment reminders**: chat reminders 24 hours and 2 hours before each\n  appointment; patients reply 1 confirm, 2 new time, 3 cancel. See the\n  appointment reminders page.\n- **Symptom check and online booking**: tick **Let patients check symptoms and\n  book online** and save. CareCall creates the clinic's link from its name plus\n  a random number (e.g. `/check/carecall-test-site-4821`) and shows it with\n  **Copy link** and **Show QR code** (download the PNG to print a poster).\n  **Change link** sets a different name; the old link and QR code stop working.\n  **Local emergency numbers** (one per line) are shown next to 911 on the\n  emergency screen. See the symptom check page for what patients see.\n- **Pre-call text message**: on/off, and **Lead time before the call\n  (seconds, 60–600)**. Patients get a heads-up message, then the call after the\n  lead time. Longer leads (5–10 minutes) give patients time to use a booking link.\n- **Campaign types & Telnyx assistants**: maps each campaign type to the AI\n  voice assistant that handles it."
+  },
+  {
+    "id": "clinical-notes",
+    "title": "Clinical notes",
+    "summary": "Doctors dictate or record a consultation (with consent); CC transcribes and drafts a SOAP note; the doctor edits and signs with their password; addenda; who sees notes; retention.",
+    "roles": "staff",
+    "routes": [
+      {
+        "path": "/patients/:id",
+        "minRole": "staff",
+        "label": "Patient detail"
+      }
+    ],
+    "updated": "2026-10-13",
+    "body": "On a patient's page, **Clinical notes** shows the notes for each visit. Only\nnurses and doctors see this section; front desk never does.\n\n## Writing a note\n\nClick **New note** and choose how to capture it:\n\n- **Dictate**: the doctor speaks the note after (or during) the visit.\n- **Record consultation**: records the conversation between doctor and\n  patient. Ask the patient first and tick **The patient agreed to recording\n  this consultation**; it can't start without that. A red **Recording** dot\n  shows while recording.\n- **Type**: type or paste notes.\n\nRecording stops at 10 minutes. The recording is sent for transcription and\ndeleted right after; it is never stored. Check and correct the transcript,\nthen click **Draft note with CC**. CC organizes it into a SOAP note:\nSubjective (complaint, history), Objective (findings, vital signs),\nAssessment and Plan. It only uses what was said and lists anything to\n**Check before signing** (unclear words, a medicine without a dose).\nMedicines mentioned are listed but never ordered: add them under Medicines.\n\nIf speech-to-text isn't set up, type or paste the dictation (there is a\nsample dictation for demos).\n\n## Signing\n\nEdit the note, then **Sign note** and enter your password (the one you sign\nin with): that is your electronic signature, checked again at every signing\nso no one else can sign from a computer you left signed in. Doctors only: a\ndoctor login linked to their clinician record (see Users and roles). Nurses\nsave drafts for the doctor. Every signature, and every wrong password, is in\nthe audit log. A signed note can't be changed or deleted; to correct or add\nsomething, use **Add addendum**, which the doctor also signs. The transcript\nis deleted when the note is signed.\n\nSigned notes are part of the patient's record and are included in\n**Download record (FHIR)**. Drafts are not.\n\n## Records retention\n\nPatient records are kept for a number of years after the last consultation:\n7 by default (the DOH records schedule appears to set 7 years for outpatient\nrecords). Platform admins set the default (Global settings) and can set a\ndifferent period per clinic. **Clinic settings → Records retention** lists\npatients past the period for review; nothing is deleted automatically."
   },
   {
     "id": "clinicians",

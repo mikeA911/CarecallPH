@@ -55,6 +55,8 @@ export type Clinic = Address & {
   local_emergency_numbers: string | null;
   /** DOH National Health Facility Registry code. */
   nhfr_code?: string | null;
+  /** Years to keep patient records after the last consultation; null = platform default. */
+  record_retention_years?: number | null;
   active: boolean;
   created_at: string;
 };

@@ -245,3 +245,66 @@ export function bundle(resources: Resource[], baseUrl: string): Resource {
 export function operationOutcome(code: string, text: string): Resource {
   return { resourceType: "OperationOutcome", issue: [{ severity: "error", code, diagnostics: text }] };
 }
+
+// --- Clinical notes (M6): Encounter + Composition ---------------------------
+
+export type NoteRow = {
+  id: string; clinic_id: string; patient_id: string; kind: string; amends_note_id?: string | null;
+  encounter_date: string; mode: string; subjective?: string | null; objective?: string | null;
+  assessment?: string | null; plan?: string | null; addendum?: string | null;
+  status: string; signed_provider_id?: string | null; signed_at?: string | null;
+};
+
+const escapeXhtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const narrative = (s: string) => ({
+  status: "generated",
+  div: `<div xmlns="http://www.w3.org/1999/xhtml">${s.split("\n").map((l) => `<p>${escapeXhtml(l)}</p>`).join("")}</div>`,
+});
+
+/** The visit a signed note documents (ambulatory). Shares the note's id. */
+export function toEncounter(n: NoteRow): Resource {
+  return clean({
+    resourceType: "Encounter",
+    id: n.id,
+    status: "finished",
+    class: { system: SYSTEM.actCode, code: "AMB", display: "ambulatory" },
+    subject: ref("Patient", n.patient_id),
+    participant: n.signed_provider_id ? [{ individual: ref("Practitioner", n.signed_provider_id) }] : undefined,
+    period: { start: n.encounter_date, end: n.encounter_date },
+    serviceProvider: ref("Organization", n.clinic_id),
+  });
+}
+
+const SOAP: [keyof NoteRow, string, string][] = [
+  ["subjective", "Subjective", "61150-9"],
+  ["objective", "Objective", "61149-1"],
+  ["assessment", "Assessment", "51848-0"],
+  ["plan", "Plan", "18776-5"],
+];
+
+/** A signed note (or addendum) as a Composition. Drafts are not exported. */
+export function toComposition(n: NoteRow): Resource | null {
+  if (n.status !== "signed" || !n.signed_at) return null;
+  const addendum = n.kind === "addendum";
+  const sections = addendum
+    ? [{ title: "Addendum", text: narrative(n.addendum ?? "") }]
+    : SOAP.filter(([k]) => String(n[k] ?? "").trim()).map(([k, title, code]) => ({
+      title, code: { coding: [{ system: SYSTEM.loinc, code, display: title }] }, text: narrative(String(n[k])),
+    }));
+  return clean({
+    resourceType: "Composition",
+    id: n.id,
+    status: "final",
+    type: { coding: [{ system: SYSTEM.loinc, code: "11506-3", display: "Progress note" }], text: addendum ? "Addendum" : "Clinical note" },
+    subject: ref("Patient", n.patient_id),
+    encounter: addendum ? undefined : ref("Encounter", n.id),
+    date: n.signed_at,
+    author: [n.signed_provider_id ? ref("Practitioner", n.signed_provider_id) : ref("Organization", n.clinic_id)],
+    title: addendum ? "Addendum to clinical note" : "Clinical note",
+    attester: n.signed_provider_id ? [{ mode: "legal", time: n.signed_at, party: ref("Practitioner", n.signed_provider_id) }] : undefined,
+    custodian: ref("Organization", n.clinic_id),
+    relatesTo: addendum && n.amends_note_id ? [{ code: "appends", targetReference: ref("Composition", n.amends_note_id) }] : undefined,
+    section: sections,
+  });
+}

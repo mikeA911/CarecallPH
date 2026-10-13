@@ -171,3 +171,30 @@ export async function createBookingLink(
   }
   return `${portal}/book/${token}`;
 }
+
+/**
+ * Re-check a signed-in user's password (for signing clinical notes and,
+ * later, prescriptions). Signs in once with the password and ends that extra
+ * session straight away (scope=local), leaving the user's portal session as
+ * it is. Supabase Auth rate-limits repeated attempts.
+ */
+export async function verifyPassword(userId: string, password: string): Promise<boolean> {
+  if (!password) return false;
+  const { data } = await supabase.auth.admin.getUserById(userId);
+  const email = data?.user?.email;
+  const url = Deno.env.get("SUPABASE_URL"), anon = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!email || !url || !anon) return false;
+  const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: anon, "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) return false;
+  const j = await res.json().catch(() => ({}));
+  if (j.access_token) {
+    await fetch(`${url}/auth/v1/logout?scope=local`, {
+      method: "POST", headers: { apikey: anon, Authorization: `Bearer ${j.access_token}` },
+    }).catch(() => {});
+  }
+  return true;
+}

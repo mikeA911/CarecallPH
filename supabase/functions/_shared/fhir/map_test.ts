@@ -4,8 +4,8 @@
 // profiles). The official HL7 validator is planned for CI (F2).
 // Run: deno test supabase/functions/_shared/fhir/map_test.ts
 import {
-  bundle, clean, formatPhilhealthId, type Resource, toAppointment, toConsent, toMedicationAdministration,
-  toMedicationRequest, toOrganization, toPatient, toPractitioner,
+  bundle, clean, formatPhilhealthId, type Resource, toAppointment, toComposition, toConsent, toEncounter,
+  toMedicationAdministration, toMedicationRequest, toOrganization, toPatient, toPractitioner,
 } from "./map.ts";
 import { PROFILE, SYSTEM } from "./systems.ts";
 
@@ -152,4 +152,36 @@ Deno.test("Bundle: searchset with the patient as match", () => {
 Deno.test("helpers", () => {
   eq(formatPhilhealthId("635847898455"), "63-584789845-5");
   eq(clean({ a: "", b: [], c: { d: undefined }, e: [null, 1], f: 0, g: false }), { e: [1], f: 0, g: false });
+});
+
+const note = {
+  id: "n1", clinic_id: CLINIC, patient_id: "p1", kind: "note", encounter_date: "2026-10-13", mode: "dictation",
+  subjective: "Dizzy in the mornings <1 week>", objective: "BP 150/95", assessment: "Hypertension, not controlled",
+  plan: "Amlodipine 10 mg once a day\nFollow up in 2 weeks", status: "signed", signed_provider_id: "d1",
+  signed_at: "2026-10-13T03:00:00Z",
+};
+
+Deno.test("Composition: signed SOAP note, escaped narrative, Encounter", () => {
+  const c = toComposition(note)!;
+  wellFormed(c);
+  eq([c.status, c.type.coding[0].code, c.date], ["final", "11506-3", "2026-10-13T03:00:00Z"]);
+  ok(c.subject && c.author.length && c.title, "Composition needs subject, author, title");
+  eq(c.section.map((s: Resource) => s.title), ["Subjective", "Objective", "Assessment", "Plan"]);
+  ok(c.section[0].text.div.includes("&lt;1 week&gt;"), "narrative must be escaped xhtml");
+  ok(c.section[3].text.div.includes("<p>Follow up in 2 weeks</p>"), "one paragraph per line");
+  eq(c.encounter, { reference: "Encounter/n1" });
+  eq(c.attester[0].party, { reference: "Practitioner/d1" });
+  const e = toEncounter(note);
+  wellFormed(e);
+  eq([e.status, e.class.code], ["finished", "AMB"]);
+  eq(toComposition({ ...note, status: "draft" }), null, "drafts are not exported");
+});
+
+Deno.test("Composition: addendum appends to the signed note", () => {
+  const a = toComposition({ ...note, id: "n2", kind: "addendum", amends_note_id: "n1", subjective: null, objective: null,
+    assessment: null, plan: null, addendum: "BP recheck 130/80" })!;
+  wellFormed(a);
+  eq(a.relatesTo, [{ code: "appends", targetReference: { reference: "Composition/n1" } }]);
+  eq(a.section.length, 1);
+  eq(a.encounter, undefined);
 });
