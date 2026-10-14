@@ -347,7 +347,7 @@ build time). `vercel.json` already rewrites `/book/*` and `/connect/*` to the SP
 | Portal and patient pages | Vercel project `carecall-ph`, connected to the apex `carecallph.app` (the old `*.vercel.app` address keeps working) | added by Vercel |
 | Receiving mail (`anything@carecallph.app` → the owner's Gmail) | ImprovMX (free forwarding, catch-all) | root: MX `mx1.improvmx.com` (10), `mx2.improvmx.com` (20); TXT `v=spf1 include:spf.improvmx.com ~all` |
 | App email (password resets) from `noreply@carecallph.app` | Resend (region Tokyo), as Supabase's custom SMTP (Authentication → Emails → SMTP: `smtp.resend.com`, port 465, user `resend`, password = a Resend API key) | `send` MX + TXT (SPF), `resend._domainkey` TXT (DKIM), `_dmarc` TXT |
-| Replies as `mike@carecallph.app` | Gmail "Send mail as" through `smtp.resend.com:587` with a separate Resend key | none extra |
+| Replies as `ccdev@carecallph.app` | Gmail "Send mail as" through `smtp.resend.com:587` with a separate Resend key | none extra |
 
 When the domain changes, update: Supabase **Authentication → URL
 Configuration** (Site URL `https://carecallph.app`, redirect URL
@@ -524,6 +524,7 @@ controls, NPC registration, breach-response procedure, processing agreements.
 | [docs/symptom-check-design.md](docs/symptom-check-design.md) | Symptom check and the Philippine layer |
 | [docs/care-plan-design.md](docs/care-plan-design.md) | Clinical roles, medicines, prescriptions, vital signs, clinical notes |
 | [docs/fhir-design.md](docs/fhir-design.md) | FHIR-ready records and the PH Core export |
+| [docs/care-platform-design.md](docs/care-platform-design.md) | Product family (CareCall, CareMeds, CareLabs, CareLink), organizations and memberships, shared patient record |
 | [docs/messaging-channels.md](docs/messaging-channels.md) | Chat channel design and platform setup |
 | [docs/cc-assistant.md](docs/cc-assistant.md) | CC architecture, nightly review, wiki workflow |
 | [docs/cc-wiki/README.md](docs/cc-wiki/README.md) | How to write CC wiki pages |

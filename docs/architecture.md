@@ -242,4 +242,5 @@ keeps `record_disposals`, blanks the patient's data in `audit_log`).
 | [symptom-check-design.md](symptom-check-design.md) | Symptom check, engines, Philippine layer |
 | [care-plan-design.md](care-plan-design.md) | Clinical roles, medicine reminders, prescriptions, vital signs, clinical notes |
 | [fhir-design.md](fhir-design.md) | FHIR-ready records, PH Core mapping, export |
+| [care-platform-design.md](care-platform-design.md) | Future product family: CareMeds, CareLabs, CareLink shared record; organizations and memberships |
 | [self-booking-link-spec.md](self-booking-link-spec.md) | Booking links |
