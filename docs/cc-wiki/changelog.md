@@ -7,6 +7,13 @@ routes: []
 updated: 2026-10-13
 ---
 
+## 2026-10-14
+
+- **Book for a patient**: on a patient's page, **Book appointment** shows the
+  clinician's open times (hours, holidays and closures applied) and books one;
+  upcoming appointments can be **rescheduled** or **cancelled**. A time can
+  never be double-booked, and every change is logged.
+
 ## 2026-10-13
 
 - **Holidays and closures**: no booking slots on Philippine holidays (choose

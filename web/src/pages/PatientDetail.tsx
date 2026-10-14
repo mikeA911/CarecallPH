@@ -10,6 +10,7 @@ import MedicinesSection from "../components/MedicinesSection";
 import ClinicalNotesSection from "../components/ClinicalNotesSection";
 import VitalSignsSection from "../components/VitalSignsSection";
 import PrivacySection from "../components/PrivacySection";
+import { cancelAppointment, SlotPicker, type Bookable } from "../components/AppointmentBooker";
 import type { Address, Patient } from "../lib/types";
 
 type CallRow = {
@@ -23,7 +24,7 @@ type Intake = {
 };
 type ApptRow = {
   id: string; starts_at: string; status: string; source: string | null; intake: Intake | null;
-  providers?: { name: string } | null;
+  provider_id: string | null; providers?: { name: string } | null;
   appointment_reminders?: { kind: string; status: string; response: string | null; rescheduled_to: string | null }[];
 };
 
@@ -51,7 +52,7 @@ const URGENCY_LABEL: Record<string, string> = {
   urgent: "See a doctor today", routine: "Next few days", self_care: "Self care", emergency: "Emergency",
 };
 const SOURCE_LABEL: Record<string, string> = {
-  voice: "AI call", booking_link: "Booking link", symptom_check: "Symptom check",
+  voice: "AI call", booking_link: "Booking link", symptom_check: "Symptom check", staff: "Staff",
 };
 
 export default function PatientDetail() {
@@ -67,6 +68,8 @@ export default function PatientDetail() {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  // Staff booking: "new" = book, or the appointment being moved.
+  const [booking, setBooking] = useState<"new" | Bookable | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -76,7 +79,7 @@ export default function PatientDetail() {
         .select("id, started_at, result, verified, duration_seconds, summary, campaigns(name)")
         .eq("patient_id", id).order("started_at", { ascending: false }),
       supabase.from("appointments")
-        .select("id, starts_at, status, source, intake, providers(name), appointment_reminders(kind, status, response, rescheduled_to)")
+        .select("id, starts_at, status, source, intake, provider_id, providers(name), appointment_reminders(kind, status, response, rescheduled_to)")
         .eq("patient_id", id).order("starts_at", { ascending: false }).limit(20),
     ]);
     setPatient(p as Patient);
@@ -109,7 +112,21 @@ export default function PatientDetail() {
     load();
   }
 
+  const tz = activeClinic?.timezone || "Asia/Manila";
+
+  async function cancel(a: ApptRow) {
+    const when = new Date(a.starts_at).toLocaleString(undefined, { timeZone: tz, dateStyle: "medium", timeStyle: "short" });
+    if (!confirm(`Cancel the appointment on ${when}? The time opens up for other patients.`)) return;
+    const error = await cancelAppointment(a.id);
+    setMsg(error ?? `Appointment on ${when} cancelled. Tell the patient; no message is sent automatically.`);
+    load();
+  }
+
   if (!patient) return <p className="empty">Loading…</p>;
+
+  // Anyone at the clinic books; not for restricted or inactive records.
+  const canBook = patient.active && !patient.restricted_at;
+  const upcoming = (a: ApptRow) => (a.status === "booked" || a.status === "confirmed") && Date.parse(a.starts_at) > Date.now();
 
   return (
     <>
@@ -192,12 +209,23 @@ export default function PatientDetail() {
       {clinical && <ClinicalNotesSection patientId={patient.id} clinicId={patient.clinic_id} />}
 
       <h2>Appointments</h2>
+      {canBook && !booking && (
+        <div className="row-actions" style={{ marginBottom: 8 }}>
+          <button className="secondary" onClick={() => setBooking("new")}>Book appointment</button>
+        </div>
+      )}
+      {booking && (
+        <SlotPicker patientId={patient.id} clinicId={patient.clinic_id} tz={tz}
+                    existing={booking === "new" ? null : booking}
+                    onCancel={() => setBooking(null)}
+                    onDone={(t) => { setBooking(null); setMsg(t); load(); }} />
+      )}
       <table>
         <thead><tr><th>When</th><th>Clinician</th><th>Booked by</th><th>Status</th></tr></thead>
         <tbody>
           {appts.map((a) => (
             <tr key={a.id}>
-              <td>{new Date(a.starts_at).toLocaleString()}</td>
+              <td>{new Date(a.starts_at).toLocaleString(undefined, { timeZone: tz, dateStyle: "medium", timeStyle: "short" })}</td>
               <td>{a.providers?.name ?? "—"}</td>
               <td>
                 {SOURCE_LABEL[a.source ?? ""] ?? a.source ?? "—"}
@@ -207,6 +235,12 @@ export default function PatientDetail() {
                 <span className={`badge ${a.status}`}>{a.status}</span>
                 {reminderSummary(a.appointment_reminders) && (
                   <div className="small muted" style={{ marginTop: 4 }}>{reminderSummary(a.appointment_reminders)}</div>
+                )}
+                {canBook && upcoming(a) && !booking && (
+                  <div className="row-actions" style={{ marginTop: 4 }}>
+                    <button className="link" onClick={() => setBooking({ id: a.id, starts_at: a.starts_at, provider_id: a.provider_id })}>Reschedule</button>
+                    <button className="link" onClick={() => cancel(a)}>Cancel</button>
+                  </div>
                 )}
               </td>
             </tr>

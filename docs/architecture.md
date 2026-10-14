@@ -179,6 +179,12 @@ books it (double-booking impossible) →
 `send-reminders` reminds 24 h and 2 h before → replies (1 confirm, 2 change,
 3 cancel) arrive at `channel-webhook`.
 
+**Staff booking**: on the patient page anyone at the clinic picks a clinician
+and an open slot (`get_available_slots`) and books, reschedules (one update:
+the old time is freed as the new one is taken) or cancels; the database refuses
+double bookings and a patient–clinician clinic mismatch, and logs every change
+(`fn_audit_appointment`). Reminders follow the current time.
+
 **Symptom check**: patient opens the clinic's link or `/check` (or `/check` in
 Telegram) → emergency questions first (911 screen) → engine questions inside
 the Philippine layer → urgency and kind of doctor → optional booking, with the

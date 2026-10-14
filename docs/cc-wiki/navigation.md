@@ -68,7 +68,8 @@ Open a patient from **Patients**. From top to bottom:
   a chart and the readings.
 - **Clinical notes** (nurses and doctors only): dictate, record a consultation
   with consent, or type; CC drafts the note; doctors sign with their password.
-- **Appointments**: visits, how they were booked and reminder answers. A
+- **Appointments**: visits, how they were booked and reminder answers;
+  **Book appointment**, **Reschedule** and **Cancel** (anyone at the clinic). A
   symptom-check booking shows the urgency to everyone and the symptoms to
   nurses and doctors.
 - **Call history**: AI calls to this patient.
