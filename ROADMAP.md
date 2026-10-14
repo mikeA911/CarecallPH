@@ -419,7 +419,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
-| 2026-10-14 | Staff booking (user stories FD-03, FD-04): book, reschedule and cancel on the patient page from open slots; patient and clinician must share a clinic; appointment changes audited |
+| 2026-10-14 | Staff booking (user stories FD-03, FD-04): book, reschedule and cancel on the patient page from open slots; patient and clinician must share a clinic; appointment changes audited; optional message to the patient (ticked by default) via `appointment-notify` |
 | 2026-10-14 | Domain `carecallph.app` (Vercel): portal on the apex, `PORTAL_URL` and Supabase Site URL updated; ImprovMX mail forwarding; Resend as Supabase SMTP for `noreply@`; Gmail send-as through Resend |
 | 2026-10-13 | Pilot hardening: holidays and clinic closures in slot generation; nightly purge of old messages and call records; Telnyx webhook signatures required |
 | 2026-10-13 | Dictate a monitoring plan (M5): speak or type the plan, CC drafts the measures (never invents a limit or time) and lists what to check; the doctor edits and signs. Shared microphone recorder for notes and plans |

@@ -10,7 +10,7 @@ import MedicinesSection from "../components/MedicinesSection";
 import ClinicalNotesSection from "../components/ClinicalNotesSection";
 import VitalSignsSection from "../components/VitalSignsSection";
 import PrivacySection from "../components/PrivacySection";
-import { cancelAppointment, SlotPicker, type Bookable } from "../components/AppointmentBooker";
+import { cancelAppointment, notifyPatient, NotifyBox, SlotPicker, type Bookable } from "../components/AppointmentBooker";
 import type { Address, Patient } from "../lib/types";
 
 type CallRow = {
@@ -70,6 +70,8 @@ export default function PatientDetail() {
   const [editing, setEditing] = useState(false);
   // Staff booking: "new" = book, or the appointment being moved.
   const [booking, setBooking] = useState<"new" | Bookable | null>(null);
+  const [cancelling, setCancelling] = useState<ApptRow | null>(null);
+  const [notifyCancel, setNotifyCancel] = useState(true);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -114,11 +116,15 @@ export default function PatientDetail() {
 
   const tz = activeClinic?.timezone || "Asia/Manila";
 
+  const fmtWhen = (iso: string) => new Date(iso).toLocaleString(undefined, { timeZone: tz, dateStyle: "medium", timeStyle: "short" });
+
   async function cancel(a: ApptRow) {
-    const when = new Date(a.starts_at).toLocaleString(undefined, { timeZone: tz, dateStyle: "medium", timeStyle: "short" });
-    if (!confirm(`Cancel the appointment on ${when}? The time opens up for other patients.`)) return;
+    setBusy(true);
     const error = await cancelAppointment(a.id);
-    setMsg(error ?? `Appointment on ${when} cancelled. Tell the patient; no message is sent automatically.`);
+    const told = error ? "" : notifyCancel ? await notifyPatient(a.id, "cancelled") : "No message sent; tell the patient yourself.";
+    setBusy(false);
+    setCancelling(null);
+    setMsg(error ?? `Appointment on ${fmtWhen(a.starts_at)} cancelled. ${told}`);
     load();
   }
 
@@ -209,7 +215,7 @@ export default function PatientDetail() {
       {clinical && <ClinicalNotesSection patientId={patient.id} clinicId={patient.clinic_id} />}
 
       <h2>Appointments</h2>
-      {canBook && !booking && (
+      {canBook && !booking && !cancelling && (
         <div className="row-actions" style={{ marginBottom: 8 }}>
           <button className="secondary" onClick={() => setBooking("new")}>Book appointment</button>
         </div>
@@ -219,6 +225,17 @@ export default function PatientDetail() {
                     existing={booking === "new" ? null : booking}
                     onCancel={() => setBooking(null)}
                     onDone={(t) => { setBooking(null); setMsg(t); load(); }} />
+      )}
+      {cancelling && (
+        <div className="form-card" style={{ marginTop: 12, maxWidth: 760 }}>
+          <strong>Cancel the appointment on {fmtWhen(cancelling.starts_at)}?</strong>
+          <div className="small muted">The time opens up for other patients.</div>
+          <NotifyBox checked={notifyCancel} onChange={setNotifyCancel} />
+          <div className="row-actions" style={{ marginTop: 12 }}>
+            <button className="danger" disabled={busy} onClick={() => cancel(cancelling)}>{busy ? "Cancelling…" : "Cancel appointment"}</button>
+            <button className="link" onClick={() => setCancelling(null)}>Keep it</button>
+          </div>
+        </div>
       )}
       <table>
         <thead><tr><th>When</th><th>Clinician</th><th>Booked by</th><th>Status</th></tr></thead>
@@ -236,10 +253,10 @@ export default function PatientDetail() {
                 {reminderSummary(a.appointment_reminders) && (
                   <div className="small muted" style={{ marginTop: 4 }}>{reminderSummary(a.appointment_reminders)}</div>
                 )}
-                {canBook && upcoming(a) && !booking && (
+                {canBook && upcoming(a) && !booking && !cancelling && (
                   <div className="row-actions" style={{ marginTop: 4 }}>
                     <button className="link" onClick={() => setBooking({ id: a.id, starts_at: a.starts_at, provider_id: a.provider_id })}>Reschedule</button>
-                    <button className="link" onClick={() => cancel(a)}>Cancel</button>
+                    <button className="link" onClick={() => { setNotifyCancel(true); setCancelling(a); }}>Cancel</button>
                   </div>
                 )}
               </td>

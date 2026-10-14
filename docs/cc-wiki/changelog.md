@@ -12,7 +12,9 @@ updated: 2026-10-13
 - **Book for a patient**: on a patient's page, **Book appointment** shows the
   clinician's open times (hours, holidays and closures applied) and books one;
   upcoming appointments can be **rescheduled** or **cancelled**. A time can
-  never be double-booked, and every change is logged.
+  never be double-booked, and every change is logged. **Send the patient a
+  message** (ticked by default) tells the patient about the booking, the new
+  time or the cancellation by chat.
 
 ## 2026-10-13
 

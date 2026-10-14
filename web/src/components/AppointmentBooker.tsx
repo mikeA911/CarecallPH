@@ -3,9 +3,11 @@
 // from get_available_slots (opening hours, holidays, closures, existing
 // bookings); the database's no-double-booking rule settles any race. A
 // reschedule is one update, so the old time is freed as the new one is taken,
-// and reminders follow the new time.
+// and reminders follow the new time. "Send the patient a message" (on by
+// default) tells the patient through appointment-notify.
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { callFunction } from "../lib/api";
 
 type Provider = { id: string; name: string; specialty: string | null };
 type Slot = { slot_start: string; slot_end: string };
@@ -34,6 +36,7 @@ export function SlotPicker({ patientId, clinicId, tz, existing, onDone, onCancel
   const [chosen, setChosen] = useState<Slot | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [notify, setNotify] = useState(true);
 
   useEffect(() => {
     supabase.from("providers").select("id, name, specialty").eq("clinic_id", clinicId).eq("active", true).order("name")
@@ -67,17 +70,22 @@ export function SlotPicker({ patientId, clinicId, tz, existing, onDone, onCancel
     if (!chosen || !providerId) return;
     setBusy(true); setErr("");
     const fields = { provider_id: providerId, starts_at: chosen.slot_start, ends_at: chosen.slot_end };
-    const { error } = existing
-      ? await supabase.from("appointments").update(fields).eq("id", existing.id)
-      : await supabase.from("appointments").insert({ ...fields, patient_id: patientId, status: "booked", source: "staff" });
-    setBusy(false);
-    if (error) {
-      if (error.code === "23P01") { setErr("Someone just took that time. Here are the times still open."); loadSlots(); return; }
-      setErr(`Couldn't save: ${error.message}`); return;
+    const { data, error } = existing
+      ? await supabase.from("appointments").update(fields).eq("id", existing.id).select("id").single()
+      : await supabase.from("appointments").insert({ ...fields, patient_id: patientId, status: "booked", source: "staff" })
+        .select("id").single();
+    if (error || !data) {
+      setBusy(false);
+      if (error?.code === "23P01") { setErr("Someone just took that time. Here are the times still open."); loadSlots(); return; }
+      setErr(`Couldn't save: ${error?.message ?? "unknown error"}`); return;
     }
+    const told = notify
+      ? await notifyPatient(data.id, existing ? "moved" : "booked", existing?.starts_at)
+      : "No message sent; tell the patient yourself.";
+    setBusy(false);
     const prov = providers.find((p) => p.id === providerId)?.name ?? "the clinician";
     onDone(`${existing ? "Moved to" : "Booked:"} ${fmtDay(chosen.slot_start)}, ${fmtTime(chosen.slot_start)} with ${prov}. ` +
-      "Chat reminders go out 24 hours and 2 hours before.");
+      `${told} Chat reminders go out 24 hours and 2 hours before.`);
   }
 
   return (
@@ -115,6 +123,7 @@ export function SlotPicker({ patientId, clinicId, tz, existing, onDone, onCancel
         </div>
       ))}
       {err && <p role="alert" className="small">{err}</p>}
+      <NotifyBox checked={notify} onChange={setNotify} />
       <div className="row-actions" style={{ marginTop: 12 }}>
         <button disabled={!chosen || busy} onClick={confirm}>
           {busy ? "Saving…" : chosen ? `${existing ? "Move to" : "Book"} ${fmtDay(chosen.slot_start)}, ${fmtTime(chosen.slot_start)}` : existing ? "Pick a new time" : "Pick a time"}
@@ -123,6 +132,32 @@ export function SlotPicker({ patientId, clinicId, tz, existing, onDone, onCancel
       </div>
     </div>
   );
+}
+
+/** The "Send the patient a message" tick box, on by default. */
+export function NotifyBox({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="small" style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ width: "auto" }} />
+      Send the patient a message (their chat app, or SMS if they agreed to it)
+    </label>
+  );
+}
+
+const CHANNEL_NAME: Record<string, string> = {
+  telegram: "Telegram", viber: "Viber", messenger: "Messenger", whatsapp: "WhatsApp", sms: "SMS",
+};
+
+/** Ask appointment-notify to tell the patient; returns a sentence for staff. */
+export async function notifyPatient(id: string, kind: "booked" | "moved" | "cancelled", previousStartsAt?: string): Promise<string> {
+  const { data, error } = await callFunction<{ sent: boolean; channel: string | null; reason?: string }>(
+    "appointment-notify", { appointment_id: id, kind, previous_starts_at: previousStartsAt ?? null });
+  if (error) return `The message wasn't sent (${error}); tell the patient yourself.`;
+  if (data?.sent) return `Message sent by ${CHANNEL_NAME[data.channel ?? ""] ?? data.channel}.`;
+  if (data?.reason === "inactive_or_do_not_call") return "No message sent: the patient is inactive or do-not-call.";
+  return data?.channel
+    ? "The message couldn't be delivered; tell the patient yourself."
+    : "The patient isn't connected to a chat app, so no message was sent; tell them yourself.";
 }
 
 /** Cancel an upcoming appointment; the time opens up again for others. */

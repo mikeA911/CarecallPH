@@ -1,7 +1,7 @@
 ---
 id: patients
 title: Patients
-summary: Importing by CSV, phone format, editing details, consent, do-not-call, chat invites, messages, booking, rescheduling and cancelling appointments for a patient, FHIR download.
+summary: Importing by CSV, phone format, editing details, consent, do-not-call, chat invites, messages, booking, rescheduling and cancelling appointments (with a message to the patient), FHIR download.
 roles: staff
 routes:
   - /patients | staff | Patients
@@ -72,8 +72,14 @@ On an upcoming appointment:
 
 - **Reschedule**: pick the new time (or another clinician). The old time opens
   up at once; reminders go out for the new time.
-- **Cancel**: the time opens up for others. The patient isn't messaged
-  automatically, so tell them.
+- **Cancel**: confirm in the box that opens; the time opens up for others.
+
+**Send the patient a message** is ticked by default when you book, reschedule
+or cancel. The patient gets a short note (English, then Filipino) with the day,
+time and clinician, on their chat app, or by SMS if they agreed to texts. The
+result shows whether it went out; if the patient isn't connected to a chat app
+or is do-not-call, nothing is sent and you're told to contact them yourself.
+Untick it when you've already told them in person.
 
 The patient gets the usual chat reminders 24 hours and 2 hours before (if
 reminders are on and they're connected to a chat app). Bookings, moves and
