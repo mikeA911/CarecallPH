@@ -41,7 +41,7 @@ by country before any Southeast Asian expansion.
 | Phase | Scope | Status |
 |---|---|---|
 | Base | Outbound AI scheduling (inherited from CareCall US) | **Done** in the US build; needs re-verifying on PH accounts |
-| 0a | PH accounts for the Recall pilot: Supabase, Vercel, Telegram | **In progress**: accounts done; README §9 pilot test under way |
+| 0a | PH accounts for the Recall pilot: Supabase, Vercel, Telegram | **In progress**: accounts done; domain `carecallph.app` live (portal, ImprovMX forwarding, Resend for app email; README §7); README §9 pilot test under way |
 | 0b | PH telephony for Voice: Telnyx, carrier test, call-detection tuning | **Deferred**: Voice moved after Discover. Telnyx webhook secrets still to set with the PH account |
 | 1 | Chat channels: Viber, Messenger, WhatsApp, Telegram | **Built** |
 | 1T | Chat-first pilot: chat campaigns, staff invites, Telegram first | **Built** |
@@ -66,8 +66,8 @@ by country before any Southeast Asian expansion.
    DPO the privacy-request defaults and message-history periods; compare
    speech-to-text on 10–20 Taglish dictations; check the holiday list against
    the proclamation.
-2. Domain and business email → Infermedica trial (D1d). Then turn
-   international patient numbers off for the pilot.
+2. Infermedica trial (D1d) with `mike@carecallph.app` (domain and email done
+   14 Oct). Then turn international patient numbers off for the pilot.
 3. Legal and approvals: confirm e-prescription rules (M2) and the DOH records
    retention circular; processing agreements (Supabase, Anthropic, Google,
    Telnyx, Meta, Viber, Telegram); Meta business verification and a Viber
@@ -318,7 +318,7 @@ into real availability. Design: `docs/symptom-check-design.md`.
 | D1a | `SymptomEngine` interface, built-in **demo engine** (made-up rules, DEMO banner), public `symptom-check` function, our own emergency screen (tap-to-call 911, local rescue numbers, no booking), `/check` page up to the result, Telegram `/check` entry, `symptom_checks` (minimal, 90-day retention), clinic switch, CC wiki page | **Built**: runs with `SYMPTOM_ENGINE=demo` (README §10) |
 | D1b | Nearby care: location from Telegram or the browser, Google Places lookup, nearest ER on the emergency screen; CareCall clinics first, other facilities by distance only, no booking | **Built**: Places API (New) Nearby and Text Search; CareCall clinics first (Clinic settings → Find on map); Telegram location; monthly budget; location never stored. OpenStreetMap fallback not built |
 | D1c | Book from the result as a new patient (clinic page, non-emergency; urgent = today only); staff see the shared summary under Appointments on the patient page | **Built** |
-| D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Built**, tested against a fake API: needs the Infermedica trial (organization + business email) |
+| D1d | Infermedica adapter (interview, triage, specialist); switch engines by secret | **Built**, tested against a fake API: needs the Infermedica trial (business email now available: `@carecallph.app`) |
 | D1f | One public page (`/check`) with a clinic picker: participating clinics ordered by matching doctor, then soonest open time; clinic links skip it. Clinic link made automatically (name + random number) with copy and QR code | **Built** (early D2) |
 | D1e | Philippine layer: PH questions (fever days, flood water, long cough), 8 draft PH rules (animal bite, dengue, leptospirosis, child dehydration, long fever, jaundice, TB) that only raise urgency, fired rules saved per check, Infermedica region evidence, PH test cases (design §8a) | **Built** (draft rules): needs doctor sign-off; outcome comparison after D1c |
 
@@ -419,6 +419,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-14 | Domain `carecallph.app` (Vercel): portal on the apex, `PORTAL_URL` and Supabase Site URL updated; ImprovMX mail forwarding; Resend as Supabase SMTP for `noreply@`; Gmail send-as through Resend |
 | 2026-10-13 | Pilot hardening: holidays and clinic closures in slot generation; nightly purge of old messages and call records; Telnyx webhook signatures required |
 | 2026-10-13 | Dictate a monitoring plan (M5): speak or type the plan, CC drafts the measures (never invents a limit or time) and lists what to check; the doctor edits and signs. Shared microphone recorder for notes and plans |
 | 2026-10-13 | Patient data requests (Phase 3, L F5): log and answer access, correction, restriction and erasure requests; restricted records view-only with no messages or calls; disposal after the retention period with a disposal record and audit-log redaction |
