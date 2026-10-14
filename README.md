@@ -254,7 +254,7 @@ supabase secrets set \
   CLINIC_NAME="Fallback Clinic Name" \
   CLINIC_CALLBACK_NUMBER=+63XXXXXXXXXX \
   CLINIC_TZ=Asia/Manila \
-  PORTAL_URL=https://<portal-domain> \
+  PORTAL_URL=https://carecallph.app \
   ANTHROPIC_API_KEY=sk-ant-...
 ```
 
@@ -336,6 +336,25 @@ npm run dev
 
 On Vercel, set the same `VITE_*` variables and redeploy (Vite inlines them at
 build time). `vercel.json` already rewrites `/book/*` and `/connect/*` to the SPA.
+
+#### Domain and email (pilot setup, Oct 2026)
+
+`carecallph.app` is registered at Vercel, and Vercel hosts its DNS
+(Domains → carecallph.app → DNS Records).
+
+| What | Where | DNS records |
+|---|---|---|
+| Portal and patient pages | Vercel project `carecall-ph`, connected to the apex `carecallph.app` (the old `*.vercel.app` address keeps working) | added by Vercel |
+| Receiving mail (`anything@carecallph.app` → the owner's Gmail) | ImprovMX (free forwarding, catch-all) | root: MX `mx1.improvmx.com` (10), `mx2.improvmx.com` (20); TXT `v=spf1 include:spf.improvmx.com ~all` |
+| App email (password resets) from `noreply@carecallph.app` | Resend (region Tokyo), as Supabase's custom SMTP (Authentication → Emails → SMTP: `smtp.resend.com`, port 465, user `resend`, password = a Resend API key) | `send` MX + TXT (SPF), `resend._domainkey` TXT (DKIM), `_dmarc` TXT |
+| Replies as `mike@carecallph.app` | Gmail "Send mail as" through `smtp.resend.com:587` with a separate Resend key | none extra |
+
+When the domain changes, update: Supabase **Authentication → URL
+Configuration** (Site URL `https://carecallph.app`, redirect URL
+`https://carecallph.app/**`) and the `PORTAL_URL` secret (booking links and chat
+invites are built from it). Keep only one SPF record on the root: a future
+mailbox provider (e.g. Zoho or Google Workspace) replaces the ImprovMX MX and SPF
+records; Resend's records stay on `send` and `resend._domainkey`.
 
 ### 8. Smoke test
 
