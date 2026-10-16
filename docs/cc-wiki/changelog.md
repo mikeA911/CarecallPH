@@ -9,6 +9,12 @@ updated: 2026-10-16
 
 ## 2026-10-16
 
+- **Pilot dashboard**: the top of the Dashboard now shows today's work
+  (appointments, visits to mark **Came** or **No-show**, action items,
+  readings) and the pilot results for the last 7 or 30 days: no-show rate
+  against the clinic's baseline, sign-ups, chat, bookings, reminder replies,
+  and for nurses and doctors, adherence, readings and notes signed.
+
 - **Report a problem through CC**: tell CC what went wrong (or tap **Report a
   problem**); it asks a few questions, reads the summary back and files a
   numbered bug report with the screen you were on and the page's recent errors,

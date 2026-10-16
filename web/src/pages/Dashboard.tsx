@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useSession, roleAtLeast } from "../lib/session";
 import { useClinic } from "../lib/clinic";
-import { statusLabel, type AuditEntry, type Provider } from "../lib/types";
+import { statusLabel, type AuditEntry } from "../lib/types";
+import PilotDashboard from "../components/PilotDashboard";
 
 type LiveRow = {
   campaign_id: string; patient_id: string; status: string; updated_at: string;
@@ -30,19 +31,11 @@ const fmtTime = (iso: string) =>
 export default function Dashboard() {
   const { role } = useSession();
   const { activeClinic, activeClinicId, clinics } = useClinic();
-  const navigate = useNavigate();
   const isAdmin = role === "admin";
   const isClinicAdmin = roleAtLeast(role, "clinic_admin");
 
   const [feed, setFeed] = useState<LiveRow[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
-  const [cards, setCards] = useState({
-    clinics: 0, patientsOnFile: 0, inCampaign: 0, needsReview: 0,
-  });
-
-  // Hero: providers panel
-  const [showProviders, setShowProviders] = useState(false);
-  const [providers, setProviders] = useState<Provider[]>([]);
 
   // Window 5: appointment slots (available + booked)
   const [slots, setSlots] = useState<SlotRow[]>([]);
@@ -57,28 +50,10 @@ export default function Dashboard() {
   async function load() {
     if (!activeClinicId) return;
 
-    const patientsQuery = isAdmin
-      ? supabase.from("patients").select("id", { count: "exact", head: true })
-      : supabase.from("patients").select("id", { count: "exact", head: true }).eq("clinic_id", activeClinicId);
-    const { count: patientsOnFile } = await patientsQuery;
-
     const { data: camps } = await supabase.from("campaigns").select("id").eq("clinic_id", activeClinicId);
     const campIds = (camps ?? []).map((c: { id: string }) => c.id);
 
-    let inCampaign = 0, needsReview = 0;
     if (campIds.length) {
-      const inCampQuery = isAdmin
-        ? supabase.from("campaign_patients").select("patient_id", { count: "exact", head: true })
-        : supabase.from("campaign_patients").select("patient_id", { count: "exact", head: true }).in("campaign_id", campIds);
-      const { count: ic } = await inCampQuery;
-      inCampaign = ic ?? 0;
-
-      const reviewQuery = isAdmin
-        ? supabase.from("campaign_patients").select("patient_id", { count: "exact", head: true }).in("status", ["needs_human", "verification_failed"])
-        : supabase.from("campaign_patients").select("patient_id", { count: "exact", head: true }).in("campaign_id", campIds).in("status", ["needs_human", "verification_failed"]);
-      const { count: nr } = await reviewQuery;
-      needsReview = nr ?? 0;
-
       const { data: recent } = await supabase.from("campaign_patients")
         .select("campaign_id, patient_id, status, updated_at, patients(first_name, last_name)")
         .in("campaign_id", campIds)
@@ -90,8 +65,6 @@ export default function Dashboard() {
       setFeed([]);
     }
 
-    setCards({ clinics: clinics.length, patientsOnFile: patientsOnFile ?? 0, inCampaign, needsReview });
-
     if (isClinicAdmin) {
       const auditQuery = isAdmin
         ? supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(10)
@@ -101,12 +74,6 @@ export default function Dashboard() {
     }
   }
 
-  // Providers for this clinic (used by the hero "Meet our Providers" panel + slot calendar)
-  async function loadProviders() {
-    if (!activeClinicId) return;
-    const { data } = await supabase.from("providers").select("*").eq("clinic_id", activeClinicId).order("name");
-    setProviders((data as Provider[]) ?? []);
-  }
 
   // Appointment slots: booked appointments (DB) + generated available slots per provider.
   async function loadSlots() {
@@ -142,7 +109,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     load();
-    loadProviders();
     loadSlots();
     const ch = supabase.channel("dash-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "campaign_patients" }, load)
@@ -167,10 +133,6 @@ export default function Dashboard() {
     }
     return [...map.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [slots]);
-
-  function toggleProviders() {
-    setShowProviders((v) => !v);
-  }
 
   async function runSearch() {
     if (!activeClinicId) return;
@@ -214,66 +176,20 @@ export default function Dashboard() {
       {/* ---------- Status banner ---------- */}
       <div className="status-banner" role="status">
         <div className="sb-group">
-          <span className="sb-status"><span className="sb-dot" aria-hidden />Network Servers Online</span>
-          <span className="sb-sep" aria-hidden>·</span>
-          <Link className="sb-clinic" to="/about">{headline}</Link>
+<Link className="sb-clinic" to="/about">{headline}</Link>
         </div>
         <div className="sb-group">
           <span className="sb-date">{todayLabel}</span>
         </div>
       </div>
 
-      {/* ---------- Hero header ---------- */}
-      <section className="hero">
-        <span className="hero-pill"><span className="dot" aria-hidden />Modernized Clinical Care</span>
-        <h1>Empowering your wellness journey with digital precision.</h1>
-        <p className="hero-lede">
-          Welcome to CareCall's integrated outreach console for {headline}. Track outcomes,
-          review the wait queue, manage patients and campaigns, and oversee AI-driven
-          appointment scheduling — all grounded in your verified Supabase data.
-        </p>
-        <div className="hero-actions">
-          <button className="hero-btn primary" onClick={toggleProviders}>Meet our Providers</button>
-          <button className="hero-btn" onClick={() => navigate("/patients")}>Patient Management</button>
-          <button className="hero-btn" onClick={() => navigate("/campaigns")}>Campaigns</button>
-          <button className="hero-btn" onClick={() => navigate("/review")}>Check Clinic Wait Queue</button>
-        </div>
-      </section>
-
-      {/* Meet our Providers — inline panel toggled from the hero */}
-      {showProviders && (
-        <div className="window" style={{ marginBottom: "var(--sp-3)" }}>
-          <div className="window-head">
-            <h2>Meet our Providers</h2>
-            <button className="link" onClick={() => setShowProviders(false)}>Hide</button>
-          </div>
-          {providers.length ? (
-            <div className="cards">
-              {providers.map((p) => (
-                <div className="card" key={p.id}>
-                  <div style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 15 }}>{p.name}</div>
-                  <div className="lbl">{p.specialty ?? "General practice"}</div>
-                  {!p.active && <span className="badge declined" style={{ marginTop: 6 }}>inactive</span>}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="empty">No providers on file yet.</p>
-          )}
+      {/* ---------- Pilot dashboard: today's work and the pilot's numbers ---------- */}
+      <PilotDashboard />
+      {isAdmin && (
+        <div className="cards" style={{ marginTop: "var(--sp-3)" }}>
+          <div className="card"><div className="num">{clinics.length}</div><div className="lbl">Clinics on the platform</div></div>
         </div>
       )}
-
-      {/* ---------- Scorecards (Stats) ---------- */}
-      <div className="cards">
-        {isAdmin && (
-          <div className="card"><div className="num">{cards.clinics}</div><div className="lbl">Clinics</div></div>
-        )}
-        <div className="card"><div className="num">{cards.patientsOnFile}</div><div className="lbl">Patients on file</div></div>
-        <div className="card"><div className="num">{cards.inCampaign}</div><div className="lbl">In active campaigns</div></div>
-        <Link to="/review" className="card card-link">
-          <div className="num">{cards.needsReview}</div><div className="lbl">Calls needing review</div>
-        </Link>
-      </div>
 
       {/* ---------- New windows: calendar / location / patient search ---------- */}
       <div className="window-grid">
