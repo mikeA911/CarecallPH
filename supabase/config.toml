@@ -44,6 +44,11 @@ verify_jwt = false
 [functions.symptom-check]
 verify_jwt = false
 
+# Public patient sign-up page (/join/<clinic>). No Supabase JWT: patients are
+# not portal users. Per-IP rate limits inside the function.
+[functions.patient-signup]
+verify_jwt = false
+
 # Appointment reminders, called every 5 minutes by pg_cron (tick_reminders)
 # with the service-role bearer, checked inside the function.
 [functions.send-reminders]

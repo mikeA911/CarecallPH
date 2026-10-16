@@ -380,20 +380,30 @@ async function onStart(
     };
   }
 
-  // (Re)link; consent is reset whenever the chat account changes.
+  // (Re)link; consent is reset whenever the chat account changes. An invite
+  // from the sign-up page is already verified: she typed her birthday there.
+  const now = new Date().toISOString();
   await supabase.from("patient_channels").upsert({
     patient_id: invite.patient_id,
     clinic_id: invite.clinic_id,
     channel,
     external_id: ev.externalId,
     display_name: ev.name ?? null,
-    linked_at: new Date().toISOString(),
+    linked_at: now,
     opted_in_at: null,
     opted_out_at: null,
-    verified_at: null,
+    verified_at: invite.verified ? now : null,
     verify_attempts: 0,
-    last_inbound_at: new Date().toISOString(),
+    last_inbound_at: now,
   }, { onConflict: "patient_id,channel" });
+
+  if (invite.verified) {
+    return {
+      sender: clinic.name, clinicId: clinic.id, patientId: invite.patient_id, buttons: BUTTONS.optIn,
+      text: `Hi! This is ${clinic.name}. Reply YES (or OO) to receive appointment reminders and booking links ` +
+        `in this chat. Reply STOP anytime to stop.`,
+    };
+  }
 
   return {
     sender: clinic.name, clinicId: clinic.id, patientId: invite.patient_id,
