@@ -475,6 +475,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-16 | Pilot dashboard: today (appointments, visits to mark came / no-show, action items, readings) and pilot results for 7 or 30 days (no-show rate vs clinic baseline and previous period, sign-ups, chat, bookings by source, reminder replies; adherence, reading response, notes signed for clinical roles); `pilot_dashboard()` |
 | 2026-10-16 | Bug reports through CC: `report_bug` (asks, reads back, files with the screen; refuses phone numbers) and `my_bug_reports`; page errors and failed requests attached; optional screenshot with patient details blurred (preview first, 90-day purge); Admin → Bug reports to triage with a note for the reporter |
 | 2026-10-16 | Design: the patient sign-up page (QR poster) for pharmacies and labs, opt-ins by organization type, sharing as a separate opt-in (`docs/care-platform-design.md` §4) |
 | 2026-10-16 | Patient sign-up page `/join/<clinic>` (front desk QR poster): patients enter their details, accept the privacy notice (version stored), opt in to chat and texts; new records get a pre-verified chat invite (YES only); existing patients are never changed |
