@@ -423,6 +423,7 @@ Foundation for CareMeds and CareLabs. Design: `docs/care-platform-design.md` §3
 | Sign-in | Choose the organization; the token carries the selected membership (Supabase access-token hook) |
 | Database rules | Organization helpers replace clinic helpers, policies migrated table by table |
 | Portal | Organization picker; sidebar and landing page by organization type |
+| Sign-up page by organization type | The clinic `/join` page serves pharmacies and labs: their own privacy notice and opt-ins (refill reminders, result-ready notices); sharing with another organization is a separate opt-in (§4) |
 
 **Gate:** none external; do after the first clinic pilot is running.
 
@@ -435,7 +436,7 @@ never changes a medicine, dose or duration.
 | Item | Notes |
 |---|---|
 | Dispensing record | Medicine, strength, quantity supplied, instructions as written, prescriber reference |
-| Invite, consent, dose reminders | Reuse chat invites, consent scopes, M1 reminders and buttons |
+| Invite, consent, dose reminders | Reuse chat invites, the counter QR sign-up page, consent scopes, M1 reminders and buttons |
 | Refill estimate and reminder | From quantity and doses per day |
 | Running low / Request refill | Buttons; refill queue for the pharmacist |
 | Pickup, delivery or pharmacist call | Branch hours, status messages |
@@ -447,7 +448,7 @@ no dangerous drugs, substitution, dose advice or automatic renewal in the pilot.
 
 ## Phase CL: CareLabs (laboratories and imaging)
 
-Design: `docs/care-platform-design.md` §6. Booking (branch, home collection),
+Design: `docs/care-platform-design.md` §6. Reception QR sign-up page (§4), booking (branch, home collection),
 preparation instructions, reminders, queue / specimen / in-progress status,
 **result ready** notification (never the result in chat), secure retrieval,
 release to the requesting clinician with authorization. No interpretation;
@@ -474,6 +475,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-16 | Design: the patient sign-up page (QR poster) for pharmacies and labs, opt-ins by organization type, sharing as a separate opt-in (`docs/care-platform-design.md` §4) |
 | 2026-10-14 | Product family designed: CareMeds (pharmacies), CareLabs (laboratories), CareLink as the shared record open to any lab or provider; organizations and memberships (phase O); `docs/care-platform-design.md` |
 | 2026-10-14 | Domain `carecallph.app` (Vercel): portal on the apex, `PORTAL_URL` and Supabase Site URL updated; ImprovMX mail forwarding; Resend as Supabase SMTP for `noreply@`; Gmail send-as through Resend |
 | 2026-10-13 | Pilot hardening: holidays and clinic closures in slot generation; nightly purge of old messages and call records; Telnyx webhook signatures required |

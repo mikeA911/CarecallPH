@@ -174,6 +174,44 @@ unique by organization, phone and birthday). A pharmacy pilot needs nothing more
   clinic that ordered the test sees its result).
 - **Access log** the patient can see: who looked at or added to their record.
 
+### Sign-up at every organization (QR poster)
+
+Clinics get a self sign-up page first (`/join/<clinic>`, branch
+`patient-signup`): a new patient scans the poster at the front desk, enters
+name, mobile and birthday, accepts the privacy notice and opts in to chat and
+texts; a new record gets a chat invite that skips the birthday question. After
+phase O the same page serves every organization type, at the drugstore counter
+or lab reception.
+
+**Same everywhere:**
+- The poster opens that organization's own page; its own privacy notice and
+  version are stored on the record.
+- Chat and texts are optional and unticked; chat consent is still the patient's
+  YES in the chat.
+- One chat account can hold records at several organizations; each message
+  names the sender.
+- An existing match (same organization, mobile and birthday) is never changed
+  and gets no chat link: staff use Invite to chat.
+
+**By organization type:**
+
+| | Clinic | Pharmacy | Laboratory |
+|---|---|---|---|
+| When | At the front desk, first visit | At the counter, after buying medicines | At reception, with the clinician's request |
+| Extra opt-ins (unticked) | Appointment reminders | Dose and refill reminders; ready for pickup or delivery | Preparation instructions and reminders; "result ready" notices |
+| Staff next | Book the follow-up | Pharmacist records what was dispensed; reminders start after YES | Reception attaches the test order; status updates follow |
+| Limits | | Never changes a dose or renews a prescription | Results never in chat; opening a result needs a stronger check than sign-up (ID at the counter, or a one-time code) |
+
+**Sharing between organizations** is a separate opt-in on its own screen, off
+by default: it names who receives what (e.g. "share my medicine adherence with
+Santos Clinic"), creates an access grant, and can be withdrawn anytime. Signing
+up at a pharmacy never reveals or links the patient's clinic record; records
+join into one CareLink person only when the patient confirms (above).
+
+**Pilot shortcut (before phase O):** a partner drugstore can be set up as a
+"clinic" to test demand for chat medicine reminders (M1), at the cost of
+clinic wording on its screens. For a demand test only.
+
 ## 5. CareMeds (pharmacies and drugstores)
 
 ### MVP
@@ -269,7 +307,8 @@ interpretation, abnormal results to the clinician.
 ## 8. Build order
 
 1. **Now:** finish the clinic rehearsal and first pilot. This document.
-2. **Phase O, organizations and memberships:** the foundation (section 3).
+2. **Phase O, organizations and memberships:** the foundation (section 3),
+   including the sign-up page for every organization type (section 4).
 3. **Phase CM, CareMeds MVP** (section 5), with one pharmacy partner.
 4. **Clinic → pharmacy prescriptions:** after M2 (signed prescriptions).
 5. **CareLink shared identity and access grants** (section 4), when two
