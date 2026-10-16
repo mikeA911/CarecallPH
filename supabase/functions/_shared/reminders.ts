@@ -67,3 +67,29 @@ export function parseReminderReply(text: string): ReminderResponse | null {
   if (CANCEL.has(t)) return "cancel";
   return null;
 }
+
+export type AppointmentChange = "booked" | "moved" | "cancelled";
+
+/** Message when staff book, move or cancel an appointment in the portal. */
+export function appointmentChangeText(kind: AppointmentChange, o: {
+  clinic: string; firstName?: string | null; doctor?: string | null; startsAt: Date; previous?: Date | null;
+  now: Date; tz: string; callback?: string | null;
+}): string {
+  const w = whenText(o.startsAt, o.now, o.tz);
+  const hi = o.firstName ? `Hi ${o.firstName}, ` : "";
+  const withDoc = o.doctor ? ` with ${o.doctor}` : "";
+  const call = o.callback ? ` Call ${o.callback} if you have questions.` : "";
+  if (kind === "cancelled") {
+    return `${o.clinic}: ${hi}your appointment for ${w.day} at ${w.time}${withDoc} has been cancelled.${call}\n\n` +
+      `Kinansela ang inyong appointment sa ${w.day} ng ${w.time}. Tumawag o mag-message sa clinic para magpa-book ulit.`;
+  }
+  if (kind === "moved") {
+    const was = o.previous ? whenText(o.previous, o.now, o.tz) : null;
+    return `${o.clinic}: ${hi}your appointment has been moved to ${w.day} at ${w.time}${withDoc}` +
+      `${was ? ` (it was ${was.day} at ${was.time})` : ""}. We'll send a reminder before.${call}\n\n` +
+      `Inilipat ang inyong appointment sa ${w.day} ng ${w.time}. Magpapadala kami ng paalala.`;
+  }
+  return `${o.clinic}: ${hi}your appointment is booked for ${w.day} at ${w.time}${withDoc}. ` +
+    `We'll send a reminder before.${call}\n\n` +
+    `Naka-book ang inyong appointment sa ${w.day} ng ${w.time}. Magpapadala kami ng paalala.`;
+}

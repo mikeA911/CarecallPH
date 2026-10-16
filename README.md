@@ -165,6 +165,7 @@ Details: [docs/care-plan-design.md](docs/care-plan-design.md),
 │       ├── booking-api/             # public self-booking API behind /book/<token>
 │       ├── channel-webhook/         # inbound Viber / Messenger / WhatsApp / Telegram
 │       ├── channel-invite/          # staff "Invite to chat" links (portal)
+│       ├── appointment-notify/      # tells the patient about staff bookings (portal)
 │       ├── patient-signup/          # public /join sign-up page (front desk QR poster)
 │       ├── admin-manage/            # portal users & clinics
 │       ├── cc-chat/                 # CC interactive
@@ -287,6 +288,7 @@ deno run -A scripts/build-cc-wiki.ts             # refresh CC's wiki bundle firs
 
 supabase functions deploy start-campaign
 supabase functions deploy admin-manage
+supabase functions deploy appointment-notify
 supabase functions deploy channel-invite
 supabase functions deploy cc-chat
 supabase functions deploy telnyx-call-events --no-verify-jwt

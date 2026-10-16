@@ -80,6 +80,7 @@ flowchart LR
 |---|---|---|---|
 | `admin-manage` | Portal | Sign-in | Users (access level, clinical role, make doctor), clinics, passwords |
 | `channel-invite` | Portal | Sign-in | "Invite to chat" links and QR codes |
+| `appointment-notify` | Portal | Sign-in | Tells the patient when staff book, move or cancel an appointment |
 | `patient-signup` | Patients' browsers (front desk QR poster) | Public, rate-limited | Patients register themselves; new records get a pre-verified chat invite |
 | `care-plan` | Portal | Sign-in, nurse/doctor | Ask a patient to agree to medicine reminders or vital signs; stop them; doctor signs a monitoring plan (password) |
 | `clinical-note` | Portal | Sign-in, nurse/doctor | Speech-to-text, CC drafts a SOAP note or a dictated monitoring plan, doctor signs notes (password) |
@@ -179,6 +180,17 @@ on `/book/<token>` (no slots on holidays or clinic closures) → `booking-api`
 books it (double-booking impossible) →
 `send-reminders` reminds 24 h and 2 h before → replies (1 confirm, 2 change,
 3 cancel) arrive at `channel-webhook`.
+
+**Staff booking**: on the patient page anyone at the clinic picks a clinician
+and an open slot (`get_available_slots`) and books, reschedules (one update:
+the old time is freed as the new one is taken) or cancels; the database refuses
+double bookings and a patient–clinician clinic mismatch, and logs every change
+(`fn_audit_appointment`). Reminders follow the current time. With **Send the
+patient a message** ticked (default) the portal then calls `appointment-notify`,
+which checks the clinic and that the appointment's state still matches
+(booked/moved vs cancelled), sends `appointmentChangeText` through
+`sendToPatient` (never to restricted, inactive or do-not-call patients) and
+audits `appointment_notified`.
 
 **Patient sign-up**: the clinic's QR poster opens `/join/<public_slug>`; the
 patient types name, mobile and birthday, accepts the privacy notice (version
