@@ -10,7 +10,10 @@ platforms. **Planned** = designed, not started. **Idea** = worth doing, not yet 
 
 CareCall starts as patient engagement for small Philippine clinics and grows
 into CareLink, a records, clinical-workflow and remote-monitoring layer. Six services on one
-platform, in this order. Business case, pricing hypotheses and indicative
+platform, in this order. Later the family adds **CareMeds** (pharmacies) and
+**CareLabs** (laboratories), with CareLink as the shared patient record that
+also accepts data from labs and providers outside the family
+(`docs/care-platform-design.md`). Business case, pricing hypotheses and indicative
 economics are in the concept paper (*CareCall + CareLink: a connected
 healthcare access and continuity platform for Southeast Asia*, Oct 2026).
 
@@ -22,6 +25,8 @@ healthcare access and continuity platform for Southeast Asia*, Oct 2026).
 | **CareLink Records** | FHIR patient timeline; store observations or access authorized EHR records | L | **In progress**: FHIR R4 export with PH Core profiles **done** (F1); readings and monitoring plans in the export **built**; patient data requests **built** |
 | **CareLink Care** | Clinical workflows in the clinic: roles, medicine reminders, clinical notes by voice, then prescriptions and vital signs | M | **In progress**: roles, medicine reminders and clinical notes (demo) **done**; vital signs by chat, alerts and reports, plan dictation **built** (to verify live); prescriptions wait on the e-prescription rules |
 | **CareLink RPM Intelligence** | Device readings, trends and a prioritized clinician review queue | R | **Idea** (later clinical pilot) |
+| **CareMeds** | Pharmacies and drugstores: dispensing record, dose and refill reminders, refill requests, pickup or delivery | O, CM | **Designed** (`docs/care-platform-design.md`); after the clinic pilot, with a pharmacy partner |
+| **CareLabs** | Laboratories and diagnostic centers: test booking, preparation, specimen and result-ready status; results into CareLink | O, CL | **Idea**; after patient login and a lab partner |
 
 **Delivery stages** (indicative, may overlap; each opens only when its gate is met)
 
@@ -53,6 +58,9 @@ by country before any Southeast Asian expansion.
 | L | CareLink Records: FHIR-ready records (PH Core), FHIR timeline and authorized EHR access | **In progress**: F1 **done** (export incl. clinical notes; `docs/fhir-design.md`); F3 M3 part (Observation, CarePlan) and F5 (patient data requests) **built** |
 | M | Care plans and clinical notes: roles, medicine reminders, clinical notes by voice, prescriptions, vital signs | **In progress**: M0 roles, M1 medicine reminders, M6 clinical notes demo **done**; M3 vital signs, M4 reports and alerts, M5 plan dictation **built** (to verify live); M2 prescriptions waits on the e-prescription rules (`docs/care-plan-design.md`) |
 | R | CareLink RPM Intelligence: device readings and review queue | **Idea** |
+| O | Organizations and memberships: organization types (clinic, pharmacy, laboratory), one user in several organizations, role per membership | **Designed** (`docs/care-platform-design.md` §3) |
+| CM | CareMeds: pharmacy MVP | **Designed** (§5) |
+| CL | CareLabs: laboratory and imaging scheduling and result notifications | **Idea** (§6) |
 
 **Next three actions**
 
@@ -66,7 +74,7 @@ by country before any Southeast Asian expansion.
    DPO the privacy-request defaults and message-history periods; compare
    speech-to-text on 10–20 Taglish dictations; check the holiday list against
    the proclamation.
-2. Infermedica trial (D1d) with `mike@carecallph.app` (domain and email done
+2. Infermedica trial (D1d) with `ccdev@carecallph.app` (domain and email done
    14 Oct). Then turn international patient numbers off for the pilot.
 3. Legal and approvals: confirm e-prescription rules (M2) and the DOH records
    retention circular; processing agreements (Supabase, Anthropic, Google,
@@ -364,6 +372,9 @@ request. Design: `docs/fhir-design.md`.
 | F2 | Symptom-check intake as QuestionnaireResponse; PSGC pickers (barangay, city, province codes); official HL7 validator with PH Core in CI | Planned |
 | F3 | M2 prescriptions with FDA drug codes, M3 readings as Observations (LOINC, UCUM), CarePlan, clinical notes (M6) as Encounter + Composition | With M2/M3/M6 |
 | F4 | Patient-directed import, exchange with PhilHealth or hospitals, SMART on FHIR | Planned |
+| F6 | CareLink shared record: one person across organizations (confirmed matching), access grants by consent and treatment relationship, patient-visible access log (`docs/care-platform-design.md` §4) | Designed |
+| F7 | Lab data from any lab into CareLink: document upload (DocumentReference, values confirmed by staff), then FHIR (DiagnosticReport + Observation) and HL7 v2 result feeds, with provenance and patient matching (§6) | Designed |
+| F8 | MedicationDispense (CareMeds), ServiceRequest / Specimen / DiagnosticReport (CareLabs) in the export | With CM / CL |
 | F5 | Patient data requests (Data Privacy Act): access (FHIR download), correction (Edit details, addenda), and erasure: stop all messages and processing at once, delete what the clinic needn't keep (chat links and messages, symptom checks, campaign history), restrict the medical record to view-only until its retention period ends, then dispose with a record of disposal | **Built** |
 
 | Item | Notes |
@@ -401,6 +412,51 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 review times at the pilot clinic; e-prescription rules confirmed. Dangerous
 drugs (S2) are out of scope.
 
+## Phase O: Organizations and memberships
+
+Foundation for CareMeds and CareLabs. Design: `docs/care-platform-design.md` §3.
+
+| Item | Notes |
+|---|---|
+| `organizations` with type | Today's clinics become organizations of type clinic (compatibility views during the move) |
+| `memberships` | User + organization + role; a person can work at a clinic and a pharmacy |
+| Sign-in | Choose the organization; the token carries the selected membership (Supabase access-token hook) |
+| Database rules | Organization helpers replace clinic helpers, policies migrated table by table |
+| Portal | Organization picker; sidebar and landing page by organization type |
+| Sign-up page by organization type | The clinic `/join` page serves pharmacies and labs: their own privacy notice and opt-ins (refill reminders, result-ready notices); sharing with another organization is a separate opt-in (§4) |
+
+**Gate:** none external; do after the first clinic pilot is running.
+
+## Phase CM: CareMeds (pharmacies and drugstores)
+
+Design: `docs/care-platform-design.md` §5. Keeps prescription, dispensing
+record, reminder schedule, refill estimate and pharmacist advice separate;
+never changes a medicine, dose or duration.
+
+| Item | Notes |
+|---|---|
+| Dispensing record | Medicine, strength, quantity supplied, instructions as written, prescriber reference |
+| Invite, consent, dose reminders | Reuse chat invites, the counter QR sign-up page, consent scopes, M1 reminders and buttons |
+| Refill estimate and reminder | From quantity and doses per day |
+| Running low / Request refill | Buttons; refill queue for the pharmacist |
+| Pickup, delivery or pharmacist call | Branch hours, status messages |
+| Follow-up | Missed-dose alerts to the pharmacist (M4 pattern) |
+| Clinic partnership | Signed prescriptions from the clinic (after M2); adherence back to the clinic only with patient permission |
+
+**Gate:** a pharmacy partner; Pharmacy Act (RA 10918) and FDA scope confirmed;
+no dangerous drugs, substitution, dose advice or automatic renewal in the pilot.
+
+## Phase CL: CareLabs (laboratories and imaging)
+
+Design: `docs/care-platform-design.md` §6. Reception QR sign-up page (§4), booking (branch, home collection),
+preparation instructions, reminders, queue / specimen / in-progress status,
+**result ready** notification (never the result in chat), secure retrieval,
+release to the requesting clinician with authorization. No interpretation;
+abnormal and critical results follow the lab's escalation procedure.
+
+**Gate:** patient login for secure results; a lab partner; DOH licensing and
+result-release rules confirmed.
+
 ## Phase R: CareLink RPM Intelligence
 
 | Item | Notes |
@@ -420,8 +476,10 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 | Date | Change |
 |---|---|
 | 2026-10-16 | Bug reports through CC: `report_bug` (asks, reads back, files with the screen; refuses phone numbers) and `my_bug_reports`; page errors and failed requests attached; optional screenshot with patient details blurred (preview first, 90-day purge); Admin → Bug reports to triage with a note for the reporter |
+| 2026-10-16 | Design: the patient sign-up page (QR poster) for pharmacies and labs, opt-ins by organization type, sharing as a separate opt-in (`docs/care-platform-design.md` §4) |
 | 2026-10-16 | Patient sign-up page `/join/<clinic>` (front desk QR poster): patients enter their details, accept the privacy notice (version stored), opt in to chat and texts; new records get a pre-verified chat invite (YES only); existing patients are never changed |
 | 2026-10-16 | Staff booking (user stories FD-03, FD-04): book, reschedule and cancel on the patient page from open slots; patient and clinician must share a clinic; appointment changes audited; optional message to the patient (ticked by default) via `appointment-notify` |
+| 2026-10-14 | Product family designed: CareMeds (pharmacies), CareLabs (laboratories), CareLink as the shared record open to any lab or provider; organizations and memberships (phase O); `docs/care-platform-design.md` |
 | 2026-10-14 | Domain `carecallph.app` (Vercel): portal on the apex, `PORTAL_URL` and Supabase Site URL updated; ImprovMX mail forwarding; Resend as Supabase SMTP for `noreply@`; Gmail send-as through Resend |
 | 2026-10-13 | Pilot hardening: holidays and clinic closures in slot generation; nightly purge of old messages and call records; Telnyx webhook signatures required |
 | 2026-10-13 | Dictate a monitoring plan (M5): speak or type the plan, CC drafts the measures (never invents a limit or time) and lists what to check; the doctor edits and signs. Shared microphone recorder for notes and plans |
