@@ -1,6 +1,8 @@
 // Bug reports (platform admins): problems pilot users filed through CC.
 // Newest first, open ones on top; mark each seen, fixed or won't fix with a
-// note the reporter sees when they ask CC. Reports never hold patient data.
+// note the reporter sees when they ask CC. Each report carries the page's
+// recent errors and failed requests, and may have screenshots (blurred unless
+// the reporter chose otherwise; deleted after 90 days).
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useClinic } from "../../lib/clinic";
@@ -10,7 +12,14 @@ type Report = {
   id: number; created_at: string; clinic_id: string | null; reporter_email: string | null; route: string | null;
   summary: string; what_happened: string; expected: string | null; steps: string | null;
   severity: "blocker" | "problem" | "annoyance"; status: Status; admin_note: string | null;
+  diagnostics: Diagnostics | null;
 };
+type Diagnostics = {
+  errors: { at: string; message: string }[];
+  requests: { at: string; method: string; path: string; status: number; code: string }[];
+  viewport: string; user_agent: string;
+};
+type Shot = { id: number; created_at: string; masked: boolean; image: string };
 
 const STATUS_LABEL: Record<Status, string> = { new: "New", seen: "Seen", fixed: "Fixed", wont_fix: "Won't fix" };
 const SEVERITY_BADGE: Record<Report["severity"], string> = { blocker: "verification_failed", problem: "pending", annoyance: "" };
@@ -82,6 +91,13 @@ function Detail({ report, onSaved }: { report: Report; onSaved: () => void }) {
   const [status, setStatus] = useState<Status>(report.status === "new" ? "seen" : report.status);
   const [note, setNote] = useState(report.admin_note ?? "");
   const [msg, setMsg] = useState("");
+  const [shots, setShots] = useState<Shot[] | null>(null);
+  useEffect(() => {
+    supabase.from("bug_report_screenshots").select("id, created_at, masked, image").eq("report_id", report.id).order("id")
+      .then(({ data }) => setShots((data ?? []) as Shot[]));
+  }, [report.id]);
+  const d = report.diagnostics;
+  const time = (at: string) => (at ? new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "");
 
   async function save() {
     const { error } = await supabase.from("bug_reports")
@@ -95,6 +111,27 @@ function Detail({ report, onSaved }: { report: Report; onSaved: () => void }) {
       <div className="kv"><span>What happened</span><strong style={{ whiteSpace: "pre-wrap" }}>{report.what_happened}</strong></div>
       {report.expected && <div className="kv"><span>Expected</span><strong style={{ whiteSpace: "pre-wrap" }}>{report.expected}</strong></div>}
       {report.steps && <div className="kv"><span>Steps</span><strong style={{ whiteSpace: "pre-wrap" }}>{report.steps}</strong></div>}
+      {d && (
+        <details style={{ marginTop: 8 }}>
+          <summary className="small">Page errors ({d.errors.length}) and failed requests ({d.requests.length}) · {d.viewport} · {d.user_agent.slice(0, 60)}</summary>
+          {d.errors.map((e, i) => <div key={`e${i}`} className="small"><code>{time(e.at)} {e.message}</code></div>)}
+          {d.requests.map((r, i) => <div key={`r${i}`} className="small"><code>{time(r.at)} {r.method} {r.path} → {r.status || "no response"} {r.code}</code></div>)}
+          {!d.errors.length && !d.requests.length && <div className="small muted">None recorded on that page.</div>}
+        </details>
+      )}
+      {shots && shots.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          {shots.map((s) => (
+            <figure key={s.id} style={{ margin: "8px 0" }}>
+              <a href={s.image} target="_blank" rel="noreferrer"><img src={s.image} alt={`Screenshot for report ${report.id}`} style={{ maxWidth: "100%", border: "1px solid #E2E8F0", borderRadius: 6 }} /></a>
+              <figcaption className="small muted">
+                {new Date(s.created_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} ·{" "}
+                {s.masked ? "patient details blurred" : <strong>patient details shown (reporter's choice)</strong>} · deleted after 90 days
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
       <div className="row-actions" style={{ marginTop: 10, alignItems: "flex-end" }}>
         <span><label htmlFor={`st-${report.id}`}>Status</label>
           <select id={`st-${report.id}`} value={status} onChange={(e) => setStatus(e.target.value as Status)}>

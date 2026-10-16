@@ -45,3 +45,27 @@ Deno.test("report_bug saves the screen and clinic and returns the number", async
   const odd = await runTool({ ...ctx, route: "javascript:alert(1)" } as Ctx, "report_bug", good);
   eq([(odd as { number: number }).number, saved!.route], [42, null], "an odd route is dropped");
 });
+
+Deno.test("diagnostics: numbers, emails and ids are scrubbed, shapes kept, lists capped", async () => {
+  const { sanitizeDiagnostics } = await import("./tools.ts");
+  const d = sanitizeDiagnostics({
+    errors: [{ at: "2026-10-16T01:02:03.000Z", message: "Duplicate (phone)=(+639171234567) for maria@x.ph" }],
+    requests: Array.from({ length: 20 }, (_, i) => ({ at: "x", method: "patch", path: `/rest/v1/patients?id=eq.0000000${i}-0000-0000-0000-000000000001`, status: 409, code: "23505" })),
+    viewport: "1280x800", user_agent: "Chrome",
+  })!;
+  eq(d.errors[0].message, "Duplicate (phone)=([number]) for [email]");
+  eq([d.requests.length, d.requests[0].path, d.requests[0].method, d.requests[0].at], [15, "/rest/v1/patients", "PATCH", ""]);
+  eq(sanitizeDiagnostics("nope"), null);
+  eq(sanitizeDiagnostics({ viewport: "<script>" })!.viewport, "");
+});
+
+Deno.test("report_bug stores diagnostics and tells the portal to offer a screenshot", async () => {
+  let saved: Record<string, unknown> | null = null;
+  const db = { from: () => ({ insert: (row: Record<string, unknown>) => { saved = row;
+    return { select: () => ({ single: async () => ({ data: { id: 9 }, error: null }) }) }; } }) };
+  const diagnostics = { errors: [], requests: [], viewport: "1x1", user_agent: "" };
+  const ctx = { db, userId: "u1", role: "staff", clinicId: "c1", clinical: false, source: "chat", route: "/",
+    diagnostics, actions: [], itemsCreated: 0 } as unknown as Ctx;
+  await runTool(ctx, "report_bug", good);
+  eq([saved!.diagnostics, ctx.actions], [diagnostics, [{ type: "bug_filed", report: 9 }]]);
+});

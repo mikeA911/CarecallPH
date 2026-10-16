@@ -137,7 +137,7 @@ export default function PatientDetail() {
   return (
     <>
       <div className="page-head">
-        <h1>{patient.first_name} {patient.last_name}</h1>
+        <h1 data-phi>{patient.first_name} {patient.last_name}</h1>
         <div>
           {patient.do_not_call && <span className="badge wrong_number">do not call</span>}
           {!patient.active && <span className="badge declined">inactive</span>}

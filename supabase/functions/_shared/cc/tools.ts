@@ -13,7 +13,10 @@ import { buildCareReport, type CareRows } from "./care_report.ts";
 
 export const RANK: Record<WikiRole, number> = { staff: 0, clinic_admin: 1, admin: 2 };
 
-export type Action = { type: "navigate"; route: string; label: string };
+export type Action =
+  | { type: "navigate"; route: string; label: string }
+  /** A bug report was filed: the portal offers to attach a screenshot. */
+  | { type: "bug_filed"; report: number };
 export type Ctx = {
   db: SupabaseClient;
   userId: string | null;          // null for the nightly job
@@ -24,6 +27,8 @@ export type Ctx = {
   source: "chat" | "nightly";
   /** Screen the user was on (chat only); stored with bug reports. */
   route?: string;
+  /** The page's recent errors and failed requests (chat only), already cleaned by sanitizeDiagnostics. */
+  diagnostics?: Diagnostics | null;
   actions: Action[];
   itemsCreated: number;
 };
@@ -129,6 +134,39 @@ export function toolsFor(source: Ctx["source"], clinical = true) {
 
 /** A Philippine mobile or other phone-like number: patient details don't belong in a bug report. */
 const PHONE = /(\+?63|\b0)9\d{2}[\s-]?\d{3}[\s-]?\d{4}\b|\+\d[\d\s-]{8,}\d/;
+
+export type Diagnostics = {
+  errors: { at: string; message: string }[];
+  requests: { at: string; method: string; path: string; status: number; code: string }[];
+  viewport: string;
+  user_agent: string;
+};
+
+/** Numbers, emails and ids out of anything the browser sent; the portal does the same before sending. */
+export function scrubText(s: unknown, max: number): string {
+  return String(s ?? "")
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[email]")
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ":id")
+    .replace(/\+?\d[\d\s-]{6,}\d/g, "[number]")
+    .slice(0, max);
+}
+
+/** Keep only the shape we expect, at most 15 errors and 15 requests, short strings. */
+// deno-lint-ignore no-explicit-any
+export function sanitizeDiagnostics(raw: any): Diagnostics | null {
+  if (!raw || typeof raw !== "object") return null;
+  const list = (v: unknown) => (Array.isArray(v) ? v.slice(-15) : []);
+  const at = (v: unknown) => (/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(String(v)) ? String(v) : "");
+  return {
+    errors: list(raw.errors).map((e) => ({ at: at(e?.at), message: scrubText(e?.message, 300) })).filter((e) => e.message),
+    requests: list(raw.requests).map((r) => ({
+      at: at(r?.at), method: String(r?.method ?? "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 7),
+      path: scrubText(String(r?.path ?? "").split("?")[0], 120), status: Number(r?.status) || 0, code: scrubText(r?.code, 60),
+    })).filter((r) => r.path),
+    viewport: /^\d{2,5}x\d{2,5}$/.test(String(raw.viewport)) ? String(raw.viewport) : "",
+    user_agent: String(raw.user_agent ?? "").slice(0, 200),
+  };
+}
 
 /** Check and tidy a bug report from CC. */
 // deno-lint-ignore no-explicit-any
@@ -376,9 +414,15 @@ export async function runTool(ctx: Ctx, name: string, input: any): Promise<unkno
       if (!c.ok) return { error: c.error };
       const route = ctx.route && /^\/[\w\-/]{0,120}$/.test(ctx.route) ? ctx.route : null;
       const { data, error } = await ctx.db.from("bug_reports")
-        .insert({ ...c.value, route, clinic_id: ctx.clinicId }).select("id").single();
+        .insert({ ...c.value, route, clinic_id: ctx.clinicId, diagnostics: ctx.diagnostics ?? null }).select("id").single();
       if (error) return { error: error.message };
-      return { ok: true, number: (data as { id: number }).id, note: "Tell the user their report number; the CareCall team reviews reports every working day." };
+      const number = (data as { id: number }).id;
+      ctx.actions.push({ type: "bug_filed", report: number });
+      return {
+        ok: true, number,
+        note: "Tell the user their report number, that the page's recent errors were attached, and that they can add a " +
+          "screenshot below (patient details are blurred). The CareCall team reviews reports every working day.",
+      };
     }
 
     case "my_bug_reports": {

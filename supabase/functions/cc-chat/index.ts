@@ -1,7 +1,8 @@
 // cc-chat — CC, the CareCall in-portal assistant (interactive).
 //
-// POST { messages: [{role:"user"|"assistant", content:string}], route?, active_clinic_id? }
-//   → { reply, actions: [{type:"navigate", route, label}], wiki_version }
+// POST { messages: [{role:"user"|"assistant", content:string}], route?, active_clinic_id?, diagnostics? }
+//   → { reply, actions: [{type:"navigate", route, label} | {type:"bug_filed", report}], wiki_version }
+// diagnostics: the page's recent errors and failed requests, kept only if a bug report is filed.
 //
 // Deploy (JWT verification ON — only signed-in portal users):
 //   deno run -A scripts/build-cc-wiki.ts
@@ -20,7 +21,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { supabase as admin, getCaller, corsHeaders } from "../_shared/lib.ts";
 import { WIKI_PAGES, WIKI_VERSION, type WikiRole } from "../_shared/cc/wiki.generated.ts";
-import { type Action, type Ctx, toolsFor, visiblePages } from "../_shared/cc/tools.ts";
+import { type Action, type Ctx, sanitizeDiagnostics, toolsFor, visiblePages } from "../_shared/cc/tools.ts";
 import { CC_MODEL, ccConfigured, runConversation } from "../_shared/cc/claude.ts";
 
 const MAX_HISTORY = 30;
@@ -68,7 +69,10 @@ Deno.serve(async (req) => {
 
   const clinical = caller.clinicalRole === "nurse" || caller.clinicalRole === "doctor";
   const route = typeof body.route === "string" ? body.route.slice(0, 120) : "/";
-  const ctx: Ctx = { db, userId: caller.userId, role, clinicId, clinical, source: "chat", route, actions: [], itemsCreated: 0 };
+  const ctx: Ctx = {
+    db, userId: caller.userId, role, clinicId, clinical, source: "chat", route,
+    diagnostics: sanitizeDiagnostics(body.diagnostics), actions: [], itemsCreated: 0,
+  };
   const system = systemPrompt(role, clinicName, route);
 
   try {
@@ -98,7 +102,8 @@ function sanitizeHistory(raw: unknown): { role: "user" | "assistant"; content: s
 
 function dedupeActions(a: Action[]): Action[] {
   const seen = new Set<string>();
-  return a.filter((x) => (seen.has(x.route) ? false : (seen.add(x.route), true))).slice(0, 4);
+  const key = (x: Action) => (x.type === "navigate" ? x.route : `bug:${x.report}`);
+  return a.filter((x) => (seen.has(key(x)) ? false : (seen.add(key(x)), true))).slice(0, 4);
 }
 
 

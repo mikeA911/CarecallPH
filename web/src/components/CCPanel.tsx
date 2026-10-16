@@ -10,10 +10,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { callFunction } from "../lib/api";
+import { diagnosticsSnapshot } from "../lib/diagnostics";
+import { captureBugScreenshot } from "../lib/bugScreenshot";
+import { supabase } from "../lib/supabase";
 import { useClinic } from "../lib/clinic";
 import { useSession, roleAtLeast } from "../lib/session";
 
-type Action = { type: "navigate"; route: string; label: string };
+type Action =
+  | { type: "navigate"; route: string; label: string }
+  | { type: "bug_filed"; report: number; done?: "attached" | "skipped" };
 type Msg = { role: "user" | "assistant"; content: string; actions?: Action[]; error?: boolean };
 type Resp = { reply: string; actions: Action[]; wiki_version: string };
 
@@ -100,6 +105,7 @@ export default function CCPanel({ open, onClose }: { open: boolean; onClose: () 
       messages: next.filter((m) => !m.error).map(({ role, content }) => ({ role, content })),
       route: location.pathname,
       active_clinic_id: activeClinicId,
+      diagnostics: diagnosticsSnapshot(),
     });
     setBusy(false);
     setMsgs((m) => [
@@ -169,7 +175,12 @@ export default function CCPanel({ open, onClose }: { open: boolean; onClose: () 
             <div className="cc-bubble">{m.content}</div>
             {m.actions && m.actions.length > 0 && (
               <div className="cc-actions">
-                {m.actions.map((a) => (
+                {m.actions.map((a) => a.type === "bug_filed" ? (
+                  <ScreenshotOffer key={`bug-${a.report}`} action={a}
+                    onDone={(done) => setMsgs((all) => all.map((x, j) => j !== i ? x : {
+                      ...x, actions: x.actions?.map((y) => y.type === "bug_filed" && y.report === a.report ? { ...y, done } : y),
+                    }))} />
+                ) : (
                   <button key={a.route} className="secondary" onClick={() => navigate(a.route)}>{a.label}</button>
                 ))}
               </div>
@@ -195,5 +206,67 @@ export default function CCPanel({ open, onClose }: { open: boolean; onClose: () 
       </div>
       <p className="cc-foot">CC sees totals, not patient details. Double-check before acting.</p>
     </aside>
+  );
+}
+
+/**
+ * After CC files a bug report: offer a screenshot of the page behind the
+ * panel, patient details blurred unless the user chooses to show them.
+ * Shown as a preview first; nothing is sent until they tap Attach.
+ */
+function ScreenshotOffer({ action, onDone }: {
+  action: Extract<Action, { type: "bug_filed" }>; onDone: (done: "attached" | "skipped") => void;
+}) {
+  const [shot, setShot] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  if (action.done) {
+    return <div className="small muted">{action.done === "attached" ? `Screenshot added to report #${action.report}.` : "No screenshot added."}</div>;
+  }
+
+  async function take(unmasked: boolean) {
+    setBusy(true); setErr("");
+    try { setShot(await captureBugScreenshot(!unmasked)); }
+    catch (e) { setErr((e as Error).message || "Couldn't capture this page."); }
+    setBusy(false);
+  }
+  async function attach() {
+    if (!shot) return;
+    setBusy(true); setErr("");
+    const { error } = await supabase.from("bug_report_screenshots").insert({ report_id: action.report, image: shot, masked: !showDetails });
+    setBusy(false);
+    if (error) { setErr(error.code === "42501" ? "This report can't take more screenshots (up to 3, within an hour)." : `Couldn't attach it: ${error.message}`); return; }
+    onDone("attached");
+  }
+
+  return (
+    <div className="cc-shot">
+      {!shot ? (
+        <>
+          <div className="small">Add a screenshot of this page to report #{action.report}? Patient details are blurred.</div>
+          <div className="row-actions" style={{ marginTop: 6 }}>
+            <button className="secondary" disabled={busy} onClick={() => take(false)}>{busy ? "Capturing…" : "Take screenshot"}</button>
+            <button className="link" disabled={busy} onClick={() => onDone("skipped")}>No thanks</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="small">Check it before sending:</div>
+          <img src={shot} alt="Screenshot of the page for the bug report" />
+          <label className="small" style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+            <input type="checkbox" style={{ width: "auto", marginTop: 2 }} checked={showDetails} disabled={busy}
+              onChange={(e) => { setShowDetails(e.target.checked); take(e.target.checked); }} />
+            Show patient details. Only if the problem is in the data itself; the CareCall team will see them.
+          </label>
+          <div className="row-actions" style={{ marginTop: 6 }}>
+            <button disabled={busy} onClick={attach}>{busy ? "Working…" : "Attach"}</button>
+            <button className="link" disabled={busy} onClick={() => onDone("skipped")}>Don't attach</button>
+          </div>
+        </>
+      )}
+      {err && <p className="small" role="alert">{err}</p>}
+    </div>
   );
 }

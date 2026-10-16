@@ -11,7 +11,9 @@ updated: 2026-10-16
 
 - **Report a problem through CC**: tell CC what went wrong (or tap **Report a
   problem**); it asks a few questions, reads the summary back and files a
-  numbered bug report with the screen you were on. Ask CC later for its status.
+  numbered bug report with the screen you were on and the page's recent errors,
+  plus an optional screenshot with patient details blurred. Ask CC later for
+  its status.
   Platform admins work through them on **Bug reports**.
 
 - **Patient sign-up page**: new patients scan a QR poster at the front desk,

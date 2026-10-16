@@ -112,7 +112,7 @@ app, falling back by Philippine reach), `reminders.ts`, `care.ts`, `care_db.ts`,
 | Symptom check | `symptom_checks` (deleted after 90 days), `symptom_rate_limits`, `booking_rate_limits` |
 | Care plans | `care_consents` (scopes: medicine reminders, vital signs), `medications`, `medication_doses`, `monitoring_plans` (draft → signed → replaced / stopped), `vital_plans`, `vital_requests`, `vital_readings` |
 | Clinical notes | `clinical_notes` (draft → signed, addenda) |
-| CC | `cc_usage`, `cc_reviews`, `cc_action_items` (clinical items for nurses and doctors only), `care_alerts`, `bug_reports` (filed through CC by the user, own reports only; platform admins triage) |
+| CC | `cc_usage`, `cc_reviews`, `cc_action_items` (clinical items for nurses and doctors only), `care_alerts`, `bug_reports` (filed through CC by the user, own reports only; platform admins triage; `diagnostics` = the page's recent errors and failed requests, scrubbed in the browser and in cc-chat), `bug_report_screenshots` (masked page captures, admins only, purged after 90 days) |
 | Privacy | `data_requests` (access, correction, restriction, erasure), `record_disposals` (no personal data); `patients.restricted_at` |
 | Platform | `platform_settings` (e.g. records retention), `audit_log` |
 
