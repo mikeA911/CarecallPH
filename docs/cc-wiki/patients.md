@@ -1,12 +1,12 @@
 ---
 id: patients
 title: Patients
-summary: Importing by CSV, phone format, editing details, consent, do-not-call, chat invites, messages, booking, rescheduling and cancelling appointments (with a message to the patient), FHIR download.
+summary: CSV import, phone format, editing details, consent, do-not-call, chat invites, self sign-up, messages, booking, moving and cancelling appointments (with a message to the patient), FHIR download.
 roles: staff
 routes:
   - /patients | staff | Patients
   - /patients/:id | staff | Patient detail
-updated: 2026-10-13
+updated: 2026-10-16
 ---
 
 ## Importing
@@ -47,6 +47,26 @@ the campaign.
 
 A patient marked **Do not call** (from the Review queue) is never called or
 messaged again by any campaign.
+
+## Patients signing themselves up
+
+With **Patient sign-up page** on (Clinic settings), new patients scan the
+clinic's QR poster at the front desk and register themselves:
+
+1. They enter first and last name, mobile and date of birth.
+2. They read the privacy notice and tick that they agree (required), and can
+   tick **chat app** messages and **text messages** (both optional, unticked).
+3. A new patient appears in **Patients** with the badge **signed up on the
+   clinic's page**; the patient page shows when they accepted the privacy
+   notice and which version. Text messages are allowed only if they ticked it.
+4. If they ticked chat, they tap their chat app right away and reply **YES**.
+   The chat doesn't ask for their birthday: they just typed it.
+
+Check the details against an ID at the desk and fix any typo with **Edit
+details**. Someone already on file (same mobile and date of birth) is never
+changed; the page asks them to see the front desk, who use **Invite to chat**.
+That way nobody can connect a chat to an existing patient from outside the
+clinic.
 
 ## Chat apps
 

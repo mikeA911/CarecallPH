@@ -4,10 +4,15 @@ title: What's new
 summary: Dated list of user-visible changes; read when asked what's new or whether a feature exists.
 roles: staff
 routes: []
-updated: 2026-10-13
+updated: 2026-10-16
 ---
 
-## 2026-10-14
+## 2026-10-16
+
+- **Patient sign-up page**: new patients scan a QR poster at the front desk,
+  enter their own details, accept the privacy notice and choose chat messages
+  or texts. Those who choose chat connect their app straight away. Turn it on
+  in Clinic settings; their page shows **signed up on the clinic's page**.
 
 - **Book for a patient**: on a patient's page, **Book appointment** shows the
   clinician's open times (hours, holidays and closures applied) and books one;

@@ -338,15 +338,39 @@ export async function createChannelInvite(
   return `${portal}/connect/${token}`;
 }
 
+/**
+ * Invite for a patient who just created her record on the clinic's sign-up
+ * page: returns the raw token (the page builds the chat buttons itself) and
+ * marks it verified, so the chat skips the birthday question. Valid 1 day.
+ */
+export async function createSignupInvite(patientId: string, clinicId: string): Promise<string | null> {
+  const token = generateBookingToken();
+  const { error } = await supabase.from("channel_invites").insert({
+    token_hash: await hashBookingToken(token),
+    patient_id: patientId,
+    clinic_id: clinicId,
+    verified: true,
+    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  });
+  if (error) {
+    console.error("createSignupInvite insert failed", error);
+    return null;
+  }
+  return token;
+}
+
 /** Look up a live invite by raw token. */
-export async function findInvite(token: string): Promise<{ patient_id: string; clinic_id: string | null } | null> {
+export async function findInvite(
+  token: string,
+): Promise<{ patient_id: string; clinic_id: string | null; verified: boolean } | null> {
   if (!/^[A-Za-z0-9_-]{16,64}$/.test(token)) return null;
   const { data } = await supabase.from("channel_invites")
-    .select("patient_id, clinic_id")
+    .select("patient_id, clinic_id, verified")
     .eq("token_hash", await hashBookingToken(token))
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
-  return (data as { patient_id: string; clinic_id: string | null } | null) ?? null;
+  const row = data as { patient_id: string; clinic_id: string | null; verified: boolean | null } | null;
+  return row ? { ...row, verified: row.verified === true } : null;
 }
 
 /**

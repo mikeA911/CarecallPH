@@ -50,6 +50,8 @@ export type Clinic = Address & {
   self_booking_enabled: boolean;
   chat_optin_enabled: boolean;
   symptom_check_enabled: boolean;
+  /** Patients register themselves at /join/<public_slug>. */
+  signup_enabled?: boolean;
   reminders_enabled: boolean;
   public_slug: string | null;
   local_emergency_numbers: string | null;
@@ -92,6 +94,10 @@ export type Patient = Address & {
   restriction_kind?: "restriction" | "erasure" | null;
   /** Erasure: data the clinic needn't keep was deleted. */
   erased_at?: string | null;
+  /** Created by the patient on the clinic's sign-up page (/join). */
+  signed_up_at?: string | null;
+  privacy_notice_version?: string | null;
+  privacy_notice_accepted_at?: string | null;
 };
 
 export type Provider = {

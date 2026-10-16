@@ -16,7 +16,7 @@ flowchart LR
   end
   subgraph Vercel
     portal[Staff portal<br/>React + Vite]
-    public[Public pages<br/>/book · /connect · /check]
+    public[Public pages<br/>/book · /connect · /check · /join]
   end
   subgraph Supabase
     db[(Postgres<br/>RLS · audit · pg_cron)]
@@ -64,7 +64,7 @@ flowchart LR
 
 - Vite + React + TypeScript, hosted on Vercel. One build, two apps loaded on
   demand: the **staff portal** and the small **public app** for patient links
-  (`/book/<token>`, `/connect/<token>`, `/check`), so patients never download
+  (`/book/<token>`, `/connect/<token>`, `/check`, `/join/<clinic>`), so patients never download
   staff code.
 - Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are built in. No
   secret key ever goes to Vercel.
@@ -81,6 +81,7 @@ flowchart LR
 | `admin-manage` | Portal | Sign-in | Users (access level, clinical role, make doctor), clinics, passwords |
 | `channel-invite` | Portal | Sign-in | "Invite to chat" links and QR codes |
 | `appointment-notify` | Portal | Sign-in | Tells the patient when staff book, move or cancel an appointment |
+| `patient-signup` | Patients' browsers (front desk QR poster) | Public, rate-limited | Patients register themselves; new records get a pre-verified chat invite |
 | `care-plan` | Portal | Sign-in, nurse/doctor | Ask a patient to agree to medicine reminders or vital signs; stop them; doctor signs a monitoring plan (password) |
 | `clinical-note` | Portal | Sign-in, nurse/doctor | Speech-to-text, CC drafts a SOAP note or a dictated monitoring plan, doctor signs notes (password) |
 | `fhir` | Portal (and FHIR clients) | Sign-in, nurse/doctor for records | FHIR R4 export with PH Core profiles |
@@ -190,6 +191,13 @@ which checks the clinic and that the appointment's state still matches
 (booked/moved vs cancelled), sends `appointmentChangeText` through
 `sendToPatient` (never to restricted, inactive or do-not-call patients) and
 audits `appointment_notified`.
+
+**Patient sign-up**: the clinic's QR poster opens `/join/<public_slug>`; the
+patient types name, mobile and birthday, accepts the privacy notice (version
+stored on the record) and ticks chat and texts. `patient-signup` creates the
+record and, for chat, a `channel_invites` row marked `verified` (1 day), so
+`channel-webhook` skips the birthday question and asks only for YES. An
+existing (clinic, mobile, birthday) match is never changed and gets no token.
 
 **Symptom check**: patient opens the clinic's link or `/check` (or `/check` in
 Telegram) → emergency questions first (911 screen) → engine questions inside

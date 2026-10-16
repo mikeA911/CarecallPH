@@ -59,8 +59,9 @@ Optional per clinic: a **pre-call message** a few minutes before the call, and
 ### Chat channels: Viber, Messenger, WhatsApp, Telegram
 
 Chat apps are opt-in. Staff send a `/connect/<token>` invite from the patient's
-page (link, QR code or ready-made message), or an SMS or voicemail follow-up
-carries one; the patient opens their app and replies **YES** (or OO / OPO / SIGE),
+page (link, QR code or ready-made message), an SMS or voicemail follow-up
+carries one, or a new patient signs up on the clinic's `/join/<clinic>` page
+(front desk QR poster) and connects straight away; the patient opens their app and replies **YES** (or OO / OPO / SIGE),
 which is recorded as consent. Messages then go to the patient's preferred app,
 falling back by Philippine reach (MEF): **Viber 71% → Messenger 60% → WhatsApp
 40% → Telegram 20% → SMS**. Patients can reply **BOOK** for a booking link or
@@ -165,6 +166,7 @@ Details: [docs/care-plan-design.md](docs/care-plan-design.md),
 │       ├── channel-webhook/         # inbound Viber / Messenger / WhatsApp / Telegram
 │       ├── channel-invite/          # staff "Invite to chat" links (portal)
 │       ├── appointment-notify/      # tells the patient about staff bookings (portal)
+│       ├── patient-signup/          # public /join sign-up page (front desk QR poster)
 │       ├── admin-manage/            # portal users & clinics
 │       ├── cc-chat/                 # CC interactive
 │       ├── cc-nightly/              # CC nightly review (one clinic per call)
@@ -176,7 +178,7 @@ Details: [docs/care-plan-design.md](docs/care-plan-design.md),
 ├── telnyx/
 │   ├── assistant-instructions.md    # paste into the Telnyx AI Assistant
 │   └── tools.json                   # webhook tool definitions to register
-├── web/                             # React (Vite + TS) staff portal, /book /connect /check public pages
+├── web/                             # React (Vite + TS) staff portal, /book /connect /check /join public pages
 └── .github/workflows/cc-wiki.yml    # CI: wiki valid and generated bundle current
 ```
 
@@ -295,6 +297,7 @@ supabase functions deploy booking-api        --no-verify-jwt
 supabase functions deploy channel-webhook    --no-verify-jwt
 supabase functions deploy cc-nightly         --no-verify-jwt
 supabase functions deploy symptom-check      --no-verify-jwt
+supabase functions deploy patient-signup     --no-verify-jwt
 supabase functions deploy send-reminders     --no-verify-jwt
 supabase functions deploy care-plan
 supabase functions deploy clinical-note
@@ -380,7 +383,7 @@ project, the portal on Vercel and a Telegram bot.
    `ANTHROPIC_API_KEY` for CC). Telnyx secrets can wait.
 2. **Functions:** deploy `start-campaign`, `admin-manage`, `channel-invite`,
    `cc-chat`, and with `--no-verify-jwt`: `booking-api`, `channel-webhook`,
-   `cc-nightly`.
+   `cc-nightly`, `patient-signup`.
 3. **Telegram bot:** follow §3 of
    [docs/messaging-channels.md](docs/messaging-channels.md).
 4. **Portal:** §7 with `VITE_TELEGRAM_BOT` set.
