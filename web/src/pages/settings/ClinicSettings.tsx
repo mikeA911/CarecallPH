@@ -102,8 +102,8 @@ export default function ClinicSettings() {
       setMsg("Link name: use at least 2 letters or numbers, e.g. santos-family-clinic.");
       return;
     }
-    // Turning the symptom check on for the first time creates the link.
-    const autoSlug = !!clinic.symptom_check_enabled && !slug;
+    // Turning the symptom check or the sign-up page on for the first time creates the link.
+    const autoSlug = (!!clinic.symptom_check_enabled || !!clinic.signup_enabled) && !slug;
     setSaving(true);
     let error: { code?: string; message: string } | null = null;
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -133,6 +133,7 @@ export default function ClinicSettings() {
       self_booking_enabled: c.self_booking_enabled,
       chat_optin_enabled: c.chat_optin_enabled,
       symptom_check_enabled: c.symptom_check_enabled,
+      signup_enabled: !!c.signup_enabled,
       reminders_enabled: c.reminders_enabled,
       public_slug: slug || null,
       local_emergency_numbers: c.local_emergency_numbers?.trim() || null,
@@ -217,6 +218,24 @@ export default function ClinicSettings() {
           1 to confirm, 2 to change the time, 3 to cancel. Change and cancel requests appear in CC action items.
         </p>
 
+        <h2>Patient sign-up page</h2>
+        <p className="muted small">
+          New patients scan a QR poster at the front desk and register themselves: name, mobile, date of birth,
+          the privacy notice, and whether they want chat messages or texts. Those who choose chat connect their
+          chat app straight away. Check their details against an ID; their page shows "Signed up on the clinic's page".
+        </p>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={!!clinic.signup_enabled}
+                 onChange={(e) => setClinic({ ...clinic, signup_enabled: e.target.checked })} />
+          Let new patients sign up from a QR poster
+        </label>
+        {clinic.signup_enabled && !clinic.public_slug && (
+          <p className="muted small">Save to create your clinic's link.</p>
+        )}
+        {clinic.signup_enabled && clinic.public_slug && (
+          <PublicLink path="join" label="Your sign-up page" slug={toSlug(clinic.public_slug, true)} enabled />
+        )}
+
         <h2>Symptom check and online booking</h2>
         <p className="muted small">
           Patients open one link for your clinic, answer a few questions, learn how soon to see a doctor
@@ -232,8 +251,8 @@ export default function ClinicSettings() {
           <p className="muted small">Save to create your clinic's link.</p>
         )}
         {clinic.public_slug && !editLink && (
-          <PublicLink slug={toSlug(clinic.public_slug, true)} enabled={!!clinic.symptom_check_enabled}
-                      onChange={() => setEditLink(true)} />
+          <PublicLink path="check" label="Your clinic's link" slug={toSlug(clinic.public_slug, true)}
+                      enabled={!!clinic.symptom_check_enabled} onChange={() => setEditLink(true)} />
         )}
         {editLink && (
           <>
@@ -243,7 +262,8 @@ export default function ClinicSettings() {
                    onBlur={() => setClinic({ ...clinic, public_slug: toSlug(clinic.public_slug ?? "", true) })} />
             <p className="muted small">
               {window.location.origin}/check/{toSlug(clinic.public_slug ?? "", true)}<br />
-              Spaces become dashes as you type. Save to apply. The old link and QR code stop working.
+              Spaces become dashes as you type. Save to apply. The old link and QR code stop working
+              (the sign-up page's too).
             </p>
           </>
         )}
@@ -344,9 +364,11 @@ export default function ClinicSettings() {
   );
 }
 
-/** The clinic's public symptom check link, with copy and a printable QR code. */
-function PublicLink({ slug, enabled, onChange }: { slug: string; enabled: boolean; onChange: () => void }) {
-  const url = `${window.location.origin}/check/${slug}`;
+/** A clinic's public page (symptom check or sign-up), with copy and a printable QR code. */
+function PublicLink({ path, label, slug, enabled, onChange }: {
+  path: "check" | "join"; label: string; slug: string; enabled: boolean; onChange?: () => void;
+}) {
+  const url = `${window.location.origin}/${path}/${slug}`;
   const [qr, setQr] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
@@ -363,18 +385,18 @@ function PublicLink({ slug, enabled, onChange }: { slug: string; enabled: boolea
 
   return (
     <div className="public-link">
-      <div className="muted small">Your clinic's link{enabled ? "" : " (turned off: patients see \"not available\")"}</div>
+      <div className="muted small">{label}{enabled ? "" : " (turned off: patients see \"not available\")"}</div>
       <a href={url} target="_blank" rel="noreferrer" className="public-link-url">{url}</a>
       <div className="row-actions" style={{ marginTop: 8 }}>
         <button type="button" className="secondary" onClick={copy}>Copy link</button>
         <button type="button" className="secondary" onClick={showQr}>{qr ? "Hide QR code" : "Show QR code"}</button>
-        <button type="button" className="link" onClick={onChange}>Change link</button>
+        {onChange && <button type="button" className="link" onClick={onChange}>Change link</button>}
       </div>
       {note && <p className="small" role="status">{note}</p>}
       {qr && (
         <div style={{ marginTop: 10 }}>
           <img src={qr} alt={`QR code for ${url}`} width={200} height={200} className="public-link-qr" />
-          <div><a href={qr} download={`${slug}-qr.png`}>Download QR code (PNG) to print</a></div>
+          <div><a href={qr} download={`${slug}-${path}-qr.png`}>Download QR code (PNG) to print</a></div>
         </div>
       )}
     </div>

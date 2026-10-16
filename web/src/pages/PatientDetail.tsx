@@ -120,6 +120,7 @@ export default function PatientDetail() {
           {!patient.active && <span className="badge declined">inactive</span>}
           {patient.restricted_at && <span className="badge verification_failed">restricted</span>}
           {patient.sms_consent && <span className="badge notified">SMS consent</span>}
+          {patient.signed_up_at && <span className="badge pending">signed up on the clinic's page</span>}
         </div>
       </div>
       <p className="muted"><Link to="/patients">← All patients</Link></p>
@@ -143,6 +144,10 @@ export default function PatientDetail() {
         <div className="kv"><span>Address</span><strong>{addressText(patient) || "—"}</strong></div>
         <div className="kv"><span>PhilHealth PIN</span><strong>{patient.philhealth_id ? formatPin(patient.philhealth_id) : "—"}</strong></div>
         <div className="kv"><span>SMS consent</span><strong>{patient.sms_consent ? "Yes" : "No"}</strong></div>
+        {patient.privacy_notice_accepted_at && (
+          <div className="kv"><span>Privacy notice</span>
+            <strong>Accepted {new Date(patient.privacy_notice_accepted_at).toLocaleDateString()} (version {patient.privacy_notice_version})</strong></div>
+        )}
         {patient.notes && <div className="kv"><span>Notes</span><strong>{patient.notes}</strong></div>}
 
         {(canManage || clinical) && (

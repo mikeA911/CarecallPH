@@ -1,11 +1,11 @@
 ---
 id: clinic-settings
 title: Clinic settings
-summary: Name, callback number, timezone, hours, booking links, chat invites, symptom check page, pre-call message, holidays and closures, message history, campaign types.
+summary: Name, callback number, timezone, hours, booking links, chat invites, patient sign-up page, symptom check page, pre-call message, holidays and closures, message history, campaign types.
 roles: clinic_admin
 routes:
   - /settings/clinic | clinic_admin | Clinic settings
-updated: 2026-10-13
+updated: 2026-10-16
 ---
 
 - **Display name**: how the clinic is named in calls and messages.
@@ -36,6 +36,10 @@ updated: 2026-10-13
 - **Appointment reminders**: chat reminders 24 hours and 2 hours before each
   appointment; patients reply 1 confirm, 2 new time, 3 cancel. See the
   appointment reminders page.
+- **Patient sign-up page**: tick **Let new patients sign up from a QR poster**
+  and save. The page is `/join/<clinic link name>` (the same link name as the
+  symptom check; created on first save). **Show QR code** to print the front
+  desk poster. See Patients → Patients signing themselves up.
 - **Symptom check and online booking**: tick **Let patients check symptoms and
   book online** and save. CareCall creates the clinic's link from its name plus
   a random number (e.g. `/check/carecall-test-site-4821`) and shows it with
