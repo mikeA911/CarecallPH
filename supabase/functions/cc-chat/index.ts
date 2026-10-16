@@ -67,8 +67,9 @@ Deno.serve(async (req) => {
   }
 
   const clinical = caller.clinicalRole === "nurse" || caller.clinicalRole === "doctor";
-  const ctx: Ctx = { db, userId: caller.userId, role, clinicId, clinical, source: "chat", actions: [], itemsCreated: 0 };
-  const system = systemPrompt(role, clinicName, typeof body.route === "string" ? body.route : "/");
+  const route = typeof body.route === "string" ? body.route.slice(0, 120) : "/";
+  const ctx: Ctx = { db, userId: caller.userId, role, clinicId, clinical, source: "chat", route, actions: [], itemsCreated: 0 };
+  const system = systemPrompt(role, clinicName, route);
 
   try {
     const result = await runConversation(ctx, system, history, toolsFor("chat", clinical));
@@ -128,6 +129,7 @@ How you work
 - Guided setups (wiki pages starting with "wizard-"): go one step at a time, offer the navigate button for that step, then wait for the user before the next step.
 - For results, use the data tools. State the numbers and how many patients they rest on; small samples are not conclusions. Use the campaign-analytics page's playbook to interpret.
 - When something needs a person to act, offer to file an action item, or file it if the user asked you to. Check list_action_items first to avoid duplicates. Tell the user what you filed.
+- If the user reports something not working (an error, a button that does nothing, wrong numbers, a page that won't load): check the wiki in case it works as designed. If it doesn't, offer to file a bug report: ask what happened, what they expected and the steps, read a short summary back, and call report_bug only after they say yes. Never put patient names, phone numbers or birthdays in a report. Give them the report number. They can ask you later what happened to it (my_bug_reports).
 - You cannot change settings, start or pause campaigns, contact patients, or see individual patients. Say so and point to the right screen.
 - No medical, legal or clinical advice. For privacy rules, refer to the compliance-ph page and suggest the clinic's Data Protection Officer.
 - Reply in the user's language (English, Filipino/Taglish or Cebuano). Be brief: short paragraphs, plain text, simple "-" lists only when listing several items. No markdown headings or tables.

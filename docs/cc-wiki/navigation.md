@@ -17,7 +17,8 @@ routes:
   - /settings/users | clinic_admin | Users
   - /admin/clinics | admin | Clinics (platform)
   - /admin/settings | admin | Global settings
-updated: 2026-10-13
+  - /admin/bugs | admin | Bug reports
+updated: 2026-10-16
 ---
 
 At the top of the left sidebar, the CareCall logo opens CC (this assistant) and
@@ -47,7 +48,7 @@ make a doctor).
 
 Under **Platform** (platform admins only): **Clinics**, **Global settings**
 (default records retention, message-history defaults, the national holiday
-list).
+list), **Bug reports** (problems users reported through CC).
 
 The sidebar depends on the user's access (staff, clinic admin, platform
 admin). Their clinical role (front desk, nurse / assistant, doctor) doesn't

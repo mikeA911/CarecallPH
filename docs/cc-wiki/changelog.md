@@ -9,6 +9,11 @@ updated: 2026-10-16
 
 ## 2026-10-16
 
+- **Report a problem through CC**: tell CC what went wrong (or tap **Report a
+  problem**); it asks a few questions, reads the summary back and files a
+  numbered bug report with the screen you were on. Ask CC later for its status.
+  Platform admins work through them on **Bug reports**.
+
 - **Patient sign-up page**: new patients scan a QR poster at the front desk,
   enter their own details, accept the privacy notice and choose chat messages
   or texts. Those who choose chat connect their app straight away. Turn it on

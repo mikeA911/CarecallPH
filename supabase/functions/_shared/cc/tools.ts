@@ -22,6 +22,8 @@ export type Ctx = {
   /** Nurse or doctor (or the nightly job): may see care-plan reports and clinical action items. */
   clinical: boolean;
   source: "chat" | "nightly";
+  /** Screen the user was on (chat only); stored with bug reports. */
+  route?: string;
   actions: Action[];
   itemsCreated: number;
 };
@@ -93,11 +95,56 @@ export const TOOLS = [
       required: ["title", "detail", "category", "severity"],
     },
   },
+  {
+    name: "report_bug",
+    description: "File a bug report for the CareCall team when something in the portal or a patient page doesn't work as the wiki says. " +
+      "First ask what happened, what they expected and the steps (if they know them), then read the summary back and file it only after the user says yes. " +
+      "Never include patient names, phone numbers, birthdays or other patient details: describe the patient as 'a patient'. The screen the user is on is added automatically.",
+    input_schema: {
+      type: "object",
+      properties: {
+        summary: { type: "string", description: "One line, e.g. 'Book button does nothing on the patient page'" },
+        what_happened: { type: "string", description: "What the user saw, including any error message word for word" },
+        expected: { type: "string", description: "What they expected to happen" },
+        steps: { type: "string", description: "Steps to make it happen again, numbered" },
+        severity: { type: "string", enum: ["blocker", "problem", "annoyance"],
+          description: "blocker: they can't do their work; problem: wrong but there is a way around it; annoyance: small" },
+      },
+      required: ["summary", "what_happened", "severity"],
+    },
+  },
+  {
+    name: "my_bug_reports",
+    description: "The user's own bug reports with their number, status (new, seen, fixed, won't fix) and the CareCall team's note.",
+    input_schema: { type: "object", properties: {} },
+  },
 ];
 
-/** Tool set per caller: the nightly job has no UI, so no navigate; care_report for nurses and doctors. */
+const CHAT_ONLY = new Set(["navigate", "report_bug", "my_bug_reports"]);
+
+/** Tool set per caller: the nightly job has no UI or user, so no navigate or bug reports; care_report for nurses and doctors. */
 export function toolsFor(source: Ctx["source"], clinical = true) {
-  return TOOLS.filter((t) => !(t.name === "navigate" && source !== "chat") && !(t.name === "care_report" && !clinical));
+  return TOOLS.filter((t) => !(CHAT_ONLY.has(t.name) && source !== "chat") && !(t.name === "care_report" && !clinical));
+}
+
+/** A Philippine mobile or other phone-like number: patient details don't belong in a bug report. */
+const PHONE = /(\+?63|\b0)9\d{2}[\s-]?\d{3}[\s-]?\d{4}\b|\+\d[\d\s-]{8,}\d/;
+
+/** Check and tidy a bug report from CC. */
+// deno-lint-ignore no-explicit-any
+export function checkBugReport(input: any):
+  | { ok: true; value: { summary: string; what_happened: string; expected: string | null; steps: string | null; severity: string } }
+  | { ok: false; error: string } {
+  const t = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
+  const summary = t(input?.summary, 140), what = t(input?.what_happened, 2000);
+  const expected = t(input?.expected, 1000) || null, steps = t(input?.steps, 2000) || null;
+  const severity = String(input?.severity ?? "");
+  if (summary.length < 3 || !what) return { ok: false, error: "summary and what_happened are required" };
+  if (!["blocker", "problem", "annoyance"].includes(severity)) return { ok: false, error: "severity must be blocker, problem or annoyance" };
+  if ([summary, what, expected, steps].some((s) => s && PHONE.test(s))) {
+    return { ok: false, error: "The report contains a phone number. Remove patient details (describe them as 'a patient') and try again." };
+  }
+  return { ok: true, value: { summary, what_happened: what, expected, steps, severity } };
 }
 
 /**
@@ -321,6 +368,26 @@ export async function runTool(ctx: Ctx, name: string, input: any): Promise<unkno
       ctx.itemsCreated++;
       if (ctx.source === "chat") ctx.actions.push({ type: "navigate", route: "/cc", label: "View action items" });
       return { ok: true, id: (data as { id: string }).id };
+    }
+
+    case "report_bug": {
+      if (ctx.source !== "chat" || !ctx.userId) return { error: "Bug reports come from a signed-in user." };
+      const c = checkBugReport(input);
+      if (!c.ok) return { error: c.error };
+      const route = ctx.route && /^\/[\w\-/]{0,120}$/.test(ctx.route) ? ctx.route : null;
+      const { data, error } = await ctx.db.from("bug_reports")
+        .insert({ ...c.value, route, clinic_id: ctx.clinicId }).select("id").single();
+      if (error) return { error: error.message };
+      return { ok: true, number: (data as { id: number }).id, note: "Tell the user their report number; the CareCall team reviews reports every working day." };
+    }
+
+    case "my_bug_reports": {
+      if (!ctx.userId) return { error: "No user." };
+      const { data, error } = await ctx.db.from("bug_reports")
+        .select("id, created_at, summary, severity, status, admin_note")
+        .eq("reported_by", ctx.userId).order("created_at", { ascending: false }).limit(20);
+      if (error) return { error: error.message };
+      return { reports: (data ?? []).map((r) => ({ number: r.id, ...r, id: undefined })) };
     }
 
     default:

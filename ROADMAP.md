@@ -419,6 +419,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 
 | Date | Change |
 |---|---|
+| 2026-10-16 | Bug reports through CC: `report_bug` (asks, reads back, files with the screen; refuses phone numbers) and `my_bug_reports`; Admin → Bug reports to triage with a note for the reporter |
 | 2026-10-16 | Patient sign-up page `/join/<clinic>` (front desk QR poster): patients enter their details, accept the privacy notice (version stored), opt in to chat and texts; new records get a pre-verified chat invite (YES only); existing patients are never changed |
 | 2026-10-16 | Staff booking (user stories FD-03, FD-04): book, reschedule and cancel on the patient page from open slots; patient and clinician must share a clinic; appointment changes audited; optional message to the patient (ticked by default) via `appointment-notify` |
 | 2026-10-14 | Domain `carecallph.app` (Vercel): portal on the apex, `PORTAL_URL` and Supabase Site URL updated; ImprovMX mail forwarding; Resend as Supabase SMTP for `noreply@`; Gmail send-as through Resend |

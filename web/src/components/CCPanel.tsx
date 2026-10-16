@@ -86,8 +86,8 @@ export default function CCPanel({ open, onClose }: { open: boolean; onClose: () 
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
 
   const starters = roleAtLeast(role, "clinic_admin")
-    ? ["What needs my attention today?", "How did my latest campaign do?", "Walk me through setting up my first campaign"]
-    : ["What needs my attention today?", "How did my latest campaign do?", "What does “needs human” mean?"];
+    ? ["What needs my attention today?", "How did my latest campaign do?", "Walk me through setting up my first campaign", "Report a problem"]
+    : ["What needs my attention today?", "How did my latest campaign do?", "What does “needs human” mean?", "Report a problem"];
 
   async function send(text: string) {
     const content = text.trim();
@@ -158,7 +158,7 @@ export default function CCPanel({ open, onClose }: { open: boolean; onClose: () 
       <div className="cc-list" ref={listRef} aria-live="polite">
         {msgs.length === 0 && (
           <div className="cc-empty">
-            <p>Hi! I can explain how CareCall works, take you to the right screen, walk you through setup, and look at how your campaigns are doing.</p>
+            <p>Hi! I can explain how CareCall works, take you to the right screen, walk you through setup, and look at how your campaigns are doing. Something not working? Tell me and I'll file a bug report (no patient names or numbers, please).</p>
             <div className="cc-starters">
               {starters.map((s) => <button key={s} className="cc-starter" onClick={() => send(s)}>{s}</button>)}
             </div>
