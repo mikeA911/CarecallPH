@@ -1,6 +1,6 @@
 // Appointment reminder rules (Phase 2c).
 // Run: deno test supabase/functions/_shared/reminders_test.ts
-import { dueKind, inMessagingWindow, parseReminderReply, reminderText, whenText } from "./reminders.ts";
+import { appointmentChangeText, dueKind, inMessagingWindow, parseReminderReply, reminderText, whenText } from "./reminders.ts";
 
 function eq(actual: unknown, expected: unknown, msg = "") {
   const a = JSON.stringify(actual), e = JSON.stringify(expected);
@@ -54,4 +54,17 @@ Deno.test("replies", () => {
   eq(["2", "R", "palit", "Change time"].map(parseReminderReply), Array(4).fill("reschedule"));
   eq(["3", "x", "CANCEL", "kansela"].map(parseReminderReply), Array(4).fill("cancel"));
   eq(["hello", "12", "BOOK", "STOP"].map(parseReminderReply), [null, null, null, null]);
+});
+
+Deno.test("staff booking messages: booked, moved, cancelled", () => {
+  const o = { clinic: "Test Clinic", firstName: "Ana", doctor: "Dr Cruz", now, tz: "Asia/Manila" };
+  const booked = appointmentChangeText("booked", { ...o, startsAt: at(23) });
+  eq(booked.startsWith("Test Clinic: Hi Ana, your appointment is booked for tomorrow, Thursday, October 15 at 9:00 AM with Dr Cruz."), true, booked);
+  eq(booked.includes("Naka-book"), true);
+  const moved = appointmentChangeText("moved", { ...o, startsAt: at(23), previous: at(4), callback: "+63281234567" });
+  eq(moved.includes("moved to tomorrow, Thursday, October 15 at 9:00 AM with Dr Cruz (it was today at 2:00 PM)"), true, moved);
+  eq(moved.includes("Call +63281234567"), true);
+  const cancelled = appointmentChangeText("cancelled", { ...o, firstName: null, doctor: null, startsAt: at(4) });
+  eq(cancelled.startsWith("Test Clinic: your appointment for today at 2:00 PM has been cancelled."), true, cancelled);
+  eq(cancelled.includes("Kinansela"), true);
 });

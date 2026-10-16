@@ -1,7 +1,7 @@
 ---
 id: patients
 title: Patients
-summary: Importing by CSV, phone format, editing details (middle name, sex, address, PhilHealth PIN), consent, do-not-call, chat invites, messages, self sign-up, downloading the record (FHIR).
+summary: CSV import, phone format, editing details, consent, do-not-call, chat invites, self sign-up, messages, booking, moving and cancelling appointments (with a message to the patient), FHIR download.
 roles: staff
 routes:
   - /patients | staff | Patients
@@ -76,6 +76,36 @@ a QR code and ready-made messages in English and Filipino to copy and send from
 the clinic's phone. It isn't available for inactive or do-not-call patients.
 See the messaging-channels page.
 
+## Booking for a patient
+
+Anyone at the clinic can book on the patient's page, under **Appointments**:
+
+1. **Book appointment**, choose the **Clinician** (and **From** a date; **Next
+   7 days** shows later times).
+2. Only open times are shown: the clinician's weekly hours, minus holidays and
+   closed days (Clinic settings → Holidays and closures) and times already
+   booked. Times are in the clinic's time zone.
+3. Tap a time, then **Book**. If someone else took it a moment earlier, you're
+   told and shown the times still open; a time can never be booked twice.
+
+On an upcoming appointment:
+
+- **Reschedule**: pick the new time (or another clinician). The old time opens
+  up at once; reminders go out for the new time.
+- **Cancel**: confirm in the box that opens; the time opens up for others.
+
+**Send the patient a message** is ticked by default when you book, reschedule
+or cancel. The patient gets a short note (English, then Filipino) with the day,
+time and clinician, on their chat app, or by SMS if they agreed to texts. The
+result shows whether it went out; if the patient isn't connected to a chat app
+or is do-not-call, nothing is sent and you're told to contact them yourself.
+Untick it when you've already told them in person.
+
+The patient gets the usual chat reminders 24 hours and 2 hours before (if
+reminders are on and they're connected to a chat app). Bookings, moves and
+cancellations are recorded in the audit log. Restricted or inactive records
+can't be booked.
+
 ## Patient detail
 
 **Edit details** (clinic admins): first, middle and last name, sex, email,
@@ -95,7 +125,7 @@ consent and adherence; see the medicine reminders page), **Chat apps** (each app
 they said YES, and a status: Waiting for birthday, Birthday didn't match, Waiting
 for YES, Active or Stopped messages), the
 last 20 **Messages** sent and received, their **Appointments** (when, clinician,
-how it was booked: AI call, booking link or symptom check, status, and
+how it was booked: AI call, booking link, symptom check or staff, status, and
 reminders sent and the patient's answer), and
 their **Call history** across campaigns. A booking from the symptom check also
 shows what the patient shared: urgency, kind of doctor, symptoms and any
