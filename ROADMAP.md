@@ -476,6 +476,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 | Date | Change |
 |---|---|
 | 2026-10-16 | Design: the patient sign-up page (QR poster) for pharmacies and labs, opt-ins by organization type, sharing as a separate opt-in (`docs/care-platform-design.md` §4) |
+| 2026-10-16 | Patient sign-up page `/join/<clinic>` (front desk QR poster): patients enter their details, accept the privacy notice (version stored), opt in to chat and texts; new records get a pre-verified chat invite (YES only); existing patients are never changed |
 | 2026-10-14 | Product family designed: CareMeds (pharmacies), CareLabs (laboratories), CareLink as the shared record open to any lab or provider; organizations and memberships (phase O); `docs/care-platform-design.md` |
 | 2026-10-14 | Domain `carecallph.app` (Vercel): portal on the apex, `PORTAL_URL` and Supabase Site URL updated; ImprovMX mail forwarding; Resend as Supabase SMTP for `noreply@`; Gmail send-as through Resend |
 | 2026-10-13 | Pilot hardening: holidays and clinic closures in slot generation; nightly purge of old messages and call records; Telnyx webhook signatures required |

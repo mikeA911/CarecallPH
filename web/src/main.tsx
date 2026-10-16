@@ -4,9 +4,9 @@ import { BrowserRouter } from "react-router-dom";
 import "./styles.css";
 import { supabaseConfigProblems } from "./lib/env";
 
-// Patient links (/book/…, /connect/…, /check) load only the small public app; everything
+// Patient links (/book/…, /connect/…, /check, /join/…) load only the small public app; everything
 // else loads the staff portal. Each is a separate download, chosen on page load.
-const isPublic = /^\/(book\/|connect\/|check(\/|$))/.test(window.location.pathname);
+const isPublic = /^\/(book\/|connect\/|join\/|check(\/|$))/.test(window.location.pathname);
 // Two separate lazy() calls: one import() per expression keeps Vite from
 // preloading the staff chunk on patient pages.
 const Root = isPublic ? lazy(() => import("./PublicApp")) : lazy(() => import("./StaffApp"));

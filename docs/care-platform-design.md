@@ -176,8 +176,8 @@ unique by organization, phone and birthday). A pharmacy pilot needs nothing more
 
 ### Sign-up at every organization (QR poster)
 
-Clinics get a self sign-up page first (`/join/<clinic>`, branch
-`patient-signup`): a new patient scans the poster at the front desk, enters
+Clinics already have a self sign-up page (`/join/<clinic>`, built in
+October 2026): a new patient scans the poster at the front desk, enters
 name, mobile and birthday, accepts the privacy notice and opts in to chat and
 texts; a new record gets a chat invite that skips the birthday question. After
 phase O the same page serves every organization type, at the drugstore counter

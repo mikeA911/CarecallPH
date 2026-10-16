@@ -4,7 +4,7 @@ title: Messaging channels (Viber, Messenger, WhatsApp, Telegram, SMS)
 summary: How patients opt in to chat apps, which channel CareCall uses, keywords patients can reply, limits.
 roles: staff
 routes: []
-updated: 2026-10-11
+updated: 2026-10-16
 ---
 
 ## Which channel is used
@@ -30,7 +30,10 @@ channel.
      code and ready-made messages in English and Filipino to send from the
      clinic's phone or show at the front desk; or
    - inside a text message from CareCall, when **Chat app invites in text
-     messages** is on in Clinic settings.
+     messages** is on in Clinic settings; or
+   - on the clinic's sign-up page, right after a new patient registers
+     (Patients → Patients signing themselves up). That invite works for 1 day
+     and skips the birthday question in step 3.
 2. The link opens a page with a button for each app the clinic has set up.
 3. The app opens a chat with the clinic's assistant, which first asks for the
    patient's **date of birth**, to confirm the invite reached the right person.
