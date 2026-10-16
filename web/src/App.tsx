@@ -21,6 +21,7 @@ import ClinicSettings from "./pages/settings/ClinicSettings";
 import Users from "./pages/settings/Users";
 import Profile from "./pages/settings/Profile";
 import AdminClinics from "./pages/admin/Clinics";
+import BugReports from "./pages/admin/BugReports";
 import AdminSettings from "./pages/admin/Settings";
 import CCActions from "./pages/CCActions";
 import Readings from "./pages/Readings";
@@ -182,6 +183,7 @@ function Sidebar({ onOpenCC }: { onOpenCC: () => void }) {
           <div className="nav-sep">Platform</div>
           <NavLink to="/admin/clinics">Clinics</NavLink>
           <NavLink to="/admin/settings">Global settings</NavLink>
+          <NavLink to="/admin/bugs">Bug reports</NavLink>
         </>
       )}
 
@@ -232,6 +234,7 @@ export default function App() {
           <Route path="/settings/profile" element={<Profile />} />
           <Route path="/admin/clinics" element={<Guard min="admin"><AdminClinics /></Guard>} />
           <Route path="/admin/settings" element={<Guard min="admin"><AdminSettings /></Guard>} />
+          <Route path="/admin/bugs" element={<Guard min="admin"><BugReports /></Guard>} />
           <Route path="*" element={<Navigate to="/" replace state={{ from: location }} />} />
         </Routes>
       </main>
