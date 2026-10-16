@@ -412,6 +412,25 @@ withdraw any time). Design: `docs/care-plan-design.md`.
 review times at the pilot clinic; e-prescription rules confirmed. Dangerous
 drugs (S2) are out of scope.
 
+## Phase HP: Health programmes (drives and care schedules)
+
+Design: `docs/health-programmes-design.md`. After the first clinic pilot, once
+a clinic has enough patients who opted in. Nothing reaches a patient without
+the `health_programmes` consent; enrolment in an ongoing programme is its own
+consent, asked by a nurse or doctor.
+
+| Item | Notes |
+|---|---|
+| Consent scope `health_programmes` | Sign-up box (unticked), chat ask with wording version, STOP PROGRAMMES |
+| Campaign audiences | Filter by age band, sex, last visit; care plan or programme for nurses and doctors only; counts first |
+| Drives | Vaccination or screening days with their own slots; doctor-approved message templates; results on the pilot dashboard |
+| Programme engine | Doctor-signed templates (schedule offsets, English and Filipino messages, warning signs), enrolment, booking invitations |
+| Child vaccinations | National schedule by age, dose records, missed-dose action items, FHIR Immunization |
+| Maternity | Antenatal visits from the expected delivery date, between-visit messages and warning signs, postnatal check, baby moved to child vaccinations |
+
+**Gate:** first clinic pilot running; the clinic's doctors approve the
+schedules and wording; DPO confirms the consent wording.
+
 ## Phase O: Organizations and memberships
 
 Foundation for CareMeds and CareLabs. Design: `docs/care-platform-design.md` §3.
@@ -477,6 +496,7 @@ compliance. Pseudonymized RPM data is still sensitive health data.
 |---|---|
 | 2026-10-16 | Bug reports through CC: `report_bug` (asks, reads back, files with the screen; refuses phone numbers) and `my_bug_reports`; page errors and failed requests attached; optional screenshot with patient details blurred (preview first, 90-day purge); Admin → Bug reports to triage with a note for the reporter |
 | 2026-10-16 | Design: the patient sign-up page (QR poster) for pharmacies and labs, opt-ins by organization type, sharing as a separate opt-in (`docs/care-platform-design.md` §4) |
+| 2026-10-16 | Health programmes designed (`docs/health-programmes-design.md`, phase HP): `health_programmes` consent, campaign audiences, vaccination and screening drives, doctor-signed programme templates for child vaccinations and maternity |
 | 2026-10-16 | Patient sign-up page `/join/<clinic>` (front desk QR poster): patients enter their details, accept the privacy notice (version stored), opt in to chat and texts; new records get a pre-verified chat invite (YES only); existing patients are never changed |
 | 2026-10-16 | Staff booking (user stories FD-03, FD-04): book, reschedule and cancel on the patient page from open slots; patient and clinician must share a clinic; appointment changes audited; optional message to the patient (ticked by default) via `appointment-notify` |
 | 2026-10-14 | Product family designed: CareMeds (pharmacies), CareLabs (laboratories), CareLink as the shared record open to any lab or provider; organizations and memberships (phase O); `docs/care-platform-design.md` |

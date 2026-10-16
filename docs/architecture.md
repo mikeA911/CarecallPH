@@ -263,4 +263,5 @@ keeps `record_disposals`, blanks the patient's data in `audit_log`).
 | [care-plan-design.md](care-plan-design.md) | Clinical roles, medicine reminders, prescriptions, vital signs, clinical notes |
 | [fhir-design.md](fhir-design.md) | FHIR-ready records, PH Core mapping, export |
 | [care-platform-design.md](care-platform-design.md) | Future product family: CareMeds, CareLabs, CareLink shared record; organizations and memberships |
+| [health-programmes-design.md](health-programmes-design.md) | Future: health-programme consent, campaign audiences, vaccination and screening drives, maternity and child-vaccination schedules |
 | [self-booking-link-spec.md](self-booking-link-spec.md) | Booking links |

@@ -530,6 +530,7 @@ controls, NPC registration, breach-response procedure, processing agreements.
 | [docs/care-plan-design.md](docs/care-plan-design.md) | Clinical roles, medicines, prescriptions, vital signs, clinical notes |
 | [docs/fhir-design.md](docs/fhir-design.md) | FHIR-ready records and the PH Core export |
 | [docs/care-platform-design.md](docs/care-platform-design.md) | Product family (CareCall, CareMeds, CareLabs, CareLink), organizations and memberships, shared patient record |
+| [docs/health-programmes-design.md](docs/health-programmes-design.md) | Health programmes: consent, campaign audiences, vaccination drives, maternity and child-vaccination schedules |
 | [docs/messaging-channels.md](docs/messaging-channels.md) | Chat channel design and platform setup |
 | [docs/cc-assistant.md](docs/cc-assistant.md) | CC architecture, nightly review, wiki workflow |
 | [docs/cc-wiki/README.md](docs/cc-wiki/README.md) | How to write CC wiki pages |
