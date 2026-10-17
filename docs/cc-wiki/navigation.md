@@ -28,9 +28,9 @@ The left sidebar has these items:
 
 - **Dashboard**: the pilot dashboard on top (today's appointments, past visits
   to mark came or no-show, action items, readings, and the pilot results; see
-  the pilot-dashboard page), then appointment slots, a map of the clinic (its
-  location is set in Clinic settings → **Find on map**), patient call history
-  and recent activity.
+  the pilot-dashboard page), then **Clinic tools** (appointment slots, a map of
+  the clinic, set in Clinic settings → **Find on map**, and patient call
+  history) and recent activity. Each group folds by clicking its title.
 - **Review queue**: patients who need a human (failed identity check, asked for
   a person, dialing problems). The number badge shows how many are waiting.
 - **Campaigns**: list of campaigns and their progress. Open one for detail.
