@@ -5,6 +5,7 @@ import { useSession, roleAtLeast } from "../lib/session";
 import { useClinic } from "../lib/clinic";
 import { statusLabel, type AuditEntry } from "../lib/types";
 import PilotDashboard from "../components/PilotDashboard";
+import Collapsible from "../components/Collapsible";
 
 type LiveRow = {
   campaign_id: string; patient_id: string; status: string; updated_at: string;
@@ -36,6 +37,7 @@ export default function Dashboard() {
 
   const [feed, setFeed] = useState<LiveRow[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [newBugs, setNewBugs] = useState<number | null>(null);
 
   // Window 5: appointment slots (available + booked)
   const [slots, setSlots] = useState<SlotRow[]>([]);
@@ -63,6 +65,11 @@ export default function Dashboard() {
       setFeed((recent as unknown as LiveRow[]) ?? []);
     } else {
       setFeed([]);
+    }
+
+    if (isAdmin) {
+      const { count } = await supabase.from("bug_reports").select("id", { count: "exact", head: true }).eq("status", "new");
+      setNewBugs(count ?? 0);
     }
 
     if (isClinicAdmin) {
@@ -186,12 +193,17 @@ export default function Dashboard() {
       {/* ---------- Pilot dashboard: today's work and the pilot's numbers ---------- */}
       <PilotDashboard />
       {isAdmin && (
-        <div className="cards" style={{ marginTop: "var(--sp-3)" }}>
-          <div className="card"><div className="num">{clinics.length}</div><div className="lbl">Clinics on the platform</div></div>
-        </div>
+        <Collapsible id="platform" title="Platform" summary={`${clinics.length} clinics · ${newBugs ?? 0} new bug reports`}>
+          <div className="cards">
+            <Link to="/admin/clinics" className="card card-link"><div className="num">{clinics.length}</div><div className="lbl">Clinics on the platform</div></Link>
+            <Link to="/admin/bugs" className="card card-link"><div className="num">{newBugs ?? "—"}</div><div className="lbl">New bug reports</div></Link>
+          </div>
+        </Collapsible>
       )}
 
-      {/* ---------- New windows: calendar / location / patient search ---------- */}
+      {/* ---------- Clinic tools: calendar / location / patient search ---------- */}
+      <Collapsible id="clinic-tools" title="Clinic tools" defaultOpen={false}
+        summary="Appointment slots, clinic map, patient call history">
       <div className="window-grid">
         {/* 5. Appointment-slots calendar */}
         <div className="window">
@@ -277,8 +289,12 @@ export default function Dashboard() {
         </div>
       </div>
 
+      </Collapsible>
+
       {/* ---------- Live activity ---------- */}
-      <h2><span className="live-dot" aria-hidden />Live activity</h2>
+      <Collapsible id="live-activity" defaultOpen={false}
+        title={<><span className="live-dot" aria-hidden />Live campaign activity</>}
+        summary={feed.length ? `${feed.length} recent updates` : "No campaign activity yet"}>
       <table>
         <thead><tr><th>Patient</th><th>Status</th><th>Updated</th></tr></thead>
         <tbody>
@@ -289,13 +305,14 @@ export default function Dashboard() {
               <td>{new Date(r.updated_at).toLocaleTimeString()}</td>
             </tr>
           ))}
-          {!feed.length && <tr><td colSpan={3} className="empty">No call activity yet.</td></tr>}
+          {!feed.length && <tr><td colSpan={3} className="empty">No campaign activity yet.</td></tr>}
         </tbody>
       </table>
+      </Collapsible>
 
       {isClinicAdmin && (
-        <>
-          <h2>Recent management activity</h2>
+        <Collapsible id="management-activity" title="Recent management activity" defaultOpen={false}
+          summary={audit.length ? `Last: ${audit[0].action.replace(/_/g, " ")}, ${new Date(audit[0].created_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}` : "None yet"}>
           <table>
             <thead><tr><th>Action</th><th>Target</th><th>When</th></tr></thead>
             <tbody>
@@ -309,7 +326,7 @@ export default function Dashboard() {
               {!audit.length && <tr><td colSpan={3} className="empty">No recent activity.</td></tr>}
             </tbody>
           </table>
-        </>
+        </Collapsible>
       )}
 
       <footer className="copyright">&copy; 2026 CareCall</footer>

@@ -889,3 +889,15 @@ html.bug-capture-mask main.content :is(th, label, button, h2, h3, .badge, [role=
 .cc-shot { margin-top: 8px; padding: 10px; border: 1px solid var(--border, #E2E8F0); border-radius: 10px; background: #fff; }
 .cc-shot img { max-width: 100%; border: 1px solid var(--border, #E2E8F0); border-radius: 6px; margin: 8px 0; }
 .cc-actions .cc-shot { flex-basis: 100%; }
+
+/* Dashboard groups (components/Collapsible.tsx) */
+.collapsible { margin-bottom: var(--sp-3, 20px); }
+.collapsible-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.collapsible-title { margin: 0; flex: 1; min-width: 0; }
+.collapsible-toggle { display: flex; align-items: baseline; gap: 8px; width: 100%; background: none; border: 0; padding: 4px 0; cursor: pointer;
+  color: inherit; text-align: left; font: inherit; }
+.collapsible-toggle:hover { color: var(--blue); background: none; }
+.collapsible-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 6px; }
+.collapsible-chevron { color: var(--muted); width: 1em; flex: none; }
+.collapsible-summary { color: var(--muted); font-size: 13px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collapsible:not(.is-open) { border-bottom: 1px solid var(--border, #E2E8F0); padding-bottom: 4px; }

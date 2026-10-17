@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { roleAtLeast, useSession } from "../lib/session";
 import { useClinic } from "../lib/clinic";
+import Collapsible from "./Collapsible";
 
 type Pilot = {
   days: number; clinical: boolean; baseline_no_show_pct: number | null;
@@ -111,10 +112,10 @@ export default function PilotDashboard() {
   const perDoctorWeek = c && c.doctors_signing > 0 ? (c.notes_signed / c.doctors_signing / (d.days / 7)).toFixed(1) : "—";
 
   return (
-    <section className="pilot-dash">
-      <div className="row-actions" style={{ justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-        <h2 style={{ margin: 0 }}>Today</h2>
-      </div>
+    <div className="pilot-dash">
+      <Collapsible id="today" title="Today"
+        summary={`${t.appointments} appointments · ${t.to_mark} to mark · ${t.action_items} action items` +
+          (d.clinical ? ` · ${t.readings_to_review ?? 0} readings to review` : "")}>
       <div className="cards">
         <Tile num={t.appointments} label="Appointments today" sub={`${t.confirmed} confirmed by the patient`} />
         <Tile num={t.not_confirmed} label="Still to come, not confirmed" sub="Booked, no reply to the reminder yet" />
@@ -155,14 +156,16 @@ export default function PilotDashboard() {
           </table>
         </div>
       )}
+      </Collapsible>
 
-      <div className="row-actions" style={{ justifyContent: "space-between", alignItems: "baseline", margin: "20px 0 8px" }}>
-        <h2 style={{ margin: 0 }}>Pilot results</h2>
-        <select aria-label="Period" value={days} onChange={(e) => setDays(Number(e.target.value) as 7 | 30)} style={{ width: "auto" }}>
-          <option value={7}>Last 7 days</option>
-          <option value={30}>Last 30 days</option>
-        </select>
-      </div>
+      <Collapsible id="pilot-results" title="Pilot results"
+        summary={`Last ${d.days} days · no-show ${p.no_show_pct === null ? "—" : `${p.no_show_pct}%`} · ${p.signups} sign-ups · ${p.booked} booked`}
+        actions={
+          <select aria-label="Period" value={days} onChange={(e) => setDays(Number(e.target.value) as 7 | 30)} style={{ width: "auto" }}>
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+          </select>
+        }>
       <div className="cards">
         <Tile num={p.no_show_pct === null ? "—" : `${p.no_show_pct}%`} label="No-show rate" sub={noShowSub} />
         <Tile num={p.signups} label="Self sign-ups" sub={`${p.new_patients} new patients in all`} to="/patients" />
@@ -199,7 +202,8 @@ export default function PilotDashboard() {
           </span>
         )}
       </p>
+      </Collapsible>
       {err && <p className="small" role="alert">{err}</p>}
-    </section>
+    </div>
   );
 }

@@ -8,6 +8,15 @@ routes:
 updated: 2026-10-16
 ---
 
+## Folding the groups
+
+Each group on the Dashboard (**Today**, **Pilot results**, **Clinic tools**,
+**Live campaign activity**, **Recent management activity**, and **Platform**
+for platform admins) folds and unfolds by clicking its title. A folded group
+shows its key numbers on one line. The browser remembers what you folded.
+**Clinic tools** (appointment slots, the clinic map, patient call history) and
+the activity lists start folded.
+
 ## Today
 
 The top of the **Dashboard** shows the day's work for the selected clinic:
